@@ -3,6 +3,7 @@ use std::{io::ErrorKind, net::TcpListener, sync::Arc};
 
 use anyhow::Result;
 
+use log::info;
 use tokio::{sync::Mutex, time::sleep};
 
 use crate::{core::Maxima, lsx::connection::Connection};
@@ -12,7 +13,7 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
 
     let listener = TcpListener::bind(&addr)?;
     listener.set_nonblocking(true)?;
-    log::info!("Listening on: {}", addr);
+    info!("Listening on: {}", addr);
 
     let mut connections: Vec<Connection> = Vec::new();
 
@@ -35,7 +36,7 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
             }
         };
 
-        log::info!("Got a connection from {:?}", addr);
+        info!("Got a connection from {:?}", addr);
         let mut conn = Connection::new(new_maxima, socket);
         conn.send_challenge().unwrap();
         connections.push(conn);

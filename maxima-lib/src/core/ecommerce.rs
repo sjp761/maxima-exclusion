@@ -39,7 +39,7 @@ pub async fn request_offer_data(
     offer: &str,
     locale: &str,
 ) -> Result<CommerceOffer> {
-    let res = ureq::get(&format!("{}/private/{}/{}", API_ECOMMERCE, offer, locale))
+    let res = ureq::get(&format!("{}/public/{}/{}", API_ECOMMERCE, offer, locale))
         .set("AuthToken", access_token)
         .call()?;
     if res.status() != StatusCode::OK {
@@ -47,7 +47,7 @@ pub async fn request_offer_data(
     }
 
     let text = res.into_string()?;
-    let result = quick_xml::de::from_str(text.as_str())?;
+    let result = serde_json::from_str(text.as_str())?;
     Ok(result)
 }
 
@@ -117,9 +117,9 @@ ecommerce_type!(
 ecommerce_type!(
     Software;
     attr {
-        softwarePlatform: String,
     },
     data {
+        software_platform: String,
         software_id: String,
         fulfillment_attributes: CommerceFulfillmentAttributes,
     }
@@ -160,13 +160,12 @@ ecommerce_type!(
 
 ecommerce_type!(
     Offer;
-    attr {
-        itemName: String,
-        offerType: String,
-        offerId: String,
-        projectNumber: String,
-    },
+    attr {},
     data {
+        item_name: String,
+        offer_type: String,
+        offer_id: String,
+        project_number: String,
         item_id: String,
         store_group_id: String,
         finance_id: String,

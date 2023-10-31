@@ -55,7 +55,7 @@ pub fn check_registry_validity() -> Result<()> {
 }
 
 #[cfg(target_family = "windows")]
-pub fn read_game_path(name: String) -> Result<PathBuf> {
+pub fn read_game_path(name: &str) -> Result<PathBuf> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 
     let mut key = hklm.open_subkey(format!("SOFTWARE\\EA Games\\{}", name));

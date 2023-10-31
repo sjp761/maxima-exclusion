@@ -1,3 +1,5 @@
+use std::env;
+
 use anyhow::Result;
 use log::{Record, Level, Metadata, LevelFilter};
 
@@ -6,8 +8,14 @@ pub static LOGGER: SimpleLogger = SimpleLogger;
 
 impl log::Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        let log_level = if cfg!(debug_assertions) {
-            Level::Info
+        let enable_debug = if let Ok(x) = env::var("MAXIMA_LOG_LEVEL") {
+            x == "debug"
+        } else {
+            false
+        };
+
+        let log_level = if enable_debug {
+            Level::Debug
         } else {
             Level::Info
         };

@@ -1,5 +1,6 @@
 /target
 /.vscode
+/.idea
 
 maxima-native/bindings.h
 maxima-native/test/*

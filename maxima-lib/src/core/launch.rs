@@ -91,7 +91,7 @@ pub async fn start_game(
     let path = if game_path_override.is_some() {
         PathBuf::from(game_path_override.as_ref().unwrap())
     } else {
-        read_game_path(software)
+        read_game_path(&software)
             .expect("Failed to find game path")
             .join("starwarsbattlefrontii.exe")
     };
@@ -123,7 +123,7 @@ pub async fn start_game(
         .env("EAExternalSource", "EA")
         .env("EAFreeTrialGame", "false")
         .env("EAGameLocale", maxima.locale.full_str())
-        .env("EAGenericAuthToken", maxima.access_token.to_owned())
+        //.env("EAGenericAuthToken", maxima.access_token.to_owned())
         .env("EALaunchCode", "4AULYZZ2KJSN2RMHEVUH")
         .env("EALaunchEAID", user.player.unwrap().display_name)
         .env("EALaunchEnv", "production")

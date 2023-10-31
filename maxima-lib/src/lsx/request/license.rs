@@ -46,7 +46,11 @@ pub async fn handle_license_request(
     //     }
     // });
     if let Ok(_) = std::env::var("MAXIMA_ENABLE_KYBER") {
-        ureq::get(&format!("http://127.0.0.1:{}/initialize", std::env::var("KYBER_INTERFACE_PORT")?)).call()?;
+        ureq::get(&format!(
+            "http://127.0.0.1:{}/initialize",
+            std::env::var("KYBER_INTERFACE_PORT")?
+        ))
+        .call()?;
     }
 
     make_lsx_handler_response!(Response, RequestLicenseResponse, { attr_License: license.game_token.unwrap() })

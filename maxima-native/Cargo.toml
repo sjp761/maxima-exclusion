@@ -20,8 +20,6 @@ serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.97"
 quick-xml = { version = "0.29.0", features = ["serialize"] }
 paste = "1.0.12"
-egui = "0.22.0"
-eframe = "0.22.0"
 anyhow = "1.0.71"
 openssl = "0.10.55"
 hex = "0.4.3"
@@ -35,9 +33,7 @@ regex = "1.8.4"
 directories = "5.0.1"
 open = "4.2.0"
 querystring = "1.1.0"
-apollo-parser = "0.5.3"
-apollo-encoder = "0.6.0"
-ureq = "2.7.1"
+ureq = { version = "2.8.0", features = ["native-certs"] }
 sysinfo = "0.29.7"
 
 [target.'cfg(windows)'.dependencies]
@@ -54,7 +50,6 @@ winapi = { version = "0.3.9", features = [
     "tcpmib",
     "winsvc",
 ] }
-winsafe = { version = "0.0.16", features = ["kernel", "taskschd"] }
 winreg = "0.50.0"
 windows-service = "0.6.0"
 is_elevated = "0.1.2"

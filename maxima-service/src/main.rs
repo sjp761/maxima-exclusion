@@ -7,6 +7,7 @@ use actix_web::{get, post, web, HttpResponse, Responder};
 use anyhow::Result;
 use dll_syringe::process::OwnedProcess;
 use dll_syringe::Syringe;
+use log::info;
 use maxima::util::registry::set_up_registry;
 use maxima::util::service::SERVICE_NAME;
 use std::ffi::OsString;
@@ -23,6 +24,12 @@ use windows_service::{
 };
 
 use maxima::core::background_service::{ServiceLibraryInjectionRequest, BACKGROUND_SERVICE_PORT};
+
+use crate::error::ServiceError;
+use crate::hash::get_sha256_hash_of_pid;
+
+mod error;
+mod hash;
 
 define_windows_service!(ffi_service_main, service_main);
 
@@ -43,8 +50,7 @@ fn bootstrap_service(_arguments: Vec<OsString>) -> windows_service::Result<()> {
     };
 
     // Register system service event handler
-    let status_handle =
-        service_control_handler::register(SERVICE_NAME, event_handler)?;
+    let status_handle = service_control_handler::register(SERVICE_NAME, event_handler)?;
 
     let next_status = ServiceStatus {
         // Should match the one from system service registry
@@ -74,7 +80,7 @@ fn bootstrap_service(_arguments: Vec<OsString>) -> windows_service::Result<()> {
 
 #[get("/set_up_registry")]
 async fn req_set_up_registry() -> impl Responder {
-    log::info!("Setting up registry");
+    info!("Setting up registry");
     let result = set_up_registry();
     if result.is_err() {
         return format!("Error: {}", result.err().unwrap());
@@ -84,10 +90,17 @@ async fn req_set_up_registry() -> impl Responder {
 }
 
 #[post("/inject_library")]
-async fn req_inject_library(body: web::Bytes) -> Result<HttpResponse, actix_web::Error> {
-    log::info!("Injecting...");
+async fn req_inject_library(body: web::Bytes) -> Result<HttpResponse, ServiceError> {
+    info!("Injecting...");
     let obj: ServiceLibraryInjectionRequest = serde_json::from_slice(&body)?;
     let process = OwnedProcess::from_pid(obj.pid)?;
+    let hash_result = get_sha256_hash_of_pid(obj.pid);
+    if hash_result.is_err() {
+        return Err(ServiceError::InternalError);
+    }
+
+    info!("Process hash: {}", hex::encode(hash_result.unwrap()));
+
     let syringe = Syringe::for_process(process);
     syringe.inject(obj.path).unwrap();
 
@@ -103,7 +116,7 @@ fn run_service() -> Result<()> {
         .with_default_writer(new_writer(log_file))
         .init();
 
-    log::info!("Started Background Service");
+    info!("Started Background Service");
 
     thread::spawn(|| {
         actix_web::rt::System::new().block_on(async {

@@ -42,8 +42,12 @@ macro_rules! load_graphql_request {
     ($operation:expr) => {{
         let content = include_str!(concat!("graphql/", $operation, ".gql"));
         let hash = Sha256::new().update(content.as_bytes()).finalize();
-        GraphQLRequest { query: content, operation: $operation, hash }
-    }}
+        GraphQLRequest {
+            query: content,
+            operation: $operation,
+            hash,
+        }
+    }};
 }
 
 macro_rules! define_graphql_request {
@@ -93,10 +97,12 @@ where
         },
     };
 
+    let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
+
     let mut request = if full_query {
-        ureq::post(API_SERVICE_AGGREGATION_LAYER)
+        agent.post(API_SERVICE_AGGREGATION_LAYER)
     } else {
-        ureq::get(API_SERVICE_AGGREGATION_LAYER)
+        agent.get(API_SERVICE_AGGREGATION_LAYER)
     };
 
     request = request.set("Authorization", &("Bearer ".to_string() + access_token));
@@ -131,6 +137,22 @@ where
 
     let text = res.into_string()?;
     let result = serde_json::from_str::<Value>(text.as_str())?;
+    let errors = result.get("errors");
+    if errors.is_some() {
+        let errors = errors.unwrap().as_array().unwrap();
+        let error = if let Value::Object(o) = &errors[0] {
+            o
+        } else {
+            bail!("Service request '{}' failed", operation.operation);
+        };
+
+        bail!(
+            "Service request '{}' failed: {}",
+            operation.operation,
+            error.get("message").unwrap().as_str().unwrap()
+        );
+    }
+
     let data = result
         .get("data")
         .unwrap()
@@ -272,6 +294,7 @@ service_layer_enum!(OwnershipMethod, {
     Purchase,
     Redemption,
     GiftReceipt,
+    GiftPurchase,
     EntitlementGrant,
     DirectEntitlement,
     PreOrderPurchase,

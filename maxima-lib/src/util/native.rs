@@ -7,7 +7,7 @@ use std::{
 use anyhow::{bail, Result};
 
 #[cfg(target_family = "windows")]
-use std::os::windows::prelude::OsStringExt;
+use std::os::windows::prelude::{OsStrExt, OsStringExt};
 
 #[cfg(target_family = "windows")]
 use winapi::{
@@ -49,17 +49,15 @@ pub fn get_hwnd() -> Result<HWND> {
         let window_name = CString::new("Maxima").expect("Failed to create native string");
         let mut hwnd = FindWindowA(std::ptr::null(), window_name.as_ptr());
         if !hwnd.is_null() {
-            println!("Is not null");
-            Ok(hwnd)
-        } else {
-            hwnd = GetConsoleWindow();
-            if !hwnd.is_null() {
-                //bail!("Failed to find native window");
-                Ok(hwnd)
-            } else {
-                bail!("Failed to find native window");
-            }
+            return Ok(hwnd);
         }
+
+        hwnd = GetConsoleWindow();
+        if hwnd.is_null() {
+            bail!("Failed to find native window");
+        }
+
+        Ok(hwnd)
     }
 }
 
@@ -80,7 +78,16 @@ pub fn take_foreground_focus() -> Result<()> {
 #[cfg(target_family = "windows")]
 pub fn get_module_path() -> Result<PathBuf> {
     // Get a handle to the DLL
-    let hmodule = unsafe { GetModuleHandleW(null_mut()) };
+    let mut maxima_mod_name = OsString::from("maxima.dll")
+        .encode_wide()
+        .collect::<Vec<_>>();
+    maxima_mod_name.push(0);
+
+    let mut hmodule = unsafe { GetModuleHandleW(maxima_mod_name.as_mut_ptr()) };
+    if hmodule.is_null() {
+        hmodule = unsafe { GetModuleHandleW(null_mut()) };
+    }
+
     if hmodule.is_null() {
         bail!("Failed to find module");
     }

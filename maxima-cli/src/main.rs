@@ -2,7 +2,9 @@ use clap::{Parser, ValueEnum};
 
 use anyhow::{bail, Result};
 use inquire::Select;
+use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
+use regex::Regex;
 use tokio::{sync::Mutex, time::sleep};
 
 use std::{sync::Arc, time::Duration, vec::Vec};
@@ -11,8 +13,7 @@ use is_elevated::is_elevated;
 
 use maxima::{
     core::{
-        self,
-        auth::get_auth_code,
+        auth::{execute_auth_exchange, login::{begin_oauth_login_flow, manual_login}},
         background_service::request_registry_setup,
         ecommerce::request_offer_data,
         launch,
@@ -30,6 +31,10 @@ use maxima::{
     },
 };
 
+lazy_static! {
+    static ref MANUAL_LOGIN_PATTERN: Regex = Regex::new(r"^(.*):(.*)$").unwrap();
+}
+
 #[derive(ValueEnum, Debug, Clone, PartialEq)]
 enum Mode {
     Launch,
@@ -46,7 +51,7 @@ struct Args {
     mode: Mode,
 
     #[arg(long)]
-    access_token: Option<String>,
+    login: Option<String>,
 
     #[arg(long)]
     client_id: Option<String>,
@@ -95,10 +100,23 @@ async fn startup() -> Result<()> {
     }
 
     debug!("Logging in...");
-    let token = if let Some(access_token) = args.access_token {
-        Some(access_token)
+    let token = if let Some(access_token) = args.login {
+        if let Some(captures) = MANUAL_LOGIN_PATTERN.captures(&access_token) {
+            let persona = &captures[1];
+            let password = &captures[2];
+
+            let login_result = manual_login(persona, password).await;
+            if login_result.is_err() {
+                error!("Login failed: {}", login_result.err().unwrap().to_string());
+                return Ok(());
+            }
+
+            Some(login_result.unwrap())
+        } else {
+            Some(access_token)
+        }
     } else {
-        core::auth::login::execute().await.unwrap()
+        begin_oauth_login_flow().await.unwrap()
     };
 
     if token.is_none() {
@@ -206,7 +224,7 @@ async fn print_auth_token(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
 async fn create_auth_code(maxima_arc: Arc<Mutex<Maxima>>, client_id: &str) -> Result<()> {
     let maxima = maxima_arc.lock().await;
 
-    let auth_code = get_auth_code(&maxima.access_token, client_id).await?;
+    let auth_code = execute_auth_exchange(&maxima.access_token, client_id, "code").await?;
     info!("Auth Code for {}: {}", client_id, auth_code);
     Ok(())
 }

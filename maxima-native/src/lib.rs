@@ -5,34 +5,69 @@ use std::{
     sync::Arc,
 };
 
-use serde::{Deserialize, Serialize};
+use anyhow::{bail, Error, Result};
 
 use maxima::{
-    core::{
-        auth::login,
-        background_service::request_registry_setup,
-        launch,
-        service_layer::{send_service_request, GraphQLRequest, ServiceGetBasicPlayerRequest},
-        Maxima, MaximaEvent,
-    },
+    core::{auth::login, background_service::request_registry_setup, launch, Maxima, MaximaEvent},
     util::{
-        registry::check_registry_validity,
-        service::{is_service_running, is_service_valid, register_service_user, start_service},
+        log::init_logger,
+        native::take_foreground_focus,
+        registry::{check_registry_validity, read_game_path},
+        service::{
+            is_service_running, is_service_valid, register_service_user, start_service,
+            stop_service,
+        },
     },
 };
 use tokio::{runtime::Runtime, sync::Mutex};
 
 pub const ERR_SUCCESS: usize = 0;
 pub const ERR_UNKNOWN: usize = 1;
-pub const ERR_LOGIN_FAILED: usize = 2;
-pub const ERR_INVALID_ARGUMENT: usize = 3;
+pub const ERR_CHECK_LE: usize = 2;
+pub const ERR_LOGIN_FAILED: usize = 3;
+pub const ERR_INVALID_ARGUMENT: usize = 4;
+
+static mut LAST_ERROR: Option<String> = None;
+
+/// Get the last error.
+#[no_mangle]
+pub unsafe extern "C" fn maxima_get_last_error() -> *const c_char {
+    if LAST_ERROR.is_none() {
+        return std::ptr::null();
+    }
+
+    CString::new(LAST_ERROR.to_owned().unwrap())
+        .unwrap()
+        .into_raw()
+}
+
+fn set_last_error(err: Error) {
+    unsafe { LAST_ERROR = Some(err.to_string()) };
+}
+
+fn set_last_error_from_result<T>(result: Result<T>) {
+    set_last_error(result.err().unwrap());
+}
+
+/// Set up Maxima's logging.
+#[no_mangle]
+pub extern "C" fn maxima_init_logger() -> usize {
+    let result = init_logger();
+    if result.is_err() {
+        set_last_error(result.err().unwrap().into());
+        return ERR_CHECK_LE;
+    }
+
+    ERR_SUCCESS
+}
 
 /// Create an asynchronous runtime.
 #[no_mangle]
 pub extern "C" fn maxima_create_runtime(runtime_out: *mut *mut c_void) -> usize {
     let result = Runtime::new();
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error(result.err().unwrap().into());
+        return ERR_CHECK_LE;
     }
 
     let runtime = Box::new(result.unwrap());
@@ -46,7 +81,8 @@ pub extern "C" fn maxima_create_runtime(runtime_out: *mut *mut c_void) -> usize 
 pub extern "C" fn maxima_is_service_valid(out: *mut bool) -> usize {
     let result = is_service_valid();
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     unsafe { *out = result.unwrap() };
@@ -58,7 +94,8 @@ pub extern "C" fn maxima_is_service_valid(out: *mut bool) -> usize {
 pub extern "C" fn maxima_is_service_running(out: *mut bool) -> usize {
     let result = is_service_running();
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     unsafe { *out = result.unwrap() };
@@ -70,20 +107,22 @@ pub extern "C" fn maxima_is_service_running(out: *mut bool) -> usize {
 pub extern "C" fn maxima_register_service() -> usize {
     let result = register_service_user();
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     ERR_SUCCESS
 }
 
-/// Start the Maxima Background Service
+/// Start the Maxima Background Service.
 #[no_mangle]
 pub extern "C" fn maxima_start_service(runtime: *mut *mut Runtime) -> usize {
     let rt = unsafe { Box::from_raw(*runtime) };
-    let result = rt.block_on(async { start_service().await });
 
+    let result = rt.block_on(async { start_service().await });
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     unsafe {
@@ -93,20 +132,39 @@ pub extern "C" fn maxima_start_service(runtime: *mut *mut Runtime) -> usize {
     ERR_SUCCESS
 }
 
-/// Check if the Windows Registry is properly set up for Maxima
+/// Stop the Maxima Background Service.
+#[no_mangle]
+pub extern "C" fn maxima_stop_service(runtime: *mut *mut Runtime) -> usize {
+    let rt = unsafe { Box::from_raw(*runtime) };
+
+    let result = rt.block_on(async { stop_service().await });
+    if result.is_err() {
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
+    }
+
+    unsafe {
+        *runtime = Box::into_raw(rt);
+    }
+
+    ERR_SUCCESS
+}
+
+/// Check if the Windows Registry is properly set up for Maxima.
 #[no_mangle]
 pub extern "C" fn maxima_check_registry_validity() -> bool {
     check_registry_validity().is_ok()
 }
 
-/// Request the Maxima Background Service to set up the Windows Registry
+/// Request the Maxima Background Service to set up the Windows Registry.
 #[no_mangle]
 pub extern "C" fn maxima_request_registry_setup(runtime: *mut *mut Runtime) -> usize {
     let rt = unsafe { Box::from_raw(*runtime) };
     let result = rt.block_on(async { request_registry_setup().await });
 
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     unsafe { *runtime = Box::into_raw(rt) }
@@ -119,9 +177,10 @@ pub extern "C" fn maxima_request_registry_setup(runtime: *mut *mut Runtime) -> u
 pub extern "C" fn maxima_login(runtime: *mut *mut Runtime, token_out: *mut *mut c_char) -> usize {
     let rt = unsafe { Box::from_raw(*runtime) };
 
-    let result = rt.block_on(async { login::execute().await });
+    let result = rt.block_on(async { login::begin_oauth_login_flow().await });
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     let token = result.unwrap();
@@ -131,7 +190,8 @@ pub extern "C" fn maxima_login(runtime: *mut *mut Runtime, token_out: *mut *mut 
 
     let raw_token = CString::new(token.unwrap());
     if raw_token.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error(raw_token.err().unwrap().into());
+        return ERR_CHECK_LE;
     }
 
     unsafe {
@@ -142,14 +202,14 @@ pub extern "C" fn maxima_login(runtime: *mut *mut Runtime, token_out: *mut *mut 
     ERR_SUCCESS
 }
 
-/// Creates a Maxima object.
+/// Create a Maxima object.
 #[no_mangle]
 pub extern "C" fn maxima_mx_create() -> *const c_void {
     let maxima_arc = Arc::new(Mutex::new(Maxima::new()));
     Arc::into_raw(maxima_arc) as *const c_void
 }
 
-/// Sets the stored token retrieved from [maxima_login].
+/// Set the stored token retrieved from [maxima_login].
 #[no_mangle]
 pub extern "C" fn maxima_mx_set_access_token(
     runtime: *mut *mut Runtime,
@@ -176,7 +236,7 @@ pub extern "C" fn maxima_mx_set_access_token(
     ERR_SUCCESS
 }
 
-/// Starts the LSX server used for game communication.
+/// Start the LSX server used for game communication.
 #[no_mangle]
 pub extern "C" fn maxima_mx_start_lsx(runtime: *mut *mut Runtime, mx: *mut *const c_void) -> usize {
     if runtime.is_null() || mx.is_null() {
@@ -196,7 +256,8 @@ pub extern "C" fn maxima_mx_start_lsx(runtime: *mut *mut Runtime, mx: *mut *cons
     };
 
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     ERR_SUCCESS
@@ -287,26 +348,22 @@ pub extern "C" fn maxima_launch_game(
     };
 
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
     }
 
     ERR_SUCCESS
 }
 
-/// Send a request to the EA Service Layer
-fn maxima_send_service_request<T, R>(
+/// Find an owned game's offer ID by its slug.
+#[no_mangle]
+pub extern "C" fn maxima_find_owned_offer(
     runtime: *mut *mut Runtime,
     mx: *mut *const c_void,
-    token: *const c_char,
-    operation: &GraphQLRequest,
-    variables: T,
-    response_out: *mut R,
-) -> usize
-where
-    T: Serialize,
-    R: for<'a> Deserialize<'a>,
-{
-    if runtime.is_null() || mx.is_null() || token.is_null() {
+    c_game_slug: *const c_char,
+    offer_id_out: *mut *const c_char,
+) -> usize {
+    if runtime.is_null() || mx.is_null() || c_game_slug.is_null() || offer_id_out.is_null() {
         return ERR_INVALID_ARGUMENT;
     }
 
@@ -315,8 +372,19 @@ where
 
         let rt = Box::from_raw(*runtime);
         let result = rt.block_on(async {
-            let token = parse_raw_string(token);
-            send_service_request::<T, R>(&token, operation, variables).await
+            let game_slug = parse_raw_string(c_game_slug);
+
+            let maxima = maxima_arc.lock().await;
+            let owned_games = maxima.get_owned_games(1).await?;
+            for game in owned_games.owned_game_products.unwrap().items {
+                if game.product.game_slug != game_slug {
+                    continue;
+                }
+
+                return Ok(game.origin_offer_id);
+            }
+
+            bail!("Failed to find game");
         });
 
         *runtime = Box::into_raw(rt);
@@ -325,11 +393,130 @@ where
     };
 
     if result.is_err() {
-        return ERR_UNKNOWN;
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
+    }
+
+    unsafe {
+        *offer_id_out = CString::new(result.unwrap()).unwrap().into_raw();
     }
 
     ERR_SUCCESS
 }
+
+/// Get the local user's display name.
+#[no_mangle]
+pub extern "C" fn maxima_get_local_display_name(
+    runtime: *mut *mut Runtime,
+    mx: *mut *const c_void,
+    display_name_out: *mut *const c_char,
+) -> usize {
+    if runtime.is_null() || mx.is_null() || display_name_out.is_null() {
+        return ERR_INVALID_ARGUMENT;
+    }
+
+    let result = unsafe {
+        let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
+
+        let rt = Box::from_raw(*runtime);
+        let result: Result<String> = rt.block_on(async {
+            let maxima = maxima_arc.lock().await;
+            let user = maxima.get_local_user().await?;
+            return Ok(user.player.unwrap().display_name);
+        });
+
+        *runtime = Box::into_raw(rt);
+        *mx = Arc::into_raw(maxima_arc) as *const c_void;
+        result
+    };
+
+    if result.is_err() {
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
+    }
+
+    unsafe {
+        *display_name_out = CString::new(result.unwrap()).unwrap().into_raw();
+    }
+
+    ERR_SUCCESS
+}
+
+/// Pull the application's window into the foreground.
+#[no_mangle]
+pub extern "C" fn maxima_take_foreground_focus() -> usize {
+    let result = take_foreground_focus();
+    if result.is_err() {
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
+    }
+
+    ERR_SUCCESS
+}
+
+/// Read the path for an EA game.
+#[no_mangle]
+pub extern "C" fn maxima_read_game_path(
+    c_name: *const c_char,
+    c_out_path: *mut *const c_char,
+) -> usize {
+    if c_name.is_null() {
+        return ERR_INVALID_ARGUMENT;
+    }
+
+    let name = unsafe { parse_raw_string(c_name) };
+    let result = read_game_path(&name);
+    if result.is_err() {
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
+    }
+
+    unsafe {
+        *c_out_path = CString::new(result.unwrap().to_str().unwrap())
+            .unwrap()
+            .into_raw();
+    }
+
+    ERR_SUCCESS
+}
+
+/// Send a request to the EA Service Layer
+// fn maxima_send_service_request<T, R>(
+//     runtime: *mut *mut Runtime,
+//     mx: *mut *const c_void,
+//     token: *const c_char,
+//     operation: &GraphQLRequest,
+//     variables: T,
+//     response_out: *mut R,
+// ) -> usize
+// where
+//     T: Serialize,
+//     R: for<'a> Deserialize<'a>,
+// {
+//     if runtime.is_null() || mx.is_null() || token.is_null() {
+//         return ERR_INVALID_ARGUMENT;
+//     }
+
+//     let result = unsafe {
+//         let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
+
+//         let rt = Box::from_raw(*runtime);
+//         let result = rt.block_on(async {
+//             let token = parse_raw_string(token);
+//             send_service_request::<T, R>(&token, operation, variables).await
+//         });
+
+//         *runtime = Box::into_raw(rt);
+//         *mx = Arc::into_raw(maxima_arc) as *const c_void;
+//         result
+//     };
+
+//     if result.is_err() {
+//         return ERR_UNKNOWN;
+//     }
+
+//     ERR_SUCCESS
+// }
 
 // TODO: Need to find a good way to do this
 /* #[no_mangle]

@@ -246,6 +246,24 @@ pub async fn start_service() -> Result<()> {
     Ok(())
 }
 
+pub async fn stop_service() -> Result<()> {
+    let service_manager = get_service_manager(false)?;
+
+    let service_result =
+        service_manager.open_service(OsString::from(SERVICE_NAME), ServiceAccess::STOP);
+    if let Some(windows_service::Error::Winapi(code)) = service_result.as_ref().err() {
+        bail!("Failed to stop background service! {}", code);
+    }
+
+    service_result.unwrap().stop()?;
+
+    while is_service_running()? {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    Ok(())
+}
+
 pub fn register_service_user() -> Result<()> {
     if !is_elevated() {
         launch_bootstrap()?;

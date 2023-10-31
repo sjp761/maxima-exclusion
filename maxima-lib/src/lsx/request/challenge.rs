@@ -42,7 +42,7 @@ pub async fn handle_challenge_response(
                 .unwrap(),
         )
         .await?;
-    }
+    } 
 
     debug!(
         "Encryption key: {}, version: {}",

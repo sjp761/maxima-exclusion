@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
         println!("Result: {}", str_result);
 
         // Pause terminal
-        std::io::Read::read(&mut std::io::stdin(), &mut [0]).unwrap();
+        //std::io::Read::read(&mut std::io::stdin(), &mut [0]).unwrap();
     }
 
     Ok(())

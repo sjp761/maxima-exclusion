@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <Windows.h>
+
+typedef const char* (*maxima_get_last_error_t)();
+typedef size_t (*maxima_init_logger_t)();
 
 // Concurrency Functions
 typedef size_t (*maxima_create_runtime_t)(void** runtime_out);
@@ -23,15 +27,38 @@ typedef size_t (*maxima_mx_set_access_token_t)(void** runtime, void** mx, const 
 typedef size_t (*maxima_mx_start_lsx_t)(void** runtime, void** mx);
 typedef size_t (*maxima_mx_consume_lsx_events_t)(void** runtime, void** mx, char*** events_out, unsigned int* event_count_out);
 typedef size_t (*maxima_mx_free_lsx_events_t)(char** events, unsigned int event_count);
+typedef size_t (*maxima_find_owned_offer_t)(void** runtime, void** mx, const char* game_slug, const char** offer_id_out);
+typedef size_t (*maxima_get_local_display_name_t)(void** runtime, void** mx, const char** display_name_out);
 
 // Game Functions
 typedef size_t (*maxima_launch_game_t)(void** runtime, void** mx, const char* offer_id);
 
 #define DefineProc(mod, type) type##_t type = (type##_t) GetProcAddress(mod, #type);
-#define ValidateRet(func) { size_t code = func; if (code != 0) { printf("Failure: %s/%d\n", #func, code); return 0; } }
+
+#define ERR_CHECK_LE 2
+#define ValidateRet(func) \
+    { \
+        size_t code = func; \
+        if (code != 0) \
+        { \
+            if (code == ERR_CHECK_LE) \
+            { \
+                const char* errStr = maxima_get_last_error(); \
+                printf("Function '%s' failed: %s\n", #func, errStr); \
+            } \
+            else \
+            { \
+                printf("Function '%s' failed: %d\n", #func, (int)code); \
+            } \
+            return 0; \
+        } \
+    }
 
 int main() {
 	HMODULE mod = LoadLibrary("maxima.dll");
+
+    DefineProc(mod, maxima_get_last_error);
+    DefineProc(mod, maxima_init_logger);
 
     // Concurrency Functions
     DefineProc(mod, maxima_create_runtime);
@@ -50,12 +77,17 @@ int main() {
     DefineProc(mod, maxima_mx_start_lsx);
     DefineProc(mod, maxima_mx_consume_lsx_events);
     DefineProc(mod, maxima_mx_free_lsx_events);
+    DefineProc(mod, maxima_find_owned_offer);
+    DefineProc(mod, maxima_get_local_display_name);
 
     // Authentication Functions
     DefineProc(mod, maxima_login);
 
     // Game Functions
     DefineProc(mod, maxima_launch_game);
+
+    //_putenv_s("MAXIMA_LOG_LEVEL", "debug");
+    ValidateRet(maxima_init_logger());
 
     void* runtime;
     ValidateRet(maxima_create_runtime(&runtime));
@@ -92,12 +124,19 @@ int main() {
 
     void* maxima = maxima_mx_create();
     ValidateRet(maxima_mx_set_access_token(&runtime, &maxima, token));
-    printf("Starting LSX server...\n");
 
+    const char* username = NULL;
+    ValidateRet(maxima_get_local_display_name(&runtime, &maxima, &username));
+    printf("Welcome %s!\n", username);
+    
+    const char* offerId = NULL;
+    ValidateRet(maxima_find_owned_offer(&runtime, &maxima, "star-wars-battlefront-2", &offerId));
+
+    printf("Starting LSX server...\n");
     ValidateRet(maxima_mx_start_lsx(&runtime, &maxima));
 
-    printf("Launching game...\n");
-    ValidateRet(maxima_launch_game(&runtime, &maxima, "Origin.OFR.50.0001523"));
+    printf("Launching game (%s)...\n", offerId);
+    ValidateRet(maxima_launch_game(&runtime, &maxima, offerId));
 
     while (1) {
         char** events;
