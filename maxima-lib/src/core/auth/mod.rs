@@ -70,8 +70,7 @@ pub async fn execute_auth_exchange(
 }
 
 #[derive(Debug, Deserialize)]
-struct TokenResponse
-{
+struct TokenResponse {
     access_token: String,
     token_type: String,
     expires_in: u32,
@@ -81,9 +80,7 @@ struct TokenResponse
 
 // Unfinished
 pub async fn execute_connect_token(code: &str) -> Result<TokenResponse> {
-    let query = vec![
-        ("grant_type", "authorization_code"),
-    ];
+    let query = vec![("grant_type", "authorization_code")];
 
     let client = Client::builder()
         .redirect(redirect::Policy::none())
@@ -124,7 +121,7 @@ pub async fn execute_connect_token(code: &str) -> Result<TokenResponse> {
     } else {
         url.query()
     };
-    
+
     let response: TokenResponse = serde_json::from_str(&res.text().await?)?;
     Ok(response)
 }
