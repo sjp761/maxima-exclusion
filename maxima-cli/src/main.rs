@@ -242,11 +242,18 @@ async fn list_games(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
         )
         .await?;
 
+        let content_id = offer.publishing.publishing_attributes.content_id;
+        let content_id = if content_id.is_some() {
+            content_id.unwrap()
+        } else {
+            "No Content ID".to_owned()
+        };
+
         info!(
             "{:<width$} - {:<width2$} - {}",
             game.product.name.replace("\n", ""),
             game.origin_offer_id,
-            offer.publishing.publishing_attributes.content_id,
+            content_id,
             width = 55,
             width2 = 25
         );

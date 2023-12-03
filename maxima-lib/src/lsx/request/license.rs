@@ -20,7 +20,7 @@ pub async fn handle_license_request(
     let access_token = connection.get_access_token().await;
 
     let license = request_license(
-        offer.publishing.publishing_attributes.content_id.as_str(),
+        offer.publishing.publishing_attributes.content_id.unwrap().as_str(),
         "ca5f9ae34d7bcd895e037a17769de60338e6e84",
         access_token.as_str(),
         Some(request.attr_RequestTicket.as_str()),

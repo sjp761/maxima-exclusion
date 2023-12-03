@@ -1,7 +1,10 @@
 use base64::{engine::general_purpose, Engine};
 use log::info;
 use std::{env, path::PathBuf, sync::Arc, vec::Vec};
-use tokio::{process::{Command, Child}, sync::Mutex};
+use tokio::{
+    process::{Child, Command},
+    sync::Mutex,
+};
 
 use anyhow::Result;
 
@@ -59,8 +62,15 @@ pub async fn start_game(
 
     let offer =
         request_offer_data(&maxima.access_token, offer_id, maxima.locale.full_str()).await?;
+    let content_id = offer
+        .publishing
+        .publishing_attributes
+        .content_id
+        .as_ref()
+        .unwrap()
+        .to_owned();
+
     maxima.playing = Some(ActiveGameContext::new(offer.clone()));
-    let content_id = offer.publishing.publishing_attributes.content_id.to_owned();
 
     info!(
         "Requesting pre-game license for {}...",

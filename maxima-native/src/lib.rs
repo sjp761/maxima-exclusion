@@ -1,6 +1,6 @@
 use core::slice;
 use std::{
-    ffi::{CStr, CString},
+    ffi::{CStr, CString, c_ushort},
     os::raw::{c_char, c_uint, c_void},
     sync::Arc,
 };
@@ -236,6 +236,25 @@ pub extern "C" fn maxima_mx_set_access_token(
     ERR_SUCCESS
 }
 
+/// Set the port to be used for the LSX server. This will be automatically passed to games.
+/// Note that not every game supports a custom LSX port, the default is 3216.
+#[no_mangle]
+pub unsafe extern "C" fn maxima_mx_set_lsx_port(
+    runtime: *mut *mut Runtime,
+    mx: *mut *const c_void,
+    port: c_ushort,
+) {
+    let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
+
+    let rt = Box::from_raw(*runtime);
+    rt.block_on(async {
+        maxima_arc.lock().await.lsx_port = port;
+    });
+
+    *runtime = Box::into_raw(rt);
+    *mx = Arc::into_raw(maxima_arc) as *const c_void;
+}
+
 /// Start the LSX server used for game communication.
 #[no_mangle]
 pub extern "C" fn maxima_mx_start_lsx(runtime: *mut *mut Runtime, mx: *mut *const c_void) -> usize {
@@ -269,6 +288,7 @@ pub extern "C" fn maxima_mx_consume_lsx_events(
     runtime: *mut *mut Runtime,
     mx: *mut *const c_void,
     events_out: *mut *mut *const c_char,
+    event_pids_out: *mut *mut c_uint,
     event_count_out: *mut c_uint,
 ) -> usize {
     if runtime.is_null() || mx.is_null() {
@@ -287,15 +307,17 @@ pub extern "C" fn maxima_mx_consume_lsx_events(
     };
 
     let mut c_strings = Vec::with_capacity(events.len());
+    let mut c_pids = Vec::with_capacity(events.len());
     for event in events.iter() {
-        let lsx_request = if let MaximaEvent::ReceivedLSXRequest(_pid, r) = event {
-            r
+        let (pid, lsx_request) = if let MaximaEvent::ReceivedLSXRequest(pid, request) = event {
+            (pid, request)
         } else {
             continue;
         };
 
         let name: &'static str = lsx_request.into();
         c_strings.push(CString::new(name).unwrap());
+        c_pids.push(*pid);
     }
 
     let mut raw_strings = Vec::with_capacity(c_strings.len());
@@ -305,6 +327,7 @@ pub extern "C" fn maxima_mx_consume_lsx_events(
 
     unsafe {
         *events_out = Box::into_raw(raw_strings.into_boxed_slice()) as *mut *const c_char;
+        *event_pids_out = Box::into_raw(c_pids.into_boxed_slice()) as *mut u32;
         *event_count_out = events.len() as u32;
     }
 
@@ -378,6 +401,10 @@ pub extern "C" fn maxima_find_owned_offer(
             let owned_games = maxima.get_owned_games(1).await?;
             for game in owned_games.owned_game_products.unwrap().items {
                 if game.product.game_slug != game_slug {
+                    continue;
+                }
+
+                if !game.product.downloadable {
                     continue;
                 }
 

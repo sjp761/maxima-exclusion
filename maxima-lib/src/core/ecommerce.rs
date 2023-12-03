@@ -105,7 +105,7 @@ ecommerce_type!(
     PublishingAttributes;
     attr {},
     data {
-        content_id: String,
+        content_id: Option<String>,
         grey_market_controls: Option<bool>,
         is_downloadable: bool,
         game_distribution_sub_type: Option<String>,
