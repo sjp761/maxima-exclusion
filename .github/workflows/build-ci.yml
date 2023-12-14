@@ -13,10 +13,14 @@ jobs:
 
     continue-on-error: ${{ matrix.experimental }}  
     strategy:
+      fail-fast: false
       matrix:
         rust-version: [nightly]
         os: [ubuntu-latest, windows-latest]
         experimental: [false]
+
+    env:
+      CARGO_TERM_COLOR: always
 
     steps:
     - name: Checkout the repo
@@ -35,6 +39,11 @@ jobs:
         toolchain: ${{ matrix.rust-version }}
         override: true
         components: rustfmt, clippy
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ${{ runner.os}}-rust-deps
+        save-if: ${{ github.ref == 'refs/heads/master' }}
 
     - name: Cache OpenSSL
       id: cache-openssl
@@ -68,18 +77,6 @@ jobs:
           ${{ github.workspace }}\vcpkg\installed\x64-windows-static-md
         key: ${{ runner.os }}-vcpkg-openssl
 
-    - name: Cache Rust Dependencies
-      id: cache-rust-deps
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~\.cargo\bin
-          ~\.cargo\registry\index
-          ~\.cargo\registry\cache
-          ~\.cargo\git\db
-          target\release
-        key: ${{ runner.os }}-rust-deps
-
     - name: Build Maxima
       if: matrix.os == 'windows-latest'
       run: |
@@ -105,15 +102,10 @@ jobs:
           target/release/maxima-bootstrap.exe
           target/release/maxima-service.exe
 
-    - name: Check libs
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        ls -la target/release
-
     - uses: actions/upload-artifact@v3
       if: matrix.os == 'ubuntu-latest'
       with:
         name: maxima-x86_64-linux-gnu
         path: |
-          target/release/maxima-cli
-          target/release/maxima-bootstrap
+          target/x86_64-unknown-linux-gnu/release/maxima-cli
+          target/x86_64-unknown-linux-gnu/release/maxima-bootstrap

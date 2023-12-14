@@ -87,7 +87,7 @@ pub fn get_module_path() -> Result<PathBuf> {
 
     let mut hmodule = unsafe { GetModuleHandleW(maxima_mod_name.as_mut_ptr()) };
     if hmodule.is_null() {
-        hmodule = unsafe { GetModuleHandleW(null_mut()) };
+        hmodule = unsafe { GetModuleHandleW(std::ptr::null_mut()) };
     }
 
     if hmodule.is_null() {
