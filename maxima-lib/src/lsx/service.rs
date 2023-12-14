@@ -18,8 +18,6 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
     let mut connections: Vec<Connection> = Vec::new();
 
     loop {
-        let new_maxima = maxima.clone();
-
         let mut idx = 0 as usize;
         while idx < connections.len() {
             let result = connections[idx].listen().await;
@@ -45,7 +43,8 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
         };
 
         info!("Got a connection from {:?}", addr);
-        let mut conn = Connection::new(new_maxima, socket);
+        
+        let mut conn = Connection::new(maxima.clone(), socket);
         conn.send_challenge().unwrap();
         connections.push(conn);
     }

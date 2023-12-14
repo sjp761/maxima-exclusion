@@ -232,6 +232,11 @@ impl MaximaThread {
                                 "F:\\Games\\ea\\Anthem\\Anthem.exe"
                                     .to_owned(),
                             )
+                        } else if offer_id.eq("Origin.OFR.50.0002148") {
+                            Some(
+                                "/home/battledash/games/battlefront/starwarsbattlefrontii.exe"
+                                    .to_owned(),
+                            )
                         } else {
                             None
                         };

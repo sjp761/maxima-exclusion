@@ -77,14 +77,16 @@ impl Maxima {
         }
     }
 
-    pub async fn start_lsx(&self, arc: Arc<Mutex<Maxima>>) -> Result<()> {
+    pub async fn start_lsx(&self, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
         let lsx_port = self.lsx_port;
+
         tokio::spawn(async move {
-            if let Err(e) = lsx::service::start_server(lsx_port, arc).await {
+            if let Err(e) = lsx::service::start_server(lsx_port, maxima).await {
                 error!("Error starting LSX server: {}", e);
             }
         });
 
+        tokio::task::yield_now().await;
         Ok(())
     }
 
