@@ -100,7 +100,7 @@ impl Maxima {
     }
 
     pub async fn get_local_user(&self) -> Result<ServiceUser> {
-        let cache_key = "basic_player";
+        let cache_key = "user_player";
         let cached = self.request_cache_grab(&cache_key);
         if cached.is_some() {
             return Ok(cached.unwrap());

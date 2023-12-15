@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate windows_service;
-
 use std::fs::File;
 
 use actix_web::{get, post, web, HttpResponse, Responder};

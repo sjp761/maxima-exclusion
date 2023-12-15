@@ -1,14 +1,13 @@
-use anyhow::Result;
-
 #[cfg(windows)]
-use service::start_service;
+#[macro_use]
+extern crate windows_service;
 
 #[cfg(windows)]
 mod service;
 
 #[cfg(windows)]
 fn main() -> Result<()> {
-    start_service()?;
+    service::start_service()?;
     Ok(())
 }
 

@@ -1,15 +1,9 @@
 use anyhow::Result;
 use log::info;
 
-use crate::{
-    core::service_layer::{
-        send_service_request, ServicePlayer, ServiceGetBasicPlayerRequest,
-        SERVICE_REQUEST_GETBASICPLAYER,
-    },
-    lsx::{
-        connection::Connection,
-        types::{LSXResponseType, LSXShowIGOWindow},
-    },
+use crate::lsx::{
+    connection::Connection,
+    types::{LSXResponseType, LSXShowIGOWindow},
 };
 
 pub async fn handle_show_igo_window_request(
@@ -17,14 +11,12 @@ pub async fn handle_show_igo_window_request(
     request: LSXShowIGOWindow,
 ) -> Result<Option<LSXResponseType>> {
     info!("Got request to show user {}", request.target_id);
-    let data: ServicePlayer = send_service_request(
-        &connection.get_access_token().await,
-        SERVICE_REQUEST_GETBASICPLAYER,
-        ServiceGetBasicPlayerRequest {
-            pd: request.target_id.to_string(),
-        },
-    )
-    .await?;
+
+    let data = connection.get_maxima()
+        .await
+        .get_player_by_id(&request.target_id.to_string())
+        .await?;
+
     info!("{:?}", data);
     Ok(None)
 }
