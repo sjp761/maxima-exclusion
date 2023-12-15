@@ -166,7 +166,7 @@ async fn startup() -> Result<()> {
     match args.mode {
         Mode::Launch => start_game(&args.offer_id.as_ref().expect("Please pass an Origin Offer ID with `--offer-id`. You can obtain one through the `list-games` mode"), args.game_path, args.game_args, maxima_arc.clone()).await,
         Mode::ListGames => list_games(maxima_arc.clone()).await,
-        Mode::AccountInfo => print_auth_token(maxima_arc.clone()).await,
+        Mode::AccountInfo => print_account_info(maxima_arc.clone()).await,
         Mode::CreateAuthCode => create_auth_code(maxima_arc.clone(), &args.client_id.unwrap()).await,
         Mode::Interactive => run_interactive(maxima_arc.clone()).await,
     }?;
@@ -175,7 +175,7 @@ async fn startup() -> Result<()> {
 }
 
 async fn run_interactive(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
-    let launch_options = vec!["Launch Game", "List Games"];
+    let launch_options = vec!["Launch Game", "List Games", "Account Info"];
     let name = Select::new(
         "Welcome to Maxima! What would you like to do?",
         launch_options,
@@ -185,6 +185,7 @@ async fn run_interactive(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
     match name {
         "Launch Game" => interactive_start_game(maxima_arc.clone()).await?,
         "List Games" => list_games(maxima_arc.clone()).await?,
+        "Account Info" => print_account_info(maxima_arc.clone()).await?,
         _ => bail!("Something went wrong."),
     }
 
@@ -223,7 +224,7 @@ async fn interactive_start_game(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
     Ok(())
 }
 
-async fn print_auth_token(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
+async fn print_account_info(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
     let maxima = maxima_arc.lock().await;
     let user = maxima.get_local_user().await?;
 

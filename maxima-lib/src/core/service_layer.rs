@@ -56,10 +56,11 @@ macro_rules! define_graphql_request {
     }}
 }
 
-define_graphql_request!(GetBasicPlayer);
-define_graphql_request!(GetUserPlayer);
+define_graphql_request!(availableBuilds);
 define_graphql_request!(GameImages);
+define_graphql_request!(GetBasicPlayer);
 define_graphql_request!(getPreloadedOwnedGames);
+define_graphql_request!(GetUserPlayer);
 
 pub async fn send_service_request<T, R>(
     access_token: &str,
@@ -370,4 +371,20 @@ service_layer_type!(User, {
     pub pd: Option<String>, // Persona ID
     pub player: Option<ServicePlayer>,
     pub owned_game_products: Option<ServiceUserGameProductCursorPage>,
+});
+
+service_layer_enum!(DownloadType, {
+    Staged,
+    Live
+});
+
+service_layer_type!(AvailableBuild, {
+    pub buildId: String,
+    pub downloadType: Option<ServiceDownloadType>,
+    pub gameVersion: String,
+    pub buildLiveDate: Option<String>,
+});
+
+service_layer_type!(AvailableBuilds, {
+    pub availableBuilds: Vec<ServiceAvailableBuild>,
 });
