@@ -22,8 +22,8 @@ use windows_service::{
 
 use maxima::core::background_service::{ServiceLibraryInjectionRequest, BACKGROUND_SERVICE_PORT};
 
-use crate::error::ServiceError;
-use crate::hash::get_sha256_hash_of_pid;
+use crate::service::error::ServiceError;
+use crate::service::hash::get_sha256_hash_of_pid;
 
 mod error;
 mod hash;

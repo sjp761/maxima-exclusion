@@ -6,7 +6,7 @@ extern crate windows_service;
 mod service;
 
 #[cfg(windows)]
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     service::start_service()?;
     Ok(())
 }

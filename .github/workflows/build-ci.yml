@@ -97,16 +97,19 @@ jobs:
     - uses: actions/upload-artifact@v3
       if: matrix.os == 'windows-latest'
       with:
-        name: maxima-x86_64-win32
+        name: maxima-x86_64-win64
         path: |
-          target/release/maxima-cli.exe
-          target/release/maxima-bootstrap.exe
+          target/release/maxima_native.dll
           target/release/maxima-service.exe
+          target/release/maxima-bootstrap.exe
+          target/release/maxima-cli.exe
 
     - uses: actions/upload-artifact@v3
       if: matrix.os == 'ubuntu-latest'
       with:
         name: maxima-x86_64-linux-gnu
         path: |
-          target/x86_64-unknown-linux-gnu/release/maxima-cli
+          target/x86_64-unknown-linux-gnu/release/libmaxima_native.so
           target/x86_64-unknown-linux-gnu/release/maxima-bootstrap
+          target/x86_64-unknown-linux-gnu/release/maxima-cli
+          target/x86_64-unknown-linux-gnu/release/maxima-ui
