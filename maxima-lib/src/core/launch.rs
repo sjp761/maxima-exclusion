@@ -1,4 +1,5 @@
 use base64::{engine::general_purpose, Engine};
+use derive_getters::Getters;
 use log::info;
 use std::{env, path::PathBuf, sync::Arc, vec::Vec};
 use tokio::{
@@ -31,10 +32,11 @@ pub struct LibraryInjection {
     pub stage: StartupStage,
 }
 
+#[derive(Getters)]
 pub struct ActiveGameContext {
-    pub offer: CommerceOffer,
-    pub injections: Vec<LibraryInjection>,
-    pub process: Child,
+    offer: CommerceOffer,
+    injections: Vec<LibraryInjection>,
+    process: Child,
 }
 
 impl ActiveGameContext {

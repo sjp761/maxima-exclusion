@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
     let mut args: Vec<String> = env::args().collect();
     let result = run(&args).await;
 
-    if cfg!(debug_assertions) {
+    if cfg!(debug_assertions) || env::var("MAXIMA_DEBUG").is_ok() {
         args.remove(0);
         println!("Args: {:?}", &args);
 

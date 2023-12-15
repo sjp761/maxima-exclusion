@@ -24,6 +24,7 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
             if result.is_err() {
                 warn!("LSX connection closed");
                 connections.remove(idx);
+                maxima.lock().await.set_lsx_connections(connections.len() as u16);
                 continue;
             }
             idx = idx + 1;
@@ -34,7 +35,7 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
             Err(err) => {
                 let kind = err.kind();
                 if kind == ErrorKind::WouldBlock {
-                    sleep(Duration::from_millis(10)).await;
+                    sleep(Duration::from_millis(20)).await;
                     continue;
                 }
 
@@ -47,5 +48,7 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
         let mut conn = Connection::new(maxima.clone(), socket);
         conn.send_challenge().unwrap();
         connections.push(conn);
+
+        maxima.lock().await.set_lsx_connections(connections.len() as u16);
     }
 }

@@ -5,11 +5,11 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
 use log::{debug, error, info, warn};
 use regex::Regex;
-use sysinfo::{System, SystemExt, ProcessExt, PidExt};
+use sysinfo::{PidExt, ProcessExt, System, SystemExt};
 use tokio::sync::{Mutex, MutexGuard};
 
 use crate::{
@@ -91,11 +91,16 @@ impl Connection {
         let mut pid = None;
 
         // First attempt to look up the PID through the TCP table
-        let mut i = 0;
-        while pid.is_none() && i < 10 {
-            pid = get_process_id(stream.peer_addr().unwrap().port());
-            std::thread::sleep(Duration::from_secs(1));
-            i += 1;
+        if !cfg!(unix) {
+            let mut i = 0;
+            while pid.is_none() && i < 10 {
+                pid = get_process_id(stream.peer_addr().unwrap().port());
+                std::thread::sleep(Duration::from_secs(1));
+                i += 1;
+            }
+        } else {
+            // Not really needed on linux, this is mainly for games with anti-cheat launchers
+            pid = Some(0);
         }
 
         // If that didn't work, fall back to the exe name we know. We try the TCP table
@@ -146,7 +151,7 @@ impl Connection {
             .playing()
             .as_ref()
             .unwrap()
-            .offer
+            .offer()
             .to_owned()
     }
 
@@ -176,7 +181,9 @@ impl Connection {
         let mut buffer = [0; 1024 * 8];
 
         let n = match self.stream.read(&mut buffer) {
-            Ok(n) if n == 0 => return Ok(()),
+            Ok(n) if n == 0 => {
+                bail!("Connection closed");
+            }
             Ok(n) => n,
             Err(err) => {
                 let kind = err.kind();
@@ -263,7 +270,10 @@ impl Connection {
     ) -> Result<Option<LSXMessageType>> {
         {
             let mut maxima = self.maxima.lock().await;
-            maxima.call_event(MaximaEvent::ReceivedLSXRequest(self.pid, message.value.clone()));
+            maxima.call_event(MaximaEvent::ReceivedLSXRequest(
+                self.pid,
+                message.value.clone(),
+            ));
         }
 
         let result = lsx_message_matcher!(

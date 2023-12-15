@@ -80,7 +80,7 @@ pub struct TokenResponse {
 }
 
 // Unfinished
-pub async fn execute_connect_token(code: &str) -> Result<TokenResponse> {
+pub async fn execute_connect_token(_code: &str) -> Result<TokenResponse> {
     let query = vec![("grant_type", "authorization_code")];
 
     let client = Client::builder()
@@ -117,7 +117,7 @@ pub async fn execute_connect_token(code: &str) -> Result<TokenResponse> {
     }
 
     let url = Url::parse(&redirect_url)?;
-    let query = if use_fragment {
+    let _query = if use_fragment {
         url.fragment()
     } else {
         url.query()

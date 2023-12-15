@@ -341,7 +341,13 @@ async fn start_game(
             }
         }
 
+        if maxima.playing().is_none() {
+            break;
+        }
+
         drop(maxima);
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
+
+    Ok(())
 }

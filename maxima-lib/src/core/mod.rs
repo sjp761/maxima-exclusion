@@ -65,6 +65,7 @@ pub struct Maxima {
 
     lsx_port: u16,
     lsx_event_callback: Option<MaximaLSXEventCallback>,
+    lsx_connections: u16,
 
     #[getter(skip)]
     request_cache: DynamicCache<String>,
@@ -93,6 +94,7 @@ impl Maxima {
             playing: None,
             lsx_port,
             lsx_event_callback: None,
+            lsx_connections: 0,
             request_cache,
             pending_events: Vec::new(),
         }))
@@ -107,7 +109,7 @@ impl Maxima {
             }
         });
 
-        //tokio::task::yield_now().await;
+        tokio::task::yield_now().await;
         Ok(())
     }
 
@@ -236,5 +238,20 @@ impl Maxima {
 
     pub fn set_lsx_port(&mut self, port: u16) {
         self.lsx_port = port;
+    }
+
+    pub(super) fn set_lsx_connections(&mut self, connections: u16) {
+        self.lsx_connections = connections;
+
+        if self.lsx_connections > 0 || self.playing.is_none() {
+            return;
+        }
+
+        let playing = self.playing.as_ref().unwrap();
+        if playing.process().id().is_some() {
+            return;
+        }
+
+        self.playing = None;
     }
 }

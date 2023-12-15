@@ -130,9 +130,15 @@ pub fn maxima_dir() -> Result<PathBuf> {
 pub fn maxima_dir() -> Result<PathBuf> {
     use std::{env, fs::create_dir_all};
 
-    let home = env::var("HOME")?;
-    let path = PathBuf::from(format!("{}/.maxima", home));
+    let home = if let Ok(home) = env::var("XDG_DATA_HOME") {
+        home
+    } else if let Ok(home) = env::var("HOME") {
+        format!("{}/.local/share", home)
+    } else {
+        bail!("You don't have a HOME environment variable set");
+    };
 
+    let path = PathBuf::from(format!("{}/maxima", home));
     create_dir_all(&path)?;
     Ok(path)
 }
