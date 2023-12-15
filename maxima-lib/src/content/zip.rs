@@ -18,6 +18,8 @@ const ZIP64_EOCD_FIXED_PART_SIZE: u32 = 56;
 
 const ZIP_FILE_HEADER_SIGNATURE: u32 = 0x02014b50;
 
+const MAX_BACKSCAN_OFFSET: usize = 6 * 1024 * 1024;
+
 fn signature_scan(data: &[u8], signature: u32) -> Option<usize> {
     let signature_bytes = signature.to_le_bytes();
     let signature_len = signature_bytes.len();
@@ -324,9 +326,7 @@ pub fn fetch_zip_manifest(url: &str) -> Result<ZipFile> {
     let content_length = response.header("content-length").unwrap();
     let content_length = content_length.parse::<i64>().unwrap_or(0);
 
-    let max_offset: usize = 6 * 1024 * 1024;
-    let mut data: Vec<u8> = Vec::with_capacity(max_offset);
-
+    let mut data: Vec<u8> = Vec::with_capacity(MAX_BACKSCAN_OFFSET);
     let mut offset = content_length - 8 * 1024;
     if offset < 0 {
         bail!("Something went wrong while requesting a zip manifest");
@@ -334,7 +334,7 @@ pub fn fetch_zip_manifest(url: &str) -> Result<ZipFile> {
 
     let mut zip = ZipFile::default();
 
-    while offset >= 0 && data.len() < max_offset {
+    while offset >= 0 && data.len() < MAX_BACKSCAN_OFFSET {
         let read = content_length - offset - data.len() as i64;
         let start_offset = content_length - data.len() as i64 - read;
         let end_offset = start_offset + read;

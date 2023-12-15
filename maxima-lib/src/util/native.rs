@@ -78,7 +78,7 @@ pub fn take_foreground_focus() -> Result<()> {
 }
 
 #[cfg(windows)]
-pub fn get_module_path() -> Result<PathBuf> {
+pub fn module_path() -> Result<PathBuf> {
     // Get a handle to the DLL
     let mut maxima_mod_name = OsString::from("maxima.dll")
         .encode_wide()

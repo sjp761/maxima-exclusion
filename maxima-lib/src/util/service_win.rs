@@ -20,13 +20,13 @@ use windows_service::service_manager::{ServiceManager, ServiceManagerAccess};
 
 use is_elevated::is_elevated;
 
-use super::native::get_module_path;
+use super::native::module_path;
 use super::registry::launch_bootstrap;
 
 pub const SERVICE_NAME: &str = "MaximaBackgroundService";
 
 pub fn register_service() -> Result<()> {
-    let service_manager = get_service_manager(true)?;
+    let service_manager = service_manager(true)?;
 
     let service_info = ServiceInfo {
         name: OsString::from(SERVICE_NAME),
@@ -34,7 +34,7 @@ pub fn register_service() -> Result<()> {
         service_type: ServiceType::OWN_PROCESS | ServiceType::INTERACTIVE_PROCESS,
         start_type: ServiceStartType::OnDemand,
         error_control: ServiceErrorControl::Normal,
-        executable_path: get_service_path()?,
+        executable_path: service_path()?,
         launch_arguments: vec![],
         dependencies: vec![],
         account_name: None,
@@ -194,7 +194,7 @@ pub unsafe fn init_service_security() -> Result<()> {
 }
 
 pub fn is_service_valid() -> Result<bool> {
-    let service_manager = get_service_manager(false)?;
+    let service_manager = service_manager(false)?;
 
     let result =
         service_manager.open_service(OsString::from(SERVICE_NAME), ServiceAccess::QUERY_CONFIG);
@@ -206,11 +206,11 @@ pub fn is_service_valid() -> Result<bool> {
 
     let service = result.unwrap();
     let config = service.query_config()?;
-    if config.executable_path != get_service_path()? {
+    if config.executable_path != service_path()? {
         debug!(
             "Service config invalid: {:?}/{:?}",
             config.executable_path,
-            get_service_path()?
+            service_path()?
         );
         return Ok(false);
     }
@@ -219,7 +219,7 @@ pub fn is_service_valid() -> Result<bool> {
 }
 
 pub fn is_service_running() -> Result<bool> {
-    let service_manager = get_service_manager(false)?;
+    let service_manager = service_manager(false)?;
 
     let service =
         service_manager.open_service(OsString::from(SERVICE_NAME), ServiceAccess::QUERY_STATUS)?;
@@ -229,7 +229,7 @@ pub fn is_service_running() -> Result<bool> {
 }
 
 pub async fn start_service() -> Result<()> {
-    let service_manager = get_service_manager(false)?;
+    let service_manager = service_manager(false)?;
 
     let service_result =
         service_manager.open_service(OsString::from(SERVICE_NAME), ServiceAccess::START);
@@ -247,7 +247,7 @@ pub async fn start_service() -> Result<()> {
 }
 
 pub async fn stop_service() -> Result<()> {
-    let service_manager = get_service_manager(false)?;
+    let service_manager = service_manager(false)?;
 
     let service_result =
         service_manager.open_service(OsString::from(SERVICE_NAME), ServiceAccess::STOP);
@@ -275,7 +275,7 @@ pub fn register_service_user() -> Result<()> {
     Ok(())
 }
 
-fn get_service_manager(create: bool) -> Result<ServiceManager> {
+fn service_manager(create: bool) -> Result<ServiceManager> {
     let mut manager_access = ServiceManagerAccess::CONNECT;
     if create {
         manager_access |= ServiceManagerAccess::CREATE_SERVICE;
@@ -287,6 +287,6 @@ fn get_service_manager(create: bool) -> Result<ServiceManager> {
     )?)
 }
 
-fn get_service_path() -> Result<PathBuf> {
-    Ok(get_module_path()?.with_file_name("maxima-service.exe"))
+fn service_path() -> Result<PathBuf> {
+    Ok(module_path()?.with_file_name("maxima-service.exe"))
 }
