@@ -82,7 +82,7 @@ async fn native_setup() -> Result<()> {
         if !is_service_valid()? {
             info!("Installing service...");
             register_service_user()?;
-            std::thread::sleep(std::time::Duration::from_secs(1)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
 
         if !is_service_running()? {
@@ -301,6 +301,6 @@ async fn start_game(
         }
 
         drop(maxima);
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
 }
