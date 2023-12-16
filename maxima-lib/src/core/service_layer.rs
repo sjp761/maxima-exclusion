@@ -426,7 +426,7 @@ service_layer_type!(DownloadUrlRequest, {
     build_id: String,
 });
 
-service_layer_type!(DownloadUrl, {
+service_layer_type!(DownloadUrlMetadata, {
     url: String,
     sync_url: String,
 });

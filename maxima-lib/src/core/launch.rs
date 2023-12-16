@@ -181,6 +181,8 @@ pub async fn linux_setup() -> Result<()> {
         setup_wine_registry, wine_install_dxvk, wine_install_vkd3d,
     };
 
+    info!("Verifying wine dependencies...");
+
     if !check_wine_validity()? {
         install_wine().await?;
     }

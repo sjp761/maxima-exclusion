@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use std::io::Read;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use log::info;
 use reqwest::StatusCode;
 use serde::Deserialize;
@@ -17,12 +17,18 @@ pub struct GithubAsset {
 #[derive(Deserialize)]
 pub struct GithubRelease {
     pub tag_name: String,
-    pub assets: Vec<GithubAsset>
+    pub assets: Vec<GithubAsset>,
 }
 
 pub fn fetch_github_releases(author: &str, repository: &str) -> Result<Vec<GithubRelease>> {
-    let url = format!("https://api.github.com/repos/{}/{}/releases", author, repository);
-    let res = ureq::get(&url).call()?;
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/releases",
+        author, repository
+    );
+    
+    let res = ureq::get(&url)
+        .set("User-Agent", "ArmchairDevelopers/Maxima")
+        .call()?;
     if res.status() != StatusCode::OK {
         bail!("GitHub request failed: {}", res.into_string()?);
     }
@@ -32,9 +38,19 @@ pub fn fetch_github_releases(author: &str, repository: &str) -> Result<Vec<Githu
     Ok(result)
 }
 
-pub fn fetch_github_release(author: &str, repository: &str, version: &str) -> Result<GithubRelease> {
-    let url = format!("https://api.github.com/repos/{}/{}/releases/{}", author, repository, version);
-    let res = ureq::get(&url).call()?;
+pub fn fetch_github_release(
+    author: &str,
+    repository: &str,
+    version: &str,
+) -> Result<GithubRelease> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/releases/{}",
+        author, repository, version
+    );
+
+    let res = ureq::get(&url)
+        .set("User-Agent", "ArmchairDevelopers/Maxima")
+        .call()?;
     if res.status() != StatusCode::OK {
         bail!("GitHub request failed: {}", res.into_string()?);
     }
@@ -53,9 +69,7 @@ pub fn github_download_asset(asset: &GithubAsset, path: &PathBuf) -> Result<()> 
     }
 
     let mut body: Vec<u8> = vec![];
-    res.into_reader()
-        .take(asset.size)
-        .read_to_end(&mut body)?;
+    res.into_reader().take(asset.size).read_to_end(&mut body)?;
 
     std::fs::write(path, body)?;
     Ok(())

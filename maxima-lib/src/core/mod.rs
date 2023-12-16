@@ -25,7 +25,7 @@ use anyhow::{bail, Result};
 use derive_getters::Getters;
 use log::error;
 use strum_macros::IntoStaticStr;
-use sysinfo::{System, SystemExt, Pid, PidExt, ProcessExt, ProcessStatus};
+use sysinfo::{Pid, PidExt, ProcessExt, ProcessStatus, System, SystemExt};
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -37,6 +37,7 @@ use crate::{
 
 use self::{
     cache::DynamicCache,
+    ecommerce::CommerceOffer,
     launch::ActiveGameContext,
     locale::Locale,
     service_layer::{
@@ -166,6 +167,14 @@ impl Maxima {
         Ok(data)
     }
 
+    pub async fn current_offer(&self) -> Option<CommerceOffer> {
+        if self.playing.is_none() {
+            return None;
+        }
+
+        Some(self.playing.as_ref().unwrap().offer().to_owned())
+    }
+
     pub async fn player_by_id(&self, id: &str) -> Result<ServicePlayer> {
         let cache_key = "basic_player_".to_owned() + id;
         if let Some(cached) = self.request_cache.get(&cache_key) {
@@ -254,7 +263,10 @@ impl Maxima {
     }
 
     pub fn update_playing_status(&mut self) {
-        if self.lsx_connections > 0 || self.playing.is_none() || !self.playing.as_ref().unwrap().started() {
+        if self.lsx_connections > 0
+            || self.playing.is_none()
+            || !self.playing.as_ref().unwrap().started()
+        {
             return;
         }
 

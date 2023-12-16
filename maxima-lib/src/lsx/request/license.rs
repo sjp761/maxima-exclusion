@@ -3,7 +3,7 @@ use log::info;
 
 use crate::{
     lsx::{
-        connection::Connection,
+        connection::LockedConnectionState,
         types::{LSXRequestLicense, LSXRequestLicenseResponse, LSXResponseType},
     },
     make_lsx_handler_response,
@@ -11,16 +11,24 @@ use crate::{
 };
 
 pub async fn handle_license_request(
-    connection: &mut Connection,
+    state: LockedConnectionState,
     request: LSXRequestLicense,
 ) -> Result<Option<LSXResponseType>> {
     info!("Requesting OOA License and Denuvo Token");
 
-    let offer = connection.current_offer().await;
-    let access_token = connection.access_token().await;
+    let arc = state.write().await.maxima_arc();
+    let maxima = arc.lock().await;
+
+    let offer = maxima.current_offer().await.unwrap();
+    let access_token = maxima.access_token();
 
     let license = request_license(
-        offer.publishing.publishing_attributes.content_id.unwrap().as_str(),
+        offer
+            .publishing
+            .publishing_attributes
+            .content_id
+            .unwrap()
+            .as_str(),
         "ca5f9ae34d7bcd895e037a17769de60338e6e84",
         access_token.as_str(),
         Some(request.attr_RequestTicket.as_str()),

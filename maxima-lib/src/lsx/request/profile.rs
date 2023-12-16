@@ -3,7 +3,7 @@ use log::{debug, info};
 
 use crate::{
     lsx::{
-        connection::Connection,
+        connection::LockedConnectionState,
         types::{
             LSXErrorSuccess, LSXFriend, LSXFriendState, LSXGetPresence, LSXGetPresenceResponse,
             LSXGetProfile, LSXGetProfileResponse, LSXImage, LSXPresence, LSXQueryFriends,
@@ -15,12 +15,13 @@ use crate::{
 };
 
 pub async fn handle_profile_request(
-    connection: &mut Connection,
+    state: LockedConnectionState,
     _: LSXGetProfile,
 ) -> Result<Option<LSXResponseType>> {
-    let maxima = connection.maxima().await;
-    let user = maxima.local_user().await?;
+    let arc = state.write().await.maxima_arc();
+    let maxima = arc.lock().await;
 
+    let user = maxima.local_user().await?;
     let path = maxima.avatar_image(&user.id(), 208, 208).await?;
 
     let player = user.player().as_ref().unwrap();
@@ -45,7 +46,7 @@ pub async fn handle_profile_request(
 }
 
 pub async fn handle_presence_request(
-    _: &mut Connection,
+    _: LockedConnectionState,
     _: LSXGetPresence,
 ) -> Result<Option<LSXResponseType>> {
     make_lsx_handler_response!(Response, GetPresenceResponse, {
@@ -63,7 +64,7 @@ pub async fn handle_presence_request(
 }
 
 pub async fn handle_set_presence_request(
-    _: &mut Connection,
+    _: LockedConnectionState,
     request: LSXSetPresence,
 ) -> Result<Option<LSXResponseType>> {
     info!(
@@ -87,7 +88,7 @@ pub async fn handle_set_presence_request(
 }
 
 pub async fn handle_query_presence_request(
-    _: &mut Connection,
+    _: LockedConnectionState,
     request: LSXQueryPresence,
 ) -> Result<Option<LSXResponseType>> {
     let mut friends = Vec::new();
@@ -114,7 +115,7 @@ pub async fn handle_query_presence_request(
 }
 
 pub async fn handle_query_friends_request(
-    _: &mut Connection,
+    _: LockedConnectionState,
     _: LSXQueryFriends,
 ) -> Result<Option<LSXResponseType>> {
     let friends = Vec::new();
@@ -123,12 +124,14 @@ pub async fn handle_query_friends_request(
 }
 
 pub async fn handle_query_image_request(
-    connection: &mut Connection,
+    state: LockedConnectionState,
     request: LSXQueryImage,
 ) -> Result<Option<LSXResponseType>> {
     let parts = request.attr_ImageId.split(":").collect::<Vec<_>>();
 
-    let maxima = connection.maxima().await;
+    let arc = state.write().await.maxima_arc();
+    let maxima = arc.lock().await;
+
     let path = maxima
         .avatar_image(parts[1], request.attr_Width, request.attr_Height)
         .await?;

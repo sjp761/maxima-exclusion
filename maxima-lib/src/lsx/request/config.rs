@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 
 use crate::{
     lsx::{
-        connection::Connection,
+        connection::LockedConnectionState,
         types::{LSXGetConfig, LSXGetConfigResponse, LSXResponseType, LSXService},
     },
     make_lsx_handler_response,
@@ -49,13 +49,13 @@ lazy_static! {
 }
 
 pub async fn handle_config_request(
-    _: &mut Connection,
+    _: LockedConnectionState,
     _: LSXGetConfig,
 ) -> Result<Option<LSXResponseType>> {
     let mut services: Vec<LSXService> = Vec::new();
     for service in SERVICES.iter() {
         services.push(service.clone());
     }
- 
+
     make_lsx_handler_response!(Response, GetConfigResponse, { service: services })
 }

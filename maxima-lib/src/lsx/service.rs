@@ -20,13 +20,19 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
     loop {
         let mut idx = 0 as usize;
         while idx < connections.len() {
-            let result = connections[idx].listen().await;
-            if result.is_err() {
+            let connection = &mut connections[idx];
+
+            if let Err(_) = connection.process_queue().await {
+                warn!("Failed to process LSX message queue");
+            }
+
+            if let Err(_) = connection.listen().await {
                 warn!("LSX connection closed");
                 connections.remove(idx);
                 maxima.lock().await.set_lsx_connections(connections.len() as u16);
                 continue;
             }
+
             idx = idx + 1;
         }
 
@@ -43,10 +49,10 @@ pub async fn start_server(port: u16, maxima: Arc<Mutex<Maxima>>) -> Result<()> {
             }
         };
 
-        info!("Got a connection from {:?}", addr);
+        info!("New LSX connection: {:?}", addr);
         
         let mut conn = Connection::new(maxima.clone(), socket);
-        conn.send_challenge().unwrap();
+        conn.send_challenge().await.unwrap();
         connections.push(conn);
 
         let mut maxima = maxima.lock().await;

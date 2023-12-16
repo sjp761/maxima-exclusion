@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{
     lsx::{
-        connection::Connection,
+        connection::LockedConnectionState,
         types::{
             LSXAreChunksInstalled, LSXAreChunksInstalledResponse,
             LSXIsProgressiveInstallationAvailable, LSXIsProgressiveInstallationAvailableResponse,
@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub async fn handle_pi_availability_request(
-    _: &mut Connection,
+    _: LockedConnectionState,
     _: LSXIsProgressiveInstallationAvailable,
 ) -> Result<Option<LSXResponseType>> {
     make_lsx_handler_response!(Response, IsProgressiveInstallationAvailableResponse, {
@@ -23,7 +23,7 @@ pub async fn handle_pi_availability_request(
 }
 
 pub async fn handle_pi_installed_chunks_request(
-    _: &mut Connection,
+    _: LockedConnectionState,
     request: LSXAreChunksInstalled,
 ) -> Result<Option<LSXResponseType>> {
     make_lsx_handler_response!(Response, AreChunksInstalledResponse, {

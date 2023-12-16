@@ -7,7 +7,7 @@ use crate::core::{
     cache::DynamicCache,
     service_layer::{
         send_service_request, ServiceAvailableBuild, ServiceAvailableBuildsRequestBuilder,
-        ServiceDownloadType, ServiceDownloadUrl, ServiceDownloadUrlRequestBuilder,
+        ServiceDownloadType, ServiceDownloadUrlMetadata, ServiceDownloadUrlRequestBuilder,
         SERVICE_REQUEST_AVAILABLEBUILDS, SERVICE_REQUEST_DOWNLOADURL,
     },
     Maxima,
@@ -76,13 +76,13 @@ impl ContentService {
         &self,
         offer_id: &str,
         build_id: Option<&str>,
-    ) -> Result<ServiceDownloadUrl> {
+    ) -> Result<ServiceDownloadUrlMetadata> {
         let cache_key = "download_url_".to_owned() + offer_id + "_" + build_id.unwrap_or("live");
         if let Some(cached) = self.request_cache.get(&cache_key) {
             return Ok(cached);
         }
 
-        let url: ServiceDownloadUrl = send_service_request(
+        let url: ServiceDownloadUrlMetadata = send_service_request(
             &self.maxima.lock().await.access_token(),
             SERVICE_REQUEST_DOWNLOADURL,
             ServiceDownloadUrlRequestBuilder::default()

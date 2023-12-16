@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::{
     core::ecommerce::request_entitlements,
     lsx::{
-        connection::Connection,
+        connection::LockedConnectionState,
         types::{
             LSXEntitlement, LSXQueryEntitlements, LSXQueryEntitlementsResponse, LSXResponseType,
         },
@@ -12,12 +12,13 @@ use crate::{
 };
 
 pub async fn handle_query_entitlements_request(
-    connection: &mut Connection,
+    state: LockedConnectionState,
     request: LSXQueryEntitlements,
 ) -> Result<Option<LSXResponseType>> {
-    let maxima = connection.maxima().await;
+    let token = state.write().await.access_token().await;
+
     let entitlements = request_entitlements(
-        &maxima.access_token(),
+        &token,
         &request.attr_UserId.to_string(),
         Some(&request.attr_Group.to_owned()),
     )
