@@ -1,3 +1,5 @@
+use anyhow::Error;
+use egui::Context;
 use tokio::fs::File;
 use tokio::io;
 use std::fs;
@@ -43,10 +45,10 @@ pub struct GameImageHandler {
 }
 
 impl GameImageHandler {
-  pub fn new() -> Self{
+  pub fn new(ctx: &Context) -> Self{
     let (tx0, rx1) = std::sync::mpsc::channel();
     let (tx1, rx0) = std::sync::mpsc::channel();
-
+    let context = ctx.clone();
     Self {
       rx : rx0,
       tx : tx0,
@@ -86,13 +88,15 @@ impl GameImageHandler {
                     }
                   }
                 } else {
-                  println!("Failed to download! Reason: {:?}", result.err())
+                  println!("Failed to download {}! Reason: {:?}", img_url.clone(), result.err());
+                  
                 }
               }
               // TODO: image downloading
             }
             if let Ok(img) = ImageLoader::load_from_fs(&format!("./res/{}/{}",&String::from(slug0.clone()),filename)) {
 
+              let tmp_size = img.size_vec2();
               let rtn = ImageResponse {
                 game_slug : String::from(&slug0),
                 image_type : received.image_type,
@@ -101,9 +105,11 @@ impl GameImageHandler {
                   renderable: None, //needs to be done with the egui render context
                   fs_path: String::new(),
                   url: String::new(),
+                  size: tmp_size,
                 }.into()
               };
               tx1.send(rtn).expect("Failed to send from loader thread");
+              context.request_repaint();
             }
 
             /* shitass cold code, keeping it in here in case i need to fall back to a system that wasn't a hail mary
@@ -187,7 +193,7 @@ impl GameInfo {
       handler.get_image(self.slug.to_owned(), GameImageType::Icon, None,None)
     }
   }
-
+  /// use this for final rendering
   pub fn hero(&self, handler : &mut GameImageHandler) -> Result<TextureId> {
     if let Some(ret) = &self.hero.retained {
       if let Some(ren) = self.hero.renderable {
@@ -202,19 +208,23 @@ impl GameInfo {
       Some(self.hero.url.clone()))
     }
   }
-
+  /// use this for final rendering
   pub fn logo(&self, handler : &mut GameImageHandler) -> Result<TextureId> {
-    if let Some(ret) = &self.logo.retained {
-      if let Some(ren) = self.logo.renderable {
-        Ok(ren)
+    if let Some(logo) = &self.logo {
+      if let Some(ret) = &logo.retained {
+        if let Some(ren) = logo.renderable {
+          Ok(ren)
+        } else {
+          bail!("not ready")
+        }
       } else {
-        bail!("not ready")
+        handler.get_image(self.slug.clone(),
+        GameImageType::Logo,
+        Some(self.path.clone()),
+        Some(logo.url.clone()))
       }
     } else {
-      handler.get_image(self.slug.clone(),
-      GameImageType::Logo,
-      Some(self.path.clone()),
-      Some(self.logo.url.clone()))
+      Err(Error::msg("Game does not have a logo"))
     }
   }
 }

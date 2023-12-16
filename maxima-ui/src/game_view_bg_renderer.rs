@@ -23,12 +23,12 @@ impl GameViewBgRenderer {
         })
     }
 
-    pub fn draw(&self, ui: &mut egui::Ui, rect : egui::Rect, img : TextureId) {
+    pub fn draw(&self, ui: &mut egui::Ui, rect : egui::Rect, img_size: Vec2, img : TextureId) {
         let render = self.render.clone();
 
         let cb = egui_glow::CallbackFn::new(move |_info, painter| {
             
-            render.lock().paint(painter.gl(), rect.size(), painter.texture(img).expect("fuck you"));
+            render.lock().paint(painter.gl(), rect.size(), img_size, painter.texture(img).expect("fuck you"));
         });
 
         let callback = egui::PaintCallback {
@@ -43,6 +43,7 @@ impl GameViewBgRenderer {
 struct GVBGUnsafe {   //I say this despite having used C++ for years before rust
     program: glow::Program,
     vert_array: glow::VertexArray,
+    hero_uniform: Option<glow::NativeUniformLocation>,
 }
 
 impl GVBGUnsafe {
@@ -109,6 +110,7 @@ impl GVBGUnsafe {
             Some(Self {
                 program : program,
                 vert_array: vertex_array,
+                hero_uniform: gl.get_uniform_location(program, "u_hero")
             })
         }
     }
@@ -121,22 +123,40 @@ impl GVBGUnsafe {
         }
     }
 
-    fn paint(&self, gl : &glow::Context, dimensions : Vec2, img : glow::Texture) {
+    fn paint(&self, gl : &glow::Context, dimensions : Vec2, img_dimensions: Vec2, img : glow::Texture) {
         use glow::HasContext as _;
         unsafe {
+            // WHY CAN I DISABLE SO MUCH OF THIS AND STILL HAVE IT WORK
+            // WHY DOES THIS RUN AND DISPLAY SHIT? WHY?
+            // WHY?
+            // WHY?
+            // WHY?
+            // WE SHOULD HAVE NEVER TAUGHT SAND TO THINK
+            // WHY DID I CHOOSE THIS AS A FUCKING CAREER
+            // WHY DID I EVEN CHOOSE THIS AS A HOBBY
+            // FUCK YOU, 2020 HEADASS WITH THE BEAT SABER MODS, IT WAS NOT WORTH IT
             gl.use_program(Some(self.program));
             gl.uniform_2_f32(
                 gl.get_uniform_location(self.program, "u_dimensions").as_ref(),
                 dimensions.x, dimensions.y
             );
-            gl.uniform_1_u32(gl.get_uniform_location(self.program, "u_hero").as_ref(), TEXTURE_2D);
+            gl.uniform_2_f32(
+                gl.get_uniform_location(self.program, "u_img_dimensions").as_ref(),
+                img_dimensions.x, img_dimensions.y
+            );
+            //gl.uniform_1_u32(self.hero_uniform.as_ref(), TEXTURE_2D);
+            
             gl.bind_texture(TEXTURE_2D, Some(img));
-
+            
+            /*
             gl.bind_vertex_array(Some(self.vert_array));
+            */
             gl.enable(BLEND);
             //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             //glBlendFuncSeparate();
+            /*
             gl.blend_func(glow::FUNC_ADD, glow::ONE_MINUS_SRC_ALPHA);
+            */
             gl.draw_arrays(glow::TRIANGLES, 6, 6);
             gl.draw_arrays(glow::TRIANGLES, 0, 6);
         }

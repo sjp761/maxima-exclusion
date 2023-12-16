@@ -1,11 +1,10 @@
-use egui::{Ui, Color32, vec2, Margin, ScrollArea, Rect, Pos2, Mesh, Shape, Rounding, epaint::Shadow};
+use egui::{Ui, Color32, vec2, Margin, ScrollArea, Rect, Pos2, Mesh, Shape, Rounding, epaint::Shadow, RichText, Stroke, Visuals};
 use egui_extras::{StripBuilder, Size};
-use crate::{DemoEguiApp, GameInfo};
+use crate::{DemoEguiApp, GameInfo, GameInfoTab};
 
-const ASPECT_RATIO: f32 = 16.0 / 9.0;
 const GAMELIST_BUTTON_NORMAL: Color32 = Color32::from_rgb(20, 20, 20);
-const GAMELIST_BUTTON_HIGHLIGHT: Color32 = Color32::from_rgb(40, 40, 40);
-const ACCENT_COLOR : Color32 = Color32::from_rgb(120, 0, 255);
+const GAMELIST_BUTTON_HIGHLIGHT: Color32 = Color32::from_rgb(8, 171, 244);
+const ACCENT_COLOR : Color32 = Color32::from_rgb(8, 171, 244);
 
 #[derive(Debug, PartialEq, Default)]
 pub enum GameViewBarGenre {
@@ -30,7 +29,7 @@ pub struct GameViewBar {
 
 pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
   if app.games.len() < 1 { return }
-  if app.game_sel > app.games.len() { return }
+  if app.game_sel > app.games.len() || app.game_sel< 0 { return }
   let game = &app.games[app.game_sel];
   //let's just load the logo now, the hero usually takes longer and it
   //just looks better if the logo is there first
@@ -38,23 +37,25 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
   StripBuilder::new(ui).size(Size::remainder()).vertical(|mut strip| {
     strip.cell(|ui| {
       let mut hero_rect = Rect::clone(&ui.available_rect_before_wrap());
+      let aspect_ratio = game.hero.size.x / game.hero.size.y;
       let hero_container_max_y = hero_rect.max.y;
       let style = ui.style_mut();
       style.visuals.clip_rect_margin = 0.0;
       style.spacing.item_spacing = vec2(0.0,0.0);
       hero_rect.max.x -= style.spacing.scroll_bar_width + style.spacing.scroll_bar_inner_margin;
-      hero_rect.max.y = hero_rect.min.y + (hero_rect.size().x / ASPECT_RATIO);
+      hero_rect.max.y = hero_rect.min.y + (hero_rect.size().x / aspect_ratio);
       let mut hero_rect_2 = hero_rect.clone();
       if hero_rect_2.size().x > 650.0 {
-        hero_rect.max.y = hero_rect.min.y + (650.0 / ASPECT_RATIO);
+        hero_rect.max.y = hero_rect.min.y + (650.0 / aspect_ratio);
         hero_rect_2.max.x = hero_rect_2.min.x + 650.0;
-        hero_rect_2.max.y = hero_rect_2.min.y + (650.0 / ASPECT_RATIO);
+        hero_rect_2.max.y = hero_rect_2.min.y + (650.0 / aspect_ratio);
       }
       ui.push_id("GameViewPanel_ScrollerArea", |ui| {
+        ui.style_mut().visuals.widgets.inactive.bg_fill = Color32::WHITE;
         ui.vertical(|ui| {
-          if let Ok(hero) = game.hero(&mut app.game_image_handler) {
+          if let Ok(hero) = (&game).hero(&mut app.game_image_handler) {
             if let Some(gvbg) = &app.game_view_bg_renderer {
-              gvbg.draw(ui, hero_rect, hero);
+              gvbg.draw(ui, hero_rect, game.hero.size, hero);
               ui.allocate_space(hero_rect.size());
             } else {
               ui.put(hero_rect, egui::Image::new(hero, hero_rect_2.size()));
@@ -78,10 +79,19 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
                 let mut mesh = Mesh::default();
                 mesh.colored_vertex(fade_rect.left_top(), Color32::TRANSPARENT);
                 mesh.colored_vertex(fade_rect.right_top(), Color32::TRANSPARENT);
-                mesh.colored_vertex(fade_rect.left_bottom(), Color32::BLACK);
-                mesh.colored_vertex(fade_rect.right_bottom(), Color32::BLACK);
-                mesh.colored_vertex(Pos2::new(fade_rect.min.x, hero_container_max_y), Color32::BLACK);
-                mesh.colored_vertex(Pos2::new(fade_rect.max.x, hero_container_max_y), Color32::BLACK);
+                mesh.colored_vertex(fade_rect.left_bottom(), ui.visuals().window_fill);
+                mesh.colored_vertex(fade_rect.right_bottom(), ui.visuals().window_fill);
+                mesh.colored_vertex(Pos2::new(fade_rect.min.x, hero_container_max_y), ui.visuals().window_fill);
+                mesh.colored_vertex(Pos2::new(fade_rect.max.x, hero_container_max_y), ui.visuals().window_fill);
+
+                let we_do_a_smidge_of_trolling_dont_fucking_ship_this = Color32::from_black_alpha(20);
+                mesh.colored_vertex(hero_rect.left_bottom(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
+                mesh.colored_vertex(hero_rect.right_bottom(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
+                mesh.colored_vertex(hero_rect.right_top(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
+                mesh.colored_vertex(hero_rect.left_top(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
+                mesh.add_triangle(6, 7, 8);
+                mesh.add_triangle(6, 8, 9);
+
                 mesh.add_triangle(0, 1, 2);
                 mesh.add_triangle(1, 2, 3);
                 mesh.add_triangle(2, 3, 4);
@@ -91,75 +101,129 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
 
                 let play_bar_frame = egui::Frame::default()
                 .fill(Color32::from_black_alpha(120))
-                .rounding(Rounding::same(6.0))
-                .inner_margin(Margin::same(4.0))
+                .rounding(Rounding::same(0.0))
+                //.inner_margin(Margin::same(4.0))
                 .outer_margin(Margin::same(4.0));
-                let _settings_frame = egui::Frame::default()
-                  .fill(Color32::from_black_alpha(120))
-                  .rounding(Rounding::same(6.0))
-                  .inner_margin(Margin::same(4.0))
-                  .outer_margin(Margin::same(4.0));
-              ui.horizontal(|ui| {
                 play_bar_frame.show(ui, |ui| {
-                  ui.horizontal(|ui| {
-                    ui.style_mut().spacing.item_spacing = vec2(15.0, 10.0);
-                    let play_str = if cfg!(target_os = "linux") { "Play on " } else { &app.locale.localization.games_view.main.play };
-                    //ui.set_enabled(!cfg!(target_os = "linux"));
-                    if ui.add_sized(vec2(175.0,50.0), egui::Button::new(egui::RichText::new(play_str)
-                      .size(26.0)
-                      .color(Color32::WHITE))
-                      .fill(if cfg!(target_os = "linux") { Color32::from_rgb(100, 100, 100) } else { Color32::from_rgb(120, 0, 255) })
-                      .rounding(Rounding::same(3.0))
-                    ).clicked() {
-                      app.backend.tx.send(crate::interact_thread::MaximaLibRequest::StartGameRequest(game.offer.clone()));
-                    }
-                    ui.vertical(|ui| {
-                      ui.strong(&app.locale.localization.games_view.main.playtime);
-                      ui.label(format!("{:?} hours",app.games[app.game_sel].time as f32 / 10.0));
+                  ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 0.0;
+                    let stats_frame = egui::Frame::default()
+                    .fill(Color32::WHITE)
+                    .inner_margin(Margin::same(4.0));
+                    stats_frame.show(ui, |stats| {
+                      stats.horizontal(|stats| {
+                        stats.label(RichText::new(&app.locale.localization.games_view.main.playtime).color(Color32::BLACK).strong());
+                        stats.label(RichText::new(format!(": {:?} hours",app.games[app.game_sel].time as f32 / 10.0)).color(Color32::BLACK));
+                        stats.separator();
+                        stats.label(RichText::new(&app.locale.localization.games_view.main.achievements).color(Color32::BLACK).strong());
+                        stats.label(RichText::new(format!(": {:?} / {:?}",app.games[app.game_sel].achievements_unlocked,app.games[app.game_sel].achievements_total)).color(Color32::BLACK));
+                      });
                     });
-                    ui.vertical(|ui| {
-                      ui.strong(&app.locale.localization.games_view.main.achievements);
-                      ui.label(format!("{:?} / {:?}",app.games[app.game_sel].achievements_unlocked,app.games[app.game_sel].achievements_total));
+                    let buttons_frame = egui::Frame::default()
+                    .fill(Color32::TRANSPARENT)
+                    .inner_margin(Margin::same(4.0));
+                    buttons_frame.show(ui, |buttons| {
+                      //disabling the platform lockout for now, looks better for UI showcases
+                      let play_str = /*if cfg!(target_os = "linux") { "Play on " } else*/ { &app.locale.localization.games_view.main.play };
+                      if buttons.add_sized(vec2(175.0,50.0), egui::Button::new(egui::RichText::new(play_str)
+                        .size(26.0)
+                        .color(Color32::WHITE))
+                        //.fill(if cfg!(target_os = "linux") { ACCENT_COLOR } else { ACCENT_COLOR })
+                        .rounding(Rounding::same(0.0))
+                      ).clicked() {
+                        app.backend.tx.send(crate::interact_thread::MaximaLibRequest::StartGameRequest(game.offer.clone()));
+                      }
                     });
-                  })
-                });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
 
+                  });
+                });
+                /*
+                ui.horizontal(|ui| {
+                  ui.style_mut().visuals.override_text_color = Some(Color32::WHITE);
                   play_bar_frame.show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                      ui.style_mut().spacing.item_spacing = vec2(15.0, 10.0);
+                      ui.style_mut().visuals.widgets.hovered.weak_bg_fill = ACCENT_COLOR;
+                      ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::from_rgb(5, 107, 153);
+                      ui.style_mut().visuals.widgets.active.weak_bg_fill = Color32::from_rgb(6, 132, 190);
+                      //disabling the platform lockout for now, looks better for UI showcases
+                      let play_str = /*if cfg!(target_os = "linux") { "Play on " } else*/ { &app.locale.localization.games_view.main.play };
+                      //ui.set_enabled(!cfg!(target_os = "linux"));
+                      if ui.add_sized(vec2(175.0,50.0), egui::Button::new(egui::RichText::new(play_str)
+                        .size(26.0)
+                        .color(Color32::WHITE))
+                        //.fill(if cfg!(target_os = "linux") { ACCENT_COLOR } else { ACCENT_COLOR })
+                        .rounding(Rounding::same(0.0))
+                      ).clicked() {
+                        app.backend.tx.send(crate::interact_thread::MaximaLibRequest::StartGameRequest(game.offer.clone()));
+                      }
+                      
+                      
+                    });
+                    ui.separator();
+                    ui.vertical(|ui| {
+                      ui.style_mut().visuals.widgets.inactive.fg_stroke = Stroke::new(3.0, Color32::WHITE);
+                      ui.label(RichText::new(&app.locale.localization.games_view.main.playtime).size(15.0));
+                      ui.label(RichText::new(format!("{:?} hours",app.games[app.game_sel].time as f32 / 10.0)).size(25.0));
+                    });
+                    ui.separator();
+                    ui.vertical(|ui| {
+                      ui.style_mut().visuals.override_text_color = Some(Color32::WHITE);
+                      ui.style_mut().visuals.widgets.inactive.fg_stroke = Stroke::new(2.0, Color32::WHITE);
+                      ui.label(RichText::new(&app.locale.localization.games_view.main.achievements).size(15.0));
+                      ui.label(RichText::new(format!("{:?} / {:?}",app.games[app.game_sel].achievements_unlocked,app.games[app.game_sel].achievements_total)).size(25.0));
+                    });
+                    ui.separator();
                     ui.menu_button(egui::RichText::new("⛭").size(50.0), |cm| {
                       if cm.button(&app.locale.localization.games_view.main.uninstall).clicked() {
                         game.uninstall();
-                        app.backend.tx.send(crate::interact_thread::MaximaLibRequest::BitchesRequest);
+                        //shut the FUCK up rust
+                        let _ = app.backend.tx.send(crate::interact_thread::MaximaLibRequest::BitchesRequest);
                       }
                     });
                     //ui.add_sized(vec2(50.0,50.0), egui::Button::new());
                     
                   });
-                });
-              });  
+                });*/
                 ui.vertical(|ui| {
+                  
+                  ui.style_mut().spacing.item_spacing = vec2(5.0,5.0);
+
                   ui.strong("Frac");
                   ui.label(format!("{:?}",frac));
-                  for _idx in 0..55 {
-                    //ui.heading("test");
+                  for _idx in 0..75 {
+                    ui.heading("");
                   }
                 });
               })
             }) // StripBuilder
           }); // ScrollArea
-          let logo_size = vec2(egui::lerp(320.0..=160.0, frac), egui::lerp(160.0..=90.0, frac));
-          let logo_rect = Rect::from_min_max(
-            Pos2 { x: (egui::lerp(hero_rect.min.x..=hero_rect.max.x-180.0, frac)), y: (hero_rect.min.y) },
-            Pos2 { x: (egui::lerp(hero_rect.max.x..=hero_rect.max.x-20.0, frac)), y: (egui::lerp(hero_rect.max.y..=hero_rect.min.y+80.0, frac)) }
-          );
-          if let Ok(logo) = game.logo(&mut app.game_image_handler) {
-            ui.put(logo_rect, egui::Image::new(logo, logo_size));
+          if let Some(logo) = &game.logo {
+            let logo_size_pre = 
+            if logo.size.x >= logo.size.y {
+              // wider than it is tall, scale based on X as max
+              let mult_frac = 320.0 / logo.size.x;
+              logo.size.y * mult_frac
+            } else {
+              // taller than it is wide, scale based on Y
+              // fringe edge case, here in case EA decides they want to pull something really fucking stupid
+              0.0 // TODO:: CALCULATE IT
+            };
+            let logo_size = vec2(egui::lerp(320.0..=160.0, frac), egui::lerp(logo_size_pre..=(logo_size_pre/2.0), frac));
+            let logo_rect = Rect::from_min_max(
+              Pos2 { x: (egui::lerp(hero_rect.min.x..=hero_rect.max.x-180.0, frac)), y: (hero_rect.min.y) },
+              Pos2 { x: (egui::lerp(hero_rect.max.x..=hero_rect.max.x-20.0, frac)), y: (egui::lerp(hero_rect.max.y..=hero_rect.min.y+80.0, frac)) }
+            );
+            if let Ok(logo) = game.logo(&mut app.game_image_handler) {
+              ui.put(logo_rect, egui::Image::new(logo, logo_size));
+            } else {
+              ui.put(logo_rect, egui::Spinner::new().size(logo_size.min_elem()/2.0));
+              //ui.add_sized(logo_rect.size(), egui::Spinner::new());
+              //ui.painter().rect_filled(logo_rect, Rounding::same(0.0), Color32::TRANSPARENT);
+            }
           } else {
-            ui.put(logo_rect, egui::Spinner::new().size(logo_rect.size().min_elem()));
-            //ui.add_sized(logo_rect.size(), egui::Spinner::new());
-            //ui.painter().rect_filled(logo_rect, Rounding::same(0.0), Color32::TRANSPARENT);
+            //ui.put(hero_rect, egui::Label::new("NO LOGO"));
           }
-          
         }) // Vertical
       }); // ID
     })
@@ -178,27 +242,163 @@ fn game_list_button_context_menu(game : &GameInfo, ui : &mut Ui) {
   }
 }
 
+const F9B233: Color32 = Color32::from_rgb(249, 178, 51);
+const DARK_GREY: Color32 = Color32::from_rgb(53, 53, 53);
+
 fn show_game_list_buttons(app : &mut DemoEguiApp, ui : &mut Ui) {
   let icon_size = vec2(10. * app.game_view_bar.game_size,10. * app.game_view_bar.game_size);
-
+    ui.style_mut().visuals.widgets.inactive.bg_fill = Color32::WHITE; //scroll bar
     //create a rect that takes up all the vertical space in the window, and prohibits anything from going beyond that without us knowing, so we can add a scroll bar
     //because apparently some dumb fucks (me) buy EA games and can overflow the list on the default window size
+    ui.vertical(|ui| {
+      ui.vertical(|filter_chunk| {
+        filter_chunk.visuals_mut().extreme_bg_color = Color32::TRANSPARENT;
+
+        filter_chunk.visuals_mut().widgets.inactive.expansion = 0.0;
+        filter_chunk.visuals_mut().widgets.inactive.bg_fill = Color32::TRANSPARENT;
+        filter_chunk.visuals_mut().widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+        filter_chunk.visuals_mut().widgets.inactive.fg_stroke = Stroke::new(2.0, Color32::WHITE);
+        filter_chunk.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(2.0, DARK_GREY);
+        filter_chunk.visuals_mut().widgets.inactive.rounding = Rounding::same(2.0);
+
+        filter_chunk.visuals_mut().widgets.active.bg_fill = Color32::TRANSPARENT;
+        filter_chunk.visuals_mut().widgets.active.weak_bg_fill = Color32::TRANSPARENT;
+        filter_chunk.visuals_mut().widgets.active.fg_stroke = Stroke::new(2.0, Color32::WHITE);
+        filter_chunk.visuals_mut().widgets.active.bg_stroke = Stroke::new(2.0, DARK_GREY);
+        filter_chunk.visuals_mut().widgets.active.rounding = Rounding::same(2.0);
+
+        filter_chunk.visuals_mut().widgets.hovered.bg_fill = Color32::TRANSPARENT;
+        filter_chunk.visuals_mut().widgets.hovered.weak_bg_fill = Color32::TRANSPARENT;
+        filter_chunk.visuals_mut().widgets.hovered.fg_stroke = Stroke::new(2.0, F9B233);
+        filter_chunk.visuals_mut().widgets.hovered.bg_stroke = Stroke::new(2.0, F9B233);
+        filter_chunk.visuals_mut().widgets.hovered.rounding = Rounding::same(2.0);
+
+        filter_chunk.visuals_mut().widgets.open.bg_fill = DARK_GREY;
+        filter_chunk.visuals_mut().widgets.open.weak_bg_fill = DARK_GREY;
+        filter_chunk.visuals_mut().widgets.open.fg_stroke = Stroke::new(2.0, Color32::WHITE);
+        filter_chunk.visuals_mut().widgets.open.bg_stroke = Stroke::new(2.0, DARK_GREY);
+        filter_chunk.visuals_mut().widgets.open.rounding = Rounding::same(2.0);
+
+        
+        
+        
+        
+        filter_chunk.spacing_mut().item_spacing = egui::vec2(4.0,4.0);
+      
+        filter_chunk.add_sized([260.,20.], egui::text_edit::TextEdit::hint_text(egui::text_edit::TextEdit::singleline(&mut app.game_view_bar.search_buffer), &app.locale.localization.games_view.toolbar.search_bar_hint));
+        filter_chunk.horizontal(|filters| {
+          filters.push_id("GameTypeComboBox", |filters| {
+            egui::ComboBox::from_label("")
+            .selected_text(match app.game_view_bar.genre_filter {
+              GameViewBarGenre::AllGames => &app.locale.localization.games_view.toolbar.genre_options.all,
+              GameViewBarGenre::Shooters => &app.locale.localization.games_view.toolbar.genre_options.shooter,
+              GameViewBarGenre::Simulation => &app.locale.localization.games_view.toolbar.genre_options.simulation,
+            })
+            .width((260.0 / 2.0) - 8.0)
+            .show_ui(filters, |combo| {
+              
+              combo.visuals_mut().selection.bg_fill = F9B233;
+              combo.visuals_mut().selection.stroke = Stroke::new(2.0, Color32::BLACK);
+              combo.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(2.0, F9B233);
+
+              let mut rounding = Rounding::same(2.0);
+              rounding.se = 0.0; rounding.sw = 0.0;
+              combo.visuals_mut().widgets.inactive.rounding = rounding;
+              combo.visuals_mut().widgets.active.rounding = rounding;
+              combo.visuals_mut().widgets.hovered.rounding = rounding;
+              combo.selectable_value(&mut app.game_view_bar.genre_filter, GameViewBarGenre::AllGames, &app.locale.localization.games_view.toolbar.genre_options.all);
+              rounding.ne = 0.0; rounding.nw = 0.0;
+              combo.visuals_mut().widgets.inactive.rounding = rounding;
+              combo.visuals_mut().widgets.active.rounding = rounding;
+              combo.visuals_mut().widgets.hovered.rounding = rounding;
+              combo.selectable_value(&mut app.game_view_bar.genre_filter, GameViewBarGenre::Shooters, &app.locale.localization.games_view.toolbar.genre_options.shooter);
+              rounding.se = 2.0; rounding.sw = 2.0;
+              combo.visuals_mut().widgets.inactive.rounding = rounding;
+              combo.visuals_mut().widgets.active.rounding = rounding;
+              combo.visuals_mut().widgets.hovered.rounding = rounding;
+              combo.selectable_value(&mut app.game_view_bar.genre_filter, GameViewBarGenre::Simulation, &app.locale.localization.games_view.toolbar.genre_options.simulation);
+              }
+            );
+          });
+          filters.push_id("PlatformComboBox", |horizontal| {
+            egui::ComboBox::from_label("")
+            .selected_text(match app.game_view_bar.platform_filter {
+              GameViewBarPlatform::AllPlatforms => &app.locale.localization.games_view.toolbar.platform_options.all,
+              GameViewBarPlatform::Windows => &app.locale.localization.games_view.toolbar.platform_options.windows,
+              GameViewBarPlatform::Mac => &app.locale.localization.games_view.toolbar.platform_options.mac,
+            })
+            .width((260.0 / 2.0) - 8.0)
+            .show_ui(horizontal, |combo| {
+              combo.visuals_mut().selection.bg_fill = F9B233;
+              combo.visuals_mut().selection.stroke = Stroke::new(2.0, Color32::BLACK);
+              combo.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(2.0, F9B233);
+              let mut rounding = Rounding::same(2.0);
+              rounding.se = 0.0; rounding.sw = 0.0;
+              combo.visuals_mut().widgets.inactive.rounding = rounding;
+              combo.visuals_mut().widgets.active.rounding = rounding;
+              combo.visuals_mut().widgets.hovered.rounding = rounding;
+              combo.selectable_value(&mut app.game_view_bar.platform_filter, GameViewBarPlatform::AllPlatforms, &app.locale.localization.games_view.toolbar.platform_options.all);
+              rounding.ne = 0.0; rounding.nw = 0.0;
+              combo.visuals_mut().widgets.inactive.rounding = rounding;
+              combo.visuals_mut().widgets.active.rounding = rounding;
+              combo.visuals_mut().widgets.hovered.rounding = rounding;
+              combo.selectable_value(&mut app.game_view_bar.platform_filter, GameViewBarPlatform::Windows, &app.locale.localization.games_view.toolbar.platform_options.windows);
+              rounding.se = 2.0; rounding.sw = 2.0;
+              combo.visuals_mut().widgets.inactive.rounding = rounding;
+              combo.visuals_mut().widgets.active.rounding = rounding;
+              combo.visuals_mut().widgets.hovered.rounding = rounding;
+              combo.selectable_value(&mut app.game_view_bar.platform_filter, GameViewBarPlatform::Mac, &app.locale.localization.games_view.toolbar.platform_options.mac);
+              }
+            );
+          });
+        });
+      });
+
     let rect = ui.allocate_exact_size(vec2(260.0, ui.available_height()), egui::Sense::click());
     
     let mut what = ui.child_ui(rect.0, egui::Layout::default() );
   egui::ScrollArea::vertical()
-  .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
+  .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
   .max_width(260.0)
   .max_height(f32::INFINITY)
   .show(&mut what, |ui| {
+    ui.style_mut().visuals.widgets.inactive.bg_fill = Color32::WHITE;
     ui.vertical(|games_list| {
       games_list.allocate_space(vec2(150.0,0.0));
-      for game_idx in 0..app.games.len() {
-        let game = &app.games[game_idx];
+      let style = games_list.style_mut();
+      //fuck outlines on buttons
+      //i don't know when fg is used vs bg, fuck it, do all of em
+      style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
+      //style.visuals.widgets.inactive.fg_stroke = Stroke::NONE;
+      style.visuals.widgets.active.bg_stroke = Stroke::NONE;
+      //style.visuals.widgets.active.fg_stroke = egui::Stroke::NONE;
+      style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
+      //style.visuals.widgets.hovered.fg_stroke = egui::Stroke::NONE;
+      
+      style.visuals.widgets.hovered.weak_bg_fill = F9B233;
+      style.visuals.widgets.inactive.bg_fill = Color32::WHITE;
+
+      style.visuals.widgets.active.weak_bg_fill = F9B233.gamma_multiply(0.6);
+      
+      style.spacing.item_spacing = vec2(0.0,0.0);
+      
+      let filtered_games : Vec<&GameInfo> = app.games.iter().filter(|obj| 
+        obj.name.to_lowercase().contains(&app.game_view_bar.search_buffer.to_lowercase())
+      ).collect();
+
+      for game_idx in 0..filtered_games.len() {
+        let style = games_list.style_mut();
+        if app.game_sel == game_idx {
+          style.visuals.widgets.inactive.weak_bg_fill = F9B233.gamma_multiply(0.8);
+          style.visuals.widgets.inactive.fg_stroke = Stroke::new(2.0, Color32::BLACK);
+        } else {
+          style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+          style.visuals.widgets.inactive.fg_stroke = Stroke::new(2.0, Color32::WHITE);
+        }
+        let game = filtered_games[game_idx];
         if let Ok(icon) = game.icon(&mut app.game_image_handler) {
           if games_list.add_sized(vec2(250.0, icon_size.y),
-            egui::Button::image_and_text(icon, icon_size, &game.name)
-            .fill(if app.game_sel == game_idx {  ACCENT_COLOR } else { Color32::TRANSPARENT })
+            egui::Button::image_and_text(icon, icon_size, RichText::new(&game.name).color(Color32::WHITE).strong())
             .rounding(Rounding::same(0.0)))
             .context_menu(|ui| { game_list_button_context_menu(game, ui) })
             .clicked() {
@@ -206,7 +406,7 @@ fn show_game_list_buttons(app : &mut DemoEguiApp, ui : &mut Ui) {
           }
         } else {
           if games_list.add_sized(vec2(250.0, icon_size.y+4.0), egui::Button::image_and_text(egui::TextureId::Managed(0), vec2(0.0, 0.0), &game.name)
-              .fill(if app.game_sel == game_idx {  ACCENT_COLOR } else { Color32::TRANSPARENT })
+              //.fill(if app.game_sel == game_idx {  ACCENT_COLOR } else { Color32::TRANSPARENT })
               .rounding(Rounding::same(0.0)))
               .context_menu(|ui| { game_list_button_context_menu(game, ui) })
               .clicked() {
@@ -214,7 +414,9 @@ fn show_game_list_buttons(app : &mut DemoEguiApp, ui : &mut Ui) {
             }
         }
       }
+      games_list.allocate_space(games_list.available_size_before_wrap());
     });
+  });
   });
           
 
@@ -226,58 +428,6 @@ pub fn games_view(app : &mut DemoEguiApp, ui: &mut Ui) {
       ui.heading(&app.locale.localization.games_view.main.no_loaded_games);
     });
   } else {
-    let mut filter_bar_frame = egui::Frame::default();
-    filter_bar_frame.fill = Color32::from_rgb(15, 15, 15);
-    filter_bar_frame.outer_margin.top = -4.0;
-    filter_bar_frame.outer_margin.left = -4.0;
-    filter_bar_frame.outer_margin.right = -4.0;
-    filter_bar_frame.inner_margin = Margin::same(4.0);
-    
-    filter_bar_frame.show(ui, |bar| {
-      bar.horizontal(|horizontal|{
-        horizontal.add_sized([18.,18.], egui::Button::new("⟳"));
-        horizontal.label(&app.locale.localization.games_view.toolbar.genre_filter);
-        horizontal.push_id("GameTypeComboBox", |horizontal| {
-          egui::ComboBox::from_label("")
-          .selected_text(match app.game_view_bar.genre_filter {
-            GameViewBarGenre::AllGames => &app.locale.localization.games_view.toolbar.genre_options.all,
-            GameViewBarGenre::Shooters => &app.locale.localization.games_view.toolbar.genre_options.shooter,
-            GameViewBarGenre::Simulation => &app.locale.localization.games_view.toolbar.genre_options.simulation,
-          })
-          .show_ui(horizontal, |combo| {
-            combo.selectable_value(&mut app.game_view_bar.genre_filter, GameViewBarGenre::AllGames, &app.locale.localization.games_view.toolbar.genre_options.all);
-            combo.selectable_value(&mut app.game_view_bar.genre_filter, GameViewBarGenre::Shooters, &app.locale.localization.games_view.toolbar.genre_options.shooter);
-            combo.selectable_value(&mut app.game_view_bar.genre_filter, GameViewBarGenre::Simulation, &app.locale.localization.games_view.toolbar.genre_options.simulation);
-            }
-          );
-        });
-        
-        horizontal.label(&app.locale.localization.games_view.toolbar.platform_filter);
-        horizontal.push_id("PlatformComboBox", |horizontal| {
-          egui::ComboBox::from_label("")
-          .selected_text(match app.game_view_bar.platform_filter {
-            GameViewBarPlatform::AllPlatforms => &app.locale.localization.games_view.toolbar.platform_options.all,
-            GameViewBarPlatform::Windows => &app.locale.localization.games_view.toolbar.platform_options.windows,
-            GameViewBarPlatform::Mac => &app.locale.localization.games_view.toolbar.platform_options.mac,
-          })
-          .show_ui(horizontal, |combo| {
-            combo.selectable_value(&mut app.game_view_bar.platform_filter, GameViewBarPlatform::AllPlatforms, &app.locale.localization.games_view.toolbar.platform_options.all);
-            combo.selectable_value(&mut app.game_view_bar.platform_filter, GameViewBarPlatform::Windows, &app.locale.localization.games_view.toolbar.platform_options.windows);
-            combo.selectable_value(&mut app.game_view_bar.platform_filter, GameViewBarPlatform::Mac, &app.locale.localization.games_view.toolbar.platform_options.mac);
-            }
-          );
-        });
-
-        horizontal.with_layout(egui::Layout::right_to_left(egui::Align::Center), |rtl| {
-          rtl.add_sized([150.,20.], egui::text_edit::TextEdit::hint_text(egui::text_edit::TextEdit::singleline(&mut app.game_view_bar.search_buffer), &app.locale.localization.games_view.toolbar.search_bar_hint));
-          //different stuff for if i ever re-impl the grid view
-          //rtl.add_sized([24.,24.], egui::Checkbox::new(&mut app.game_view_rows, ""));
-          //rtl.add_sized([24.,24.], egui::Image::new(app.biggen_image.texture_id(ctx), [24.,24.]));
-          //rtl.add(egui::Slider::new(&mut app.game_view_bar.game_size, 1.0..=5.0).show_value(false));
-          //rtl.add_sized([24.,24.], egui::Image::new(app.smallen_image.texture_id(ctx), [24.,24.]));
-        });
-      });
-    });
     let alloc_height = ui.available_height();
   
     ui.horizontal(|games| {

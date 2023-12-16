@@ -8,16 +8,16 @@ use std::{
     rc::Rc,
     sync::Arc,
     thread::sleep,
-    time,
+    time, ops::RangeInclusive,
 };
 
 use eframe::egui_glow;
 use eframe::{egui, Frame};
 use egui::{
-    egui_assert, pos2, style::WidgetVisuals, vec2, Button, Color32, ComboBox, Image, Margin, Mesh,
-    Rect, Response, Rounding, Shape, Stroke, Style, TextureId, Ui, Vec2, Visuals,
+    egui_assert, pos2, style::{WidgetVisuals, Selection, Widgets}, vec2, Button, Color32, ComboBox, Image, Margin, Mesh,
+    Rect, Response, Rounding, Shape, Stroke, Style, TextureId, Ui, Vec2, Visuals, RichText, Layout, FontDefinitions, FontData, FontFamily,
 };
-use egui_extras::{Column, RetainedImage, TableBuilder};
+use egui_extras::{Column, RetainedImage, TableBuilder, StripBuilder, Size};
 use egui_glow::glow;
 
 use game_info_image_handler::{GameImageHandler, GameImageType};
@@ -32,7 +32,7 @@ use game_view_bg_renderer::GameViewBgRenderer;
 use translation_manager::TranslationManager;
 use views::friends_view::{FriendsViewBar, FriendsViewBarPage, FriendsViewBarStatusFilter};
 
-use maxima::util::log::init_logger;
+use maxima::util::{log::init_logger, registry::set_up_registry};
 
 use views::debug_view::debug_view;
 use views::friends_view::friends_view;
@@ -71,6 +71,8 @@ use maxima::{
     },
 };
 
+const ACCENT_COLOR : Color32 = Color32::from_rgb(8, 171, 244);
+
 #[derive(Parser, Debug, Copy, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -89,6 +91,8 @@ async fn main() {
         transparent: true,
         #[cfg(target_os = "macos")]
         fullsize_content: true,
+        initial_window_size: Some(vec2(1280.0, 720.0)),
+        min_window_size: Some(vec2(940.0, 480.0)),
         ..Default::default()
     };
     eframe::run_native(
@@ -104,7 +108,7 @@ async fn main() {
 
                     if let Err(err) = check_registry_validity() {
                         println!("{}, fixing...", err);
-                        launch_bootstrap().expect("Failed to launch installer");
+                        set_up_registry();
                     }
                 }
                 app
@@ -114,7 +118,7 @@ async fn main() {
     .expect("Failed i guess?")
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 enum PageType {
     #[default]
     Games,
@@ -142,6 +146,22 @@ pub struct GameImage {
     fs_path: String,
     /// If it's not on fs, download it here
     url: String,
+    /// width and height of the image, in pixels
+    size: Vec2
+}
+
+/// Which tab is selected in the game list info panel
+#[derive(PartialEq, Default)]
+pub enum GameInfoTab {
+    #[default]
+    Achievements,
+    Dlc,
+    Mods
+}
+
+/// TBD
+pub struct GameInstalledModsInfo {
+    
 }
 
 pub struct GameInfo {
@@ -157,8 +177,8 @@ pub struct GameInfo {
     icon_renderable: Option<TextureId>,
     /// YOOOOO
     hero : Arc<GameImage>,
-    /// The stylized logo of the game
-    logo: Arc<GameImage>,
+    /// The stylized logo of the game, some games don't have this!
+    logo: Option<Arc<GameImage>>,
     /// Time (in hours/10) you have logged in the game
     time: u32, // hours/10 allows for better precision, i'm only using one decimal place
     /// Achievements you have unlocked
@@ -168,7 +188,11 @@ pub struct GameInfo {
     /// Is the game installed
     installed: bool,
     /// Path the game is installed to
-    path: String
+    path: String,
+    // If the game has any, stats on mods
+    mods: Option<GameInstalledModsInfo>,
+    /// Which tab is active
+    tab: GameInfoTab
 }
 
 impl GameInfo {
@@ -215,15 +239,72 @@ fn load_games(app: &mut DemoEguiApp) {
     */
 }
 
+const F9B233: Color32 = Color32::from_rgb(249, 178, 51);
+
+const WIDGET_HOVER: Color32 = Color32::from_rgb(255, 188, 61);
+
+
 impl DemoEguiApp {
     fn new(cc: &eframe::CreationContext<'_>, args: Args) -> Self {
-        //might edit these later to make it less obiously egui.
-        //i personally like egui's visuals, but that's not
-        //particularlly a very professional stance on UI design.
-        let vis: Visuals = { Visuals::dark() };
-        //awful lot of lines to justify keeping one
+        let vis: Visuals = Visuals {
+            faint_bg_color: Color32::from_rgb(15,20,34),
+            extreme_bg_color: Color32::from_rgb(20,20,20),
+            window_fill: Color32::BLACK,
+            //override_text_color: Some(Color32::WHITE),
+            hyperlink_color: F9B233,
+            widgets: Widgets {
+                hovered: WidgetVisuals {
+                    weak_bg_fill: F9B233,
+                    bg_fill: F9B233,
+                    bg_stroke: Stroke::NONE,
+                    fg_stroke: Stroke::new(1.0, Color32::BLACK),
+                    rounding: Rounding::none(),
+                    expansion: 0.0,
+                },
+                inactive: WidgetVisuals {
+                    weak_bg_fill: Color32::BLACK,
+                    bg_fill: Color32::BLACK,
+                    bg_stroke: Stroke::new(2.0, Color32::WHITE),
+                    fg_stroke: Stroke::new(1.5, Color32::WHITE),
+                    rounding: Rounding::same(2.0),
+                    expansion: -2.0,
+                },
+                active: WidgetVisuals {
+                    weak_bg_fill: WIDGET_HOVER.linear_multiply(0.6),
+                    bg_fill: WIDGET_HOVER.linear_multiply(0.6),
+                    bg_stroke: Stroke::NONE,
+                    fg_stroke: Stroke::new(2.0, WIDGET_HOVER.linear_multiply(0.6)),
+                    rounding: Rounding::none(),
+                    expansion: 0.0,
+                },
+                open: WidgetVisuals {
+                    weak_bg_fill: WIDGET_HOVER.linear_multiply(0.0),
+                    bg_fill: WIDGET_HOVER.linear_multiply(0.0),
+                    bg_stroke: Stroke::NONE,
+                    fg_stroke: Stroke::new(2.0, WIDGET_HOVER.linear_multiply(0.0)),
+                    rounding: Rounding::none(),
+                    expansion: 0.0,
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut fonts = FontDefinitions::default();
+
+        fonts.font_data.insert("comic_sans".to_owned(),
+        FontData::from_static(include_bytes!("../fonts/IBMPlexSans-Regular.ttf")));
+
+        fonts.families.get_mut(&FontFamily::Proportional).unwrap()
+            .insert(0, "comic_sans".to_owned());
+
+        fonts.families.get_mut(&FontFamily::Monospace).unwrap()
+            .push("comic_sans".to_owned());
+
 
         cc.egui_ctx.set_visuals(vis);
+        cc.egui_ctx.set_fonts(fonts);
+
         cc.egui_ctx.set_debug_on_hover(args.debug);
 
         let user_pfp =
@@ -250,12 +331,12 @@ impl DemoEguiApp {
             game_view_rows: false,
             page_view: PageType::Games,
             needs_first_time_load: true,
-            game_image_handler: GameImageHandler::new(),
+            game_image_handler: GameImageHandler::new(&cc.egui_ctx),
             game_view_bg_renderer: GameViewBgRenderer::new(cc),
             locale: TranslationManager::new("./res/locale/en_us.json".to_owned())
                 .expect("Could not load translation file"),
             critical_bg_thread_crashed: false,
-            backend: MaximaThread::new(), //please don't fucking break
+            backend: MaximaThread::new(&cc.egui_ctx), //please don't fucking break
             logged_in: args.no_login, //temporary hack to just let me work on UI without needing to implement everything on unix lmao
             in_progress_login: false,
             in_progress_login_type: InProgressLoginType::Oauth,
@@ -269,13 +350,14 @@ impl DemoEguiApp {
 pub fn tab_bar_button(ui: &mut Ui, res: Response) {
     let mut res2 = Rect::clone(&res.rect);
     res2.min.y = res2.max.y - 4.;
+    ui.painter().vline(res2.min.x+2.0, RangeInclusive::new(res2.min.y, res2.max.y), Stroke::new(2.0, ACCENT_COLOR));
     ui.painter().rect_filled(
         res2,
         Rounding::none(),
         if res.hovered() {
-            Color32::from_rgb(92, 92, 92)
+            ACCENT_COLOR
         } else {
-            Color32::from_rgb(72, 72, 72)
+            ACCENT_COLOR.linear_multiply(0.9)
         },
     );
 }
@@ -320,7 +402,10 @@ fn custom_window_frame(
             rect
         };
         #[cfg(not(target_os = "macos"))]
-        let content_rect = {app_rect};
+        let content_rect = Rect {
+            min: app_rect.min + vec2(8.0, 8.0),
+            max: app_rect.max - vec2(8.0, 8.0),
+        };
         
         let mut content_ui = ui.child_ui(content_rect, *ui.layout());
 
@@ -429,6 +514,40 @@ fn close_maximize_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         frame.set_minimized(true);
     }
 }
+fn tab_button(ui: &mut Ui, mut edit_var: &mut PageType, page: PageType, label: String) {
+    ui.style_mut().visuals.widgets.inactive.rounding = Rounding::none();
+    ui.style_mut().visuals.widgets.active.rounding = Rounding::none();
+    ui.style_mut().visuals.widgets.hovered.rounding = Rounding::none();
+    
+
+    if edit_var == &page {
+        ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::WHITE;
+        ui.style_mut().visuals.widgets.inactive.fg_stroke = Stroke::new(2.0, Color32::BLACK);
+        ui.style_mut().visuals.widgets.inactive.bg_stroke = Stroke::new(2.0, Color32::WHITE);
+        ui.style_mut().visuals.widgets.active.weak_bg_fill = Color32::WHITE;
+        ui.style_mut().visuals.widgets.active.fg_stroke = Stroke::new(2.0, Color32::BLACK);
+        ui.style_mut().visuals.widgets.active.bg_stroke = Stroke::new(2.0, Color32::WHITE);
+        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = Color32::WHITE;
+        ui.style_mut().visuals.widgets.hovered.fg_stroke = Stroke::new(2.0, Color32::BLACK);
+        ui.style_mut().visuals.widgets.hovered.bg_stroke = Stroke::NONE; //this one behaves differently, idk why.
+    } else {
+        ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+        ui.style_mut().visuals.widgets.inactive.fg_stroke = Stroke::new(2.0, Color32::WHITE);
+        ui.style_mut().visuals.widgets.inactive.bg_stroke = Stroke::NONE;
+        ui.style_mut().visuals.widgets.active.weak_bg_fill = Color32::TRANSPARENT;
+        ui.style_mut().visuals.widgets.active.fg_stroke = Stroke::new(2.0, F9B233);
+        ui.style_mut().visuals.widgets.active.bg_stroke = Stroke::NONE;
+        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = Color32::TRANSPARENT;
+        ui.style_mut().visuals.widgets.hovered.fg_stroke = Stroke::new(2.0, F9B233);
+        ui.style_mut().visuals.widgets.hovered.bg_stroke = Stroke::NONE;
+    }
+    let text = egui::RichText::new(label).size(20.0);
+    
+    let test = ui.add_sized([120.0,30.0], egui::Button::new(text));
+    if test.clicked() {
+        *edit_var = page.clone();
+    }
+}
 
 impl eframe::App for DemoEguiApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -449,6 +568,7 @@ impl eframe::App for DemoEguiApp {
                                 renderable,
                                 fs_path: String::new(),
                                 url: String::new(),
+                                size: temp_name.retained.clone().expect("what").size_vec2() // TODO:: fix this
                             };
                             self.games[idx].hero = assign.into();
                             
@@ -462,8 +582,9 @@ impl eframe::App for DemoEguiApp {
                                 renderable,
                                 fs_path: String::new(),
                                 url: String::new(),
+                                size: temp_name.retained.clone().expect("what").size_vec2() // TODO:: fix this
                             };
-                            self.games[idx].logo = assign.into();
+                            self.games[idx].logo = Some(assign.into());
                         }
                     }
                 }
@@ -483,13 +604,15 @@ impl eframe::App for DemoEguiApp {
                 }
                 interact_thread::MaximaLibResponse::GameInfoResponse(res) => {
                     self.games.push(res.game);
+                    ctx.request_repaint(); // Run this loop once more, just to see if any games got lost
                 }
                 _ => {
                     println!("Recieved something from backend!");
                 }
             }
 
-            let mut style: egui::Style = (*ctx.style()).clone();
+            //what
+            /*let mut style: egui::Style = (*ctx.style()).clone();
             style.spacing.window_margin = Margin::same(0.0);
             style.spacing.menu_margin = Margin::same(0.0);
             let panel = egui::CentralPanel::default().frame(
@@ -498,7 +621,7 @@ impl eframe::App for DemoEguiApp {
                     .outer_margin(Margin::same(0.0))
                     .rounding(Rounding::none())
                     .stroke(Stroke::NONE),
-            );
+            );*/
         }
         custom_window_frame(ctx, frame, "Maxima", |ui| {
             if !self.logged_in {
@@ -536,7 +659,117 @@ impl eframe::App for DemoEguiApp {
                     });
                 }
                 
-            } else {
+            } else if true { // yeah let's just start over lmao
+            let main_width = ui.available_width() - (300.0 + ui.spacing().item_spacing.x);
+            let size_width = 300.0;
+            let outside_spacing = ui.spacing().item_spacing.x.clone();
+            StripBuilder::new(ui)
+            .size(Size::exact(main_width))
+            .size(Size::exact(size_width))
+            .horizontal(|mut strip| {
+                strip.cell(|ui| {
+                    ui.spacing_mut().item_spacing.y = outside_spacing;
+                    let avail_height = ui.available_height() - (32.0 + outside_spacing);
+                    StripBuilder::new(ui)
+                    .size(Size::exact(32.0))
+                    .size(Size::exact(avail_height))
+                    .vertical(|mut strip| {
+                        strip.cell(|header| {
+                            //header.painter().rect_filled(header.available_rect_before_wrap(), Rounding::none(), Color32::from_white_alpha(20));
+                            let navbar = egui::Frame::default()
+                            .stroke(Stroke::new(2.0, Color32::WHITE))
+                            .fill(Color32::BLACK)
+                            .outer_margin(Margin::same(1.0))
+                            .rounding(Rounding::same(4.0));
+                            navbar.show(header, |ui| {
+                                ui.horizontal(|ui| {
+                                   
+                                    ui.spacing_mut().item_spacing.x = 0.0;
+                                    ui.style_mut().visuals.widgets.inactive.rounding = Rounding::none();
+                                    // BEGIN TAB BUTTONS
+                                    tab_button(ui, &mut self.page_view, PageType::Games, self.locale.localization.menubar.games.clone());
+                                    tab_button(ui, &mut self.page_view, PageType::Store, self.locale.localization.menubar.store.clone());
+                                    tab_button(ui, &mut self.page_view, PageType::Settings, self.locale.localization.menubar.settings.clone());
+                                    if self.debug {
+                                        tab_button(ui, &mut self.page_view, PageType::Debug, "Debug".to_owned());
+                                    }
+                                    //END TAB BUTTONS
+                                });
+                            });
+                        });
+                        strip.cell(|body| {
+                            //body.painter().rect_filled(body.available_rect_before_wrap(), Rounding::none(), Color32::DARK_GREEN);
+                            match self.page_view {
+                                PageType::Games => games_view(self, body),
+                                PageType::Friends => friends_view(self, body),
+                                PageType::Settings => settings_view(self, body),
+                                PageType::Debug => debug_view(self, body),
+                                _ => undefined_view(self, body),
+                            }
+                        })
+                    });
+
+                });
+                strip.cell(|ui| {
+                    ui.spacing_mut().item_spacing.y = outside_spacing;
+                    let total = ui.available_height().clone();
+                    let avail_height = ui.available_height() - (40.0);
+                    StripBuilder::new(ui)
+                    .size(Size::exact(32.0))
+                    .size(Size::exact(avail_height))
+                    .vertical(|mut strip| {
+                        strip.cell(|header| {
+                            //header.painter().rect_filled(header.available_rect_before_wrap(), Rounding::none(), Color32::from_white_alpha(20));
+                            let navbar = egui::Frame::default()
+                            .stroke(Stroke::new(2.0, Color32::WHITE))
+                            //.fill(Color32::BLACK)
+                            .outer_margin(Margin::same(1.0))
+                            .inner_margin(Margin::same(-2.0))
+                            .rounding(Rounding::same(4.0));
+                            navbar.show(header, |ui| {
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |rtl| {
+                                        rtl.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(2.0, Color32::GREEN);
+                                        rtl.menu_image_button(
+                                            self.user_pfp_renderable,
+                                            vec2(30.0, 30.0),
+                                            |ui| {
+                                                if ui
+                                                    .button(
+                                                        &self.locale.localization.profile_menu.view_profile,
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    ui.close_menu();
+                                                }
+                                                if ui
+                                                    .button(
+                                                        &self
+                                                            .locale
+                                                            .localization
+                                                            .profile_menu
+                                                            .view_wishlist,
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    ui.close_menu();
+                                                }
+                                            },
+                                        );
+                                        rtl.label(egui::RichText::new(self.user_name.clone()).size(15.0).color(Color32::WHITE));
+                                    },
+                                );
+                            });
+                        });
+                        strip.cell(|body| {
+                            //body.painter().rect_filled(body.available_rect_before_wrap(), Rounding::none(), Color32::DARK_BLUE);
+                            friends_view(self, body);
+                        })
+                    });
+                });
+            });
+        } else {
                 let mut top_nav_frame = egui::Frame::default();
                 top_nav_frame.fill = Color32::from_rgb(19, 19, 19);
                 top_nav_frame.outer_margin = Margin::same(0.0);
