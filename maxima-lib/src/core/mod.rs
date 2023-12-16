@@ -151,7 +151,7 @@ impl Maxima {
                 .is_mac(false)
                 .locale(self.locale.to_owned())
                 .limit(1000)
-                .next(((page - 1) * 100).to_string())
+                .next(((page - 1) * 1000).to_string())
                 .r#type(ServiceGameType::DigitalFullGame)
                 .entitlement_enabled(None)
                 .storefronts(vec![

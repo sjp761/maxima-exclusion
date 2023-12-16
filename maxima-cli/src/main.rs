@@ -293,25 +293,10 @@ async fn list_games(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> {
     info!("Owned games:");
     let owned_games = maxima.owned_games(1).await?;
     for game in owned_games.owned_game_products().as_ref().unwrap().items() {
-        let offer = request_offer_data(
-            &maxima.access_token(),
-            &game.origin_offer_id(),
-            maxima.locale().full_str(),
-        )
-        .await?;
-
-        let content_id = offer.publishing.publishing_attributes.content_id;
-        let content_id = if content_id.is_some() {
-            content_id.unwrap()
-        } else {
-            "No Content ID".to_owned()
-        };
-
         info!(
-            "{:<width$} - {:<width2$} - {}",
+            "{:<width$} - {:<width2$}",
             game.product().name(),
             game.origin_offer_id(),
-            content_id,
             width = 55,
             width2 = 25
         );
