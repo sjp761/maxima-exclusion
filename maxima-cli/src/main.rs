@@ -19,7 +19,7 @@ use maxima::{
 };
 
 use maxima::{
-    content::{zip::fetch_zip_manifest, ContentService},
+    content::{ContentService, zip::ZipFile},
     core::{
         auth::{
             execute_auth_exchange,
@@ -257,7 +257,7 @@ async fn interactive_install_game(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> 
         .download_url(&game.origin_offer_id(), Some(&build.build_id()))
         .await?;
 
-    let manifest = fetch_zip_manifest(&url.url())?;
+    let manifest = ZipFile::fetch(&url.url()).await?;
 
     info!("URL: {}", url.url());
     info!("Entries: {}", manifest.entries().len());

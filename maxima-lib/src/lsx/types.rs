@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::IntoStaticStr;
 
-use crate::core::{settings::MaximaSetting, ecommerce::{CommerceEntitlementType, CommerceEntitlementSource}};
+use crate::core::{ecommerce::CommerceEntitlementType, settings::MaximaSetting};
 
 macro_rules! lsx_message {
     (
@@ -111,7 +111,7 @@ pub enum LSXRequestType {
     QueryImage(LSXQueryImage),
     GetVoipStatus(LSXGetVoipStatus),
     ShowIGOWindow(LSXShowIGOWindow),
-    SetDownloaderUtilization(LSXSetDownloaderUtilization)
+    SetDownloaderUtilization(LSXSetDownloaderUtilization),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -378,7 +378,7 @@ pub enum LSXIGOWindow {
     ChangeAvatar,
     Gamedetails,
     Broadcast,
-    Upsell
+    Upsell,
 }
 
 lsx_message! {
