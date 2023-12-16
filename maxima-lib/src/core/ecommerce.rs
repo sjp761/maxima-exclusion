@@ -202,7 +202,7 @@ ecommerce_type!(
         entitlement_type: CommerceEntitlementType,
         version: u16,
         is_consumable: bool,
-        product_catalog: String,
+        product_catalog: Option<String>,
         group_name: String,
         entitlement_tag: String,
         origin_permissions: String,
