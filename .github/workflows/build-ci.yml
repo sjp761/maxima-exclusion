@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         rust-version: [nightly]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest-m, windows-latest-l]
         experimental: [false]
 
     env:
