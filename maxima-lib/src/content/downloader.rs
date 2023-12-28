@@ -1,5 +1,5 @@
-use anyhow::{bail, Result};
-use reqwest::{header::HeaderValue, Client};
+use anyhow::Result;
+use reqwest::Client;
 
 use super::zip::{ZipFile, ZipFileEntry};
 

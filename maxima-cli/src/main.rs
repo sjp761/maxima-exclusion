@@ -257,9 +257,9 @@ async fn interactive_install_game(maxima_arc: Arc<Mutex<Maxima>>) -> Result<()> 
         .download_url(&game.origin_offer_id(), Some(&build.build_id()))
         .await?;
 
-    let manifest = ZipFile::fetch(&url.url()).await?;
-
     info!("URL: {}", url.url());
+
+    let manifest = ZipFile::fetch(&url.url()).await?;
     info!("Entries: {}", manifest.entries().len());
 
     Ok(())

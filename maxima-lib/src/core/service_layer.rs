@@ -397,13 +397,13 @@ impl ServiceDownloadType {
 service_layer_type!(AvailableBuild, {
     build_id: String,
     download_type: Option<ServiceDownloadType>,
-    game_version: String,
+    game_version: Option<String>,
     build_live_date: Option<String>,
 });
 
 impl ServiceAvailableBuild {
     pub fn to_string(&self) -> String {
-        let mut str = self.game_version.to_owned();
+        let mut str = self.game_version.to_owned().unwrap_or("UnkVer".to_owned());
 
         if self.download_type.is_some() {
             str += &("/".to_owned() + &self.download_type.as_ref().unwrap().to_string());
@@ -428,5 +428,5 @@ service_layer_type!(DownloadUrlRequest, {
 
 service_layer_type!(DownloadUrlMetadata, {
     url: String,
-    sync_url: String,
+    sync_url: Option<String>,
 });

@@ -1,18 +1,17 @@
-/// This module is based on https://users.cs.jmu.edu/buchhofp/forensics/formats/pkzip.html
-
+use std::cmp;
 use anyhow::{Result, bail};
 use bytebuffer::{ByteBuffer, Endian};
 use derive_getters::Getters;
 use log::warn;
 use reqwest::Client;
-use ureq::Agent;
 
-use std::io::Read;
+/// This module is based on https://users.cs.jmu.edu/buchhofp/forensics/formats/pkzip.html
 
 const ZIP_EOCD_SIGNATURE: u32 = 0x06054b50;
 
 const ZIP64_EOCD_SIGNATURE: u32 = 0x06064b50;
 const ZIP64_EOCD_LOCATOR_SIGNATURE: u32 = 0x07064b50;
+const ZIP64_SIGNATURE: i64 = 0xFFFFFFFF;
 
 const ZIP_EOCD_FIXED_PART_SIZE: u32 = 22;
 const ZIP64_EOCD_FIXED_PART_SIZE: u32 = 56;
@@ -21,7 +20,7 @@ const ZIP_FILE_HEADER_SIGNATURE: u32 = 0x02014b50;
 
 const MAX_BACKSCAN_OFFSET: usize = 6 * 1024 * 1024;
 
-fn signature_scan(data: &[u8], signature: u32) -> Option<usize> {
+fn signature_scan_rev(data: &[u8], signature: u32) -> Option<usize> {
     let signature_bytes = signature.to_le_bytes();
     let signature_len = signature_bytes.len();
 
@@ -73,7 +72,7 @@ impl ZipFileEntry {
 
         let signature = data.read_u32()?;
         if signature != ZIP_FILE_HEADER_SIGNATURE {
-            bail!("Invalid zip file entry signature");
+            bail!("Invalid zip file entry signature: {:#10x}", signature);
         }
 
         data.read_u16()?; // Version
@@ -239,23 +238,19 @@ impl ZipFile {
     
         let mut zip = Self::default();
     
-        while offset >= 0 && data.len() < MAX_BACKSCAN_OFFSET {
+        while offset > 0 && data.len() < MAX_BACKSCAN_OFFSET {
             let read = content_length - offset - data.len() as i64;
             let start_offset = content_length - data.len() as i64 - read;
             let end_offset = start_offset + read;
             
-            let range_header = format!("bytes={}-{}", start_offset, end_offset);
+            let range_header = format!("bytes={}-{}", start_offset, end_offset - 1);
             let response = client.get(url).header("range", &range_header).send().await?;
-            let this_data: Vec<u8> = response.bytes().await?.to_vec();
+            let this_data = response.bytes().await?.to_vec();
             data = [this_data, data].concat();
     
             offset = zip.load(&mut ByteBuffer::from_vec(data.clone()), content_length)?;
             if offset > content_length {
                 bail!("Requested read was too big");
-            }
-    
-            if offset == 0 {
-                break;
             }
         }
     
@@ -265,9 +260,9 @@ impl ZipFile {
     fn load(&mut self, data: &mut ByteBuffer, total_size: i64) -> Result<i64> {
         data.set_endian(Endian::LittleEndian);
 
-        let pos = signature_scan(data.as_bytes(), ZIP_EOCD_SIGNATURE);
+        let pos = signature_scan_rev(data.as_bytes(), ZIP_EOCD_SIGNATURE);
         if pos.is_none() {
-            let amt = std::cmp::min(total_size - data.len() as i64, 1024);
+            let amt = cmp::min(total_size - data.len() as i64, 1024);
             return Ok(total_size - data.len() as i64 - amt);
         }
 
@@ -280,10 +275,10 @@ impl ZipFile {
         }
 
         // Check if we're Zip64
-        if eocd.cd_offset == 0xFFFFFFFF {
-            let pos = signature_scan(data.as_bytes(), ZIP64_EOCD_LOCATOR_SIGNATURE);
+        if eocd.cd_offset == ZIP64_SIGNATURE {
+            let pos = signature_scan_rev(data.as_bytes(), ZIP64_EOCD_LOCATOR_SIGNATURE);
             if pos.is_none() {
-                let amt = std::cmp::min(total_size - data.len() as i64, 1024);
+                let amt = cmp::min(total_size - data.len() as i64, 1024);
                 return Ok(total_size - data.len() as i64 - amt);
             }
 
@@ -310,7 +305,7 @@ impl ZipFile {
             }
         }
 
-        if eocd.cd_offset < 0 || eocd.cd_offset == 0xFFFFFFFF {
+        if eocd.cd_offset < 0 || eocd.cd_offset == ZIP64_SIGNATURE {
             bail!("Failed to read end of central directory");
         }
 
@@ -333,7 +328,12 @@ impl ZipFile {
 
     fn load_central_directory(&mut self, data: &mut ByteBuffer, eocd: EndOfCentralDirectory) -> Result<()> {
         for i in 0..eocd.total_entries {
-            let entry = ZipFileEntry::parse(data)?;
+            let result = ZipFileEntry::parse(data);
+            if let Some(err) = result.as_ref().err() {
+                bail!("Failed to load central directory entry {}: {}", i, err);
+            }
+
+            let entry = result.unwrap();
             self.entries.push(entry.clone());
 
             if i == 0 {
