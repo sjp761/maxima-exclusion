@@ -1,0 +1,66 @@
+query GetActiveSalesWithToast($locale: String!) {
+  pageSalesCollection(locale: $locale, limit: 3) {
+    items {
+      id: slug
+      sys {
+        id
+        firstPublishedAt
+        __typename
+      }
+      slug
+      toastNotificationCollection(locale: $locale, limit: 4) {
+        items {
+          ...ToastNotificationItems
+          __typename
+        }
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment ToastNotificationItems on SalePageToastNotification {
+  sys {
+    id
+    __typename
+  }
+  description
+  name
+  packArt {
+    url
+    __typename
+  }
+  viewLimit
+  viewCadence
+  ...SaleToastTargeting
+  __typename
+}
+
+fragment SaleToastTargeting on SalePageToastNotification {
+  targetPlayerSubscription {
+    visibility
+    __typename
+  }
+  targetProductEntitlement {
+    hoursPlayedMin
+    hoursPlayedMax
+    vgInCollectionCollection(limit: 3) {
+      items {
+        internalName
+        __typename
+      }
+      __typename
+    }
+    vgNotInCollectionCollection(limit: 3) {
+      items {
+        internalName
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+  __typename
+}
