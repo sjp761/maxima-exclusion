@@ -153,7 +153,7 @@ impl MaximaThread {
                             continue;
                         }
 
-                        let token_res = execute_connect_token(&auth_context).await;
+                        let token_res = nucleus_connect_token(&auth_context).await;
 
                         if token_res.is_err() {
                             let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
