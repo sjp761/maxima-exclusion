@@ -1,4 +1,4 @@
-use egui::{Ui, Color32, Margin, Vec2, vec2, Rounding, TextBuffer, Layout, Rect, Stroke, Sense};
+use egui::{Ui, Color32, Margin, vec2, Rounding, Stroke, Sense};
 
 use crate::DemoEguiApp;
 
@@ -166,9 +166,9 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
       });
       let friends : Vec<Friend> = friends_raw.into_iter().filter(|obj| 
         match app.friends_view_bar.status_filter {
-            FriendsViewBarStatusFilter::Name => obj.name.to_ascii_lowercase().contains((&app.friends_view_bar.search_buffer)),
+            FriendsViewBarStatusFilter::Name => obj.name.to_ascii_lowercase().contains(&app.friends_view_bar.search_buffer),
             FriendsViewBarStatusFilter::Game => if let Some(game) = &obj.game {
-              game.to_ascii_lowercase().contains((&app.friends_view_bar.search_buffer))
+              game.to_ascii_lowercase().contains(&app.friends_view_bar.search_buffer)
             } else {
               false
             }
@@ -211,7 +211,32 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
               container.allocate_space(vec2(5.0,0.0));
               container.vertical(|text| {
                 text.label(egui::RichText::new(&friend.name).size(15.0));
-                text.label(egui::RichText::new(if friend.online { &app.locale.localization.friends_view.status_online } else { &app.locale.localization.friends_view.status_offline }).size(10.0));
+                let game_hack: String;
+                text.label(egui::RichText::new(
+                  if friend.online {
+                    if let Some(game) = friend.game  {
+                      if app.locale.localization.friends_view.prepend {
+                        if let Some(presence) = friend.game_presence {
+                          game_hack = format!("{} {}: {}", &game, &app.locale.localization.friends_view.status_playing, &presence);
+                        } else {
+                          game_hack = format!("{} {}", &game, &app.locale.localization.friends_view.status_playing);
+                        }
+                      } else {
+                        if let Some(presence) = friend.game_presence {
+                          game_hack = format!("{} {}: {}", &app.locale.localization.friends_view.status_playing, &game, &presence);
+                        } else {
+                          game_hack = format!("{} {}", &app.locale.localization.friends_view.status_playing, &game);
+                        }
+                      }
+                      &game_hack
+                      
+                    } else {
+                      &app.locale.localization.friends_view.status_online
+                    }
+                  } else {
+                    &app.locale.localization.friends_view.status_offline
+                  }
+                ).size(10.0));
               });
               let mut outline_rect_fucking_jank_ass_bitch_dont_ship_it_idiot_lmao = container.min_rect();
               outline_rect_fucking_jank_ass_bitch_dont_ship_it_idiot_lmao.max = outline_rect_fucking_jank_ass_bitch_dont_ship_it_idiot_lmao.min + vec2(41.0, 41.0);

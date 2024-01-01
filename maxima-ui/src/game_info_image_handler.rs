@@ -27,7 +27,7 @@ pub enum GameImageType {
 struct ImageRequest {
   game_slug : String,
   image_type : GameImageType,
-  fs_path : Option<String>,
+  _fs_path : Option<String>,
   url : Option<String>,
 }
 
@@ -103,7 +103,7 @@ impl GameImageHandler {
                 image : GameImage {
                   retained: Some(img.into()),
                   renderable: None, //needs to be done with the egui render context
-                  fs_path: String::new(),
+                  _fs_path: String::new(),
                   url: String::new(),
                   size: tmp_size,
                 }.into()
@@ -156,7 +156,7 @@ impl GameImageHandler {
       let req = ImageRequest {
         game_slug : slug.to_owned(),
         image_type : typ,
-        fs_path : path,
+        _fs_path : path,
         url
       };
       self.requests.push(req.clone());
@@ -195,7 +195,7 @@ impl GameInfo {
   }
   /// use this for final rendering
   pub fn hero(&self, handler : &mut GameImageHandler) -> Result<TextureId> {
-    if let Some(ret) = &self.hero.retained {
+    if let Some(_ret) = &self.hero.retained {
       if let Some(ren) = self.hero.renderable {
         Ok(ren)
       } else {
@@ -211,7 +211,7 @@ impl GameInfo {
   /// use this for final rendering
   pub fn logo(&self, handler : &mut GameImageHandler) -> Result<TextureId> {
     if let Some(logo) = &self.logo {
-      if let Some(ret) = &logo.retained {
+      if let Some(_ret) = &logo.retained {
         if let Some(ren) = logo.renderable {
           Ok(ren)
         } else {

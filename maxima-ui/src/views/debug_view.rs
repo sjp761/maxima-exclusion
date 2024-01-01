@@ -3,7 +3,7 @@ use egui_extras::{TableBuilder, Column};
 
 use crate::DemoEguiApp;
 
-pub fn debug_view(app : &mut DemoEguiApp, ui: &mut Ui) {
+pub fn debug_view(_app : &mut DemoEguiApp, ui: &mut Ui) {
   use egui_extras::{Size, StripBuilder};
     StripBuilder::new(ui)
         .size(Size::exact(30.0)) 
@@ -16,7 +16,7 @@ pub fn debug_view(app : &mut DemoEguiApp, ui: &mut Ui) {
           strip.cell(|ui| {
               egui::ScrollArea::horizontal().show(ui, |ui| {
                   
-                let mut table = TableBuilder::new(ui)
+                let table = TableBuilder::new(ui)
                 .striped(true)
                 .resizable(false)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))

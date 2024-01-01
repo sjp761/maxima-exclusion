@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
-use egui::{ColorImage, Image};
-use egui_extras::{RetainedImage};
-use std::{fs::{File}, io::Read};
+use egui::ColorImage;
+use egui_extras::RetainedImage;
+use std::io::Read;
 use image::{io::Reader as ImageReader, DynamicImage};
 
 pub struct ImageLoader {
@@ -58,8 +58,4 @@ impl ImageLoader {
       Self::load_from_fs("./res/placeholder.png") // probably a really shitty idea but i don't want to embed the png, or make a system to return pointers to the texture, suffer.
     }
   }
-}
-
-pub async fn save_image_from_url() {
-  
 }

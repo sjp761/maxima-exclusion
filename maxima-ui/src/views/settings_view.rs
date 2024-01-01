@@ -9,7 +9,7 @@ enum SettingsViewDemoTheme {
   Light
 }
 
-pub fn settings_view(app : &mut DemoEguiApp, ui: &mut Ui) {
+pub fn settings_view(_app : &mut DemoEguiApp, ui: &mut Ui) {
   ui.heading("Visuals");
   ui.separator();
   let mut val = SettingsViewDemoTheme::System;

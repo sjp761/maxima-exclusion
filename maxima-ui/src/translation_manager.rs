@@ -3,12 +3,12 @@
 use serde::Deserialize;
 use serde_json;
 use std::fs;
-use anyhow::{Error, bail};
 
 #[derive(Deserialize)]
 pub struct LocalizedStrings {
     pub errors : LocalizedGenericErrors,
     pub menubar : LocalizedMenubar,
+    pub login : LocalizedLoginView,
     pub profile_menu : LocalizedProfileMenu,
     pub games_view : LocalizedGamesView,
     pub friends_view : LocalizedFriendsView
@@ -38,6 +38,16 @@ pub struct LocalizedProfileMenu {
 pub struct LocalizedGamesView {
     pub toolbar : LocalizedGamesViewToolbar,
     pub main : LocalizedGamesViewMain
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedLoginView {
+    pub oauth_option : String,
+    pub credentials_option: String,
+    pub username_box_hint : String,
+    pub password_box_hint : String,
+    pub credential_confirm : String,
+    pub credential_waiting : String,
 }
 
 #[derive(Deserialize)]
@@ -77,7 +87,9 @@ pub struct LocalizedGamesViewMain {
 pub struct LocalizedFriendsView {
     pub toolbar : LocalizedFriendsViewToolbar,
     pub status_online : String,
-    pub status_offline : String
+    pub status_offline : String,
+    pub prepend : bool,
+    pub status_playing : String,
 }
 
 #[derive(Deserialize)]
@@ -98,7 +110,7 @@ pub struct LocalizedFriendsViewToolbarSearchFilterOptions {
 }
 
 #[derive(Deserialize)]
-pub struct lang {
+pub struct Lang {
     pub en_us : LocalizedStrings
 }
 pub struct TranslationManager {

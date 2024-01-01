@@ -3,11 +3,9 @@
 
 use std::sync::Arc;
 use eframe::egui_glow;
-use eframe::glow::{BLEND, SRC_ALPHA, TEXTURE0, TEXTURE_2D};
-use egui::epaint::TextureManager;
+use eframe::glow::{BLEND, TEXTURE_2D};
 use egui::{Vec2, TextureId};
 use egui::mutex::Mutex;
-use egui_extras::RetainedImage;
 use egui_glow::glow;
 
 /// FUCK
@@ -42,8 +40,6 @@ impl AppBgRenderer {
 #[allow(unsafe_code)] //MOM COME PICK ME UP, THEY'RE USING UNSAFE CODE
 struct ABGUnsafe {   //I say this despite having used C++ for years before rust
     program: glow::Program,
-    vert_array: glow::VertexArray,
-    hero_uniform: Option<glow::NativeUniformLocation>,
 }
 
 impl ABGUnsafe {
@@ -103,23 +99,9 @@ impl ABGUnsafe {
                 gl.delete_shader(shader);
             }
 
-            let vertex_array = gl
-                .create_vertex_array()
-                .expect("Cannot create vertex array");
-
             Some(Self {
                 program : program,
-                vert_array: vertex_array,
-                hero_uniform: gl.get_uniform_location(program, "u_hero")
             })
-        }
-    }
-
-    fn destroy(&self, gl: &glow::Context) {
-        use glow::HasContext as _;
-        unsafe { //ah shit, here we go again
-            gl.delete_program(self.program);
-            gl.delete_vertex_array(self.vert_array);
         }
     }
 

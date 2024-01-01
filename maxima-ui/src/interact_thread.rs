@@ -1,5 +1,5 @@
-use anyhow::{bail, Result, Error, Ok};
-use egui::{Vec2, vec2, Context};
+use anyhow::{Result, Ok};
+use egui::{vec2, Context};
 use log::{info, error};
 use tokio::sync::Mutex;
 
@@ -11,31 +11,18 @@ use std::{
     vec::Vec, fs,
 };
 
-use maxima::core::{auth::{login, context::AuthContext}, launch, service_layer::{ServiceOwnershipMethod, ServiceGame, SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequest, ServiceGameImagesRequestBuilder}};
+use maxima::core::{auth::{login, context::AuthContext, execute_auth_exchange}, launch, service_layer::{ServiceGame, SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequestBuilder}, clients::JUNO_PC_CLIENT_ID};
 use maxima::{
-    core::{
-        self,
-        ecommerce::request_offer_data,
-        service_layer::{
-            ServiceGetUserPlayerRequest, ServiceUser, ServiceUserGameProduct,
-            SERVICE_REQUEST_GETUSERPLAYER,
-        },
-        Maxima, MaximaEvent,
-    },
-    ooa::{request_license, save_licenses},
-    util::{
-        self,
-        log::LOGGER,
-        native::take_foreground_focus,
-        registry::{check_registry_validity, bootstrap_path, launch_bootstrap, read_game_path},
-    },
+    core::Maxima,
+    util::native::take_foreground_focus,
 };
 use maxima::core::auth::execute_connect_token;
 
 use crate::{GameInfo, GameImage};
 
 pub struct InteractThreadLoginResponse {
-    pub res: Option<String>,
+    pub success: bool,
+    pub description: String,
 }
 
 pub struct InteractThreadGameListResponse {
@@ -98,14 +85,14 @@ impl MaximaThread {
 
                 let user = maxima.local_user().await?;
                 let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
-                    res: Some(user.player().as_ref().unwrap().display_name().to_owned()),
+                    success: true,
+                    description: user.player().as_ref().unwrap().display_name().to_owned(),
                 });
 
                 tx1.send(lmessage)?;
             }
         }
 
-        let mut ui_ctx = ctx.clone();
         'outer: loop {
             let request = rx1.recv()?;
             match request {
@@ -122,15 +109,75 @@ impl MaximaThread {
 
                     let user = maxima.local_user().await?;
                     let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
-                        res: Some(user.player().as_ref().unwrap().display_name().to_owned()),
+                        success: true,
+                        description: user.player().as_ref().unwrap().display_name().to_owned(),
                     });
 
                     tx1.send(lmessage)?;
                     
                     take_foreground_focus().unwrap();
+                    egui::Context::request_repaint(&ctx);
                 },
                 MaximaLibRequest::LoginRequestUserPass(user, pass) => {
-                    todo!();
+                    let maxima = maxima_arc.lock().await;
+
+                    {
+                        let login_result = maxima::core::auth::login::manual_login(&user, &pass).await;
+                        if login_result.is_err() {
+                            let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
+                                success: false,
+                                description: {
+                                    if let Some(e) = login_result.err() {
+                                        e.to_string()
+                                    } else {
+                                        "Failed for an unknown reason".to_string()
+                                    }
+                                }
+                            });
+        
+                            tx1.send(lmessage)?;
+                            continue;
+                        }
+
+                        let mut auth_context = AuthContext::new()?;
+                        auth_context.set_access_token(&login_result.unwrap());
+                        let code = execute_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
+                        auth_context.set_code(&code);
+
+                        if auth_context.code().is_none() {
+                            let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
+                                success: false,
+                                description: "Failed for an unknown reason".to_string(),
+                            });
+                            tx1.send(lmessage)?;
+                            continue;
+                        }
+
+                        let token_res = execute_connect_token(&auth_context).await;
+
+                        if token_res.is_err() {
+                            let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
+                                success: false,
+                                description: token_res.err().unwrap().to_string(),
+                            });
+                            tx1.send(lmessage)?;
+                            continue;
+                        }
+
+                        {
+                            let mut auth_storage = maxima.auth_storage().lock().await;
+                            auth_storage.add_account(&token_res.unwrap()).await?;
+                        }
+
+                        let user = maxima.local_user().await?;
+                        let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
+                            success: true,
+                            description: user.player().as_ref().unwrap().display_name().to_owned(),
+                        });
+                        info!("Successfully logged in with username/password");
+                        tx1.send(lmessage)?;
+                    }
+                    egui::Context::request_repaint(&ctx);
                 },
                 MaximaLibRequest::GetGamesRequest => {
                     println!("recieved request to load games");
@@ -186,7 +233,7 @@ impl MaximaThread {
                                 Some(GameImage {
                                     retained: None,
                                     renderable: None,
-                                    fs_path: format!("./res/{}/logo.png",game.product().game_slug().clone()),
+                                    _fs_path: format!("./res/{}/logo.png",game.product().game_slug().clone()),
                                     url: logo_url,
                                     size: vec2(0.0, 0.0)
                                 }.into())
@@ -195,7 +242,7 @@ impl MaximaThread {
                                 Some(GameImage {
                                     retained: None,
                                     renderable: None,
-                                    fs_path: format!("./res/{}/logo.png",game.product().game_slug().clone()),
+                                    _fs_path: format!("./res/{}/logo.png",game.product().game_slug().clone()),
                                     url: String::new(),
                                     size: vec2(0.0, 0.0)
                                 }.into())
@@ -207,12 +254,12 @@ impl MaximaThread {
                                     slug: game.product().game_slug().clone(),
                                     name: game.product().name().clone(),
                                     offer: game.origin_offer_id().clone(),
-                                    icon: None,
+                                    //icon: None,
                                     icon_renderable: None,
                                     hero: GameImage {
                                         retained: None,
                                         renderable: None,
-                                        fs_path: format!("./res/{}/hero.jpg",game.product().game_slug().clone()),
+                                        _fs_path: format!("./res/{}/hero.jpg",game.product().game_slug().clone()),
                                         url: if let Some(img) = &images {
                                             if let Some(pack) = &img.pack_art() {
                                                 if let Some(img) = &pack.aspect_2x1_image() {
@@ -242,10 +289,10 @@ impl MaximaThread {
                                     time: 0,
                                     achievements_unlocked: 0,
                                     achievements_total: 0,
-                                    installed: false,
+                                    //installed: false,
                                     path: String::new(),
-                                    mods: None,
-                                    tab: crate::GameInfoTab::Achievements
+                                    //mods: None,
+                                    //tab: crate::GameInfoTab::Achievements
                                 };
 
                                 let res = MaximaLibResponse::GameInfoResponse(
@@ -281,6 +328,12 @@ impl MaximaThread {
                             "H:\\SteamLibrary\\steamapps\\common\\Titanfall\\Titanfall.exe"
                                 .to_owned(),
                         )
+                    } else if offer_id.eq("Origin.OFR.50.0004976") {
+                        Some(
+                            "/kronos/Games/Steam/steamapps/common/Excalibur/NeedForSpeedUnbound.exe"
+                                .to_owned(),
+                        )
+                        
                     } else if offer_id.eq("Origin.OFR.50.0002688") {
                         Some(
                             "F:\\Games\\ea\\Anthem\\Anthem.exe"

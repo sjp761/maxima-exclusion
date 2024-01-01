@@ -1,11 +1,6 @@
-use egui::{Ui, Color32, vec2, Margin, ScrollArea, Rect, Pos2, Mesh, Shape, Rounding, epaint::Shadow, RichText, Stroke, Visuals};
+use egui::{Ui, Color32, vec2, Margin, ScrollArea, Rect, Pos2, Mesh, Shape, Rounding, RichText, Stroke};
 use egui_extras::{StripBuilder, Size};
-use log::info;
-use crate::{DemoEguiApp, GameInfo, GameInfoTab};
-
-const GAMELIST_BUTTON_NORMAL: Color32 = Color32::from_rgb(20, 20, 20);
-const GAMELIST_BUTTON_HIGHLIGHT: Color32 = Color32::from_rgb(8, 171, 244);
-const ACCENT_COLOR : Color32 = Color32::from_rgb(8, 171, 244);
+use crate::{DemoEguiApp, GameInfo};
 
 #[derive(Debug, PartialEq, Default)]
 pub enum GameViewBarGenre {
@@ -30,7 +25,7 @@ pub struct GameViewBar {
 
 pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
   if app.games.len() < 1 { return }
-  if app.game_sel > app.games.len() || app.game_sel< 0 { return }
+  if app.game_sel > app.games.len() { return }
   let game = &app.games[app.game_sel];
   //let's just load the logo now, the hero usually takes longer and it
   //just looks better if the logo is there first
@@ -39,7 +34,6 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
     strip.cell(|ui| {
       let mut hero_rect = Rect::clone(&ui.available_rect_before_wrap());
       let aspect_ratio = game.hero.size.x / game.hero.size.y;
-      let hero_container_max_y = hero_rect.max.y;
       let style = ui.style_mut();
       style.visuals.clip_rect_margin = 0.0;
       style.spacing.item_spacing = vec2(0.0,0.0);
@@ -120,17 +114,29 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
                     .outer_margin(Margin::symmetric(0.0, 8.0))
                     .fill(Color32::TRANSPARENT);
                     buttons_frame.show(ui, |buttons| {
-                      buttons.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
-                      //disabling the platform lockout for now, looks better for UI showcases
-                      let play_str = /*if cfg!(target_os = "linux") { "Play on " } else*/ { &app.locale.localization.games_view.main.play };
-                      if buttons.add_sized(vec2(125.0,50.0), egui::Button::new(egui::RichText::new(play_str)
-                        .size(26.0)
-                        .color(Color32::WHITE))
-                        //.fill(if cfg!(target_os = "linux") { ACCENT_COLOR } else { ACCENT_COLOR })
-                        .rounding(Rounding::same(2.0))
-                      ).clicked() {
-                        let _ = app.backend.tx.send(crate::interact_thread::MaximaLibRequest::StartGameRequest(game.offer.clone()));
-                      }
+                      buttons.horizontal(|buttons| {
+                        buttons.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+                        buttons.style_mut().spacing.item_spacing.x = 8.0;
+
+                        //disabling the platform lockout for now, looks better for UI showcases
+                        let play_str = /*if cfg!(target_os = "linux") { "Play on " } else*/ { &app.locale.localization.games_view.main.play };
+                        if buttons.add_sized(vec2(125.0,50.0), egui::Button::new(egui::RichText::new(play_str)
+                          .size(26.0)
+                          .color(Color32::WHITE))
+                          //.fill(if cfg!(target_os = "linux") { ACCENT_COLOR } else { ACCENT_COLOR })
+                          .rounding(Rounding::same(2.0))
+                        ).clicked() {
+                          let _ = app.backend.tx.send(crate::interact_thread::MaximaLibRequest::StartGameRequest(game.offer.clone()));
+                        }
+
+                        if buttons.add_sized(vec2(125.0,50.0), egui::Button::new(egui::RichText::new("Mods")
+                          .size(26.0)
+                          .color(Color32::WHITE))
+                          .rounding(Rounding::same(2.0))
+                        ).clicked() {
+                          let _ = app.backend.tx.send(crate::interact_thread::MaximaLibRequest::BitchesRequest);
+                        }
+                      });
                     });
 
                   });

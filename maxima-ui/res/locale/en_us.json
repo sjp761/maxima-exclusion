@@ -9,6 +9,14 @@
         "friends" : "Friends",
         "settings" : "Settings"
     },
+    "login" : {
+        "oauth_option" : "OAuth (Browser)",
+        "credentials_option" : "Username/Password",
+        "username_box_hint" : "Username",
+        "password_box_hint" : "Password",
+        "credential_confirm" : "Sign In",
+        "credential_waiting" : "Signing in..."
+    },
     "profile_menu" : {
         "view_profile" : "View Profile",
         "view_wishlist" : "View Wishlist"
@@ -52,6 +60,8 @@
             "search_hint" : "Search friends list"
         },
         "status_online" : "Online",
-        "status_offline" : "Offline"
+        "status_offline" : "Offline",
+        "prepend" : false,
+        "status_playing" : "Playing"
     }
 }
