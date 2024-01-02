@@ -20,7 +20,7 @@ lazy_static! {
         LSXService::new("EbisuSDK", "IGO"),
         LSXService::new("EbisuSDK", "MISC"),
         LSXService::new("EALS", "LOGIN"),
-        LSXService::new("Utility", "UTILITY"),
+        LSXService::new("EbisuSDK", "UTILITY"), // Name here may be Utility. It seems to differ.
         LSXService::new("XMPP", "XMPP"),
         LSXService::new("XMPP", "CHAT"),
         LSXService::new("EbisuSDK", "IGO_EVENT"),

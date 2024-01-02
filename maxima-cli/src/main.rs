@@ -19,7 +19,8 @@ use maxima::{
 
 use maxima::core::{
     auth::{nucleus_connect_token, TokenResponse},
-    LockedMaxima, clients::JUNO_PC_CLIENT_ID,
+    clients::JUNO_PC_CLIENT_ID,
+    LockedMaxima,
 };
 use maxima::{
     content::{zip::ZipFile, ContentService},
@@ -268,7 +269,7 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
         .collect::<Vec<String>>();
 
     let name = Select::new("What game would you like to install?", owned_games_strs).prompt()?;
-    let game: &ServiceUserGameProduct = owned_games
+    let game = owned_games
         .iter()
         .find(|g| g.product().name() == name)
         .unwrap();
@@ -329,6 +330,8 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
     let maxima = maxima_arc.lock().await;
 
     info!("Owned games:");
+    maxima.library().owned_games().await;
+
     let owned_games = maxima.owned_games(1).await?;
     for game in owned_games.owned_game_products().as_ref().unwrap().items() {
         info!(

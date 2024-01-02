@@ -1,9 +1,11 @@
 pub mod auth;
 pub mod cache;
 pub mod clients;
+pub mod concurrency;
 pub mod ecommerce;
 pub mod endpoints;
 pub mod launch;
+pub mod library;
 pub mod locale;
 pub mod service_layer;
 pub mod settings;
@@ -37,17 +39,18 @@ use crate::{
 };
 
 use self::{
+    auth::storage::{AuthStorage, LockedAuthStorage},
     cache::DynamicCache,
     ecommerce::CommerceOffer,
     launch::ActiveGameContext,
     locale::Locale,
     service_layer::{
-        ServiceGameType, ServiceGetBasicPlayerRequestBuilder,
+        ServiceGameProductType, ServiceGetBasicPlayerRequestBuilder,
         ServiceGetPreloadedOwnedGamesRequestBuilder, ServiceGetUserPlayerRequest, ServiceImage,
-        ServicePlatform, ServicePlayer, ServiceStorefront, ServiceUser,
+        ServiceLayerClient, ServicePlatform, ServicePlayer, ServiceStorefront, ServiceUser,
         SERVICE_REQUEST_GETBASICPLAYER, SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
-        SERVICE_REQUEST_GETUSERPLAYER, ServiceLayerClient,
-    }, auth::storage::{AuthStorage, LockedAuthStorage},
+        SERVICE_REQUEST_GETUSERPLAYER,
+    }, library::GameLibrary,
 };
 
 #[derive(Clone, IntoStaticStr)]
@@ -66,6 +69,8 @@ pub struct Maxima {
 
     auth_storage: LockedAuthStorage,
     service_layer: ServiceLayerClient,
+    
+    library: GameLibrary,
 
     playing: Option<ActiveGameContext>,
 
@@ -101,7 +106,8 @@ impl Maxima {
         Ok(Arc::new(Mutex::new(Self {
             locale: Locale::EnUs,
             auth_storage: auth_storage.clone(),
-            service_layer: ServiceLayerClient::new(auth_storage),
+            service_layer: ServiceLayerClient::new(auth_storage.clone()),
+            library: GameLibrary::new(auth_storage),
             playing: None,
             lsx_port,
             lsx_event_callback: None,
@@ -140,11 +146,13 @@ impl Maxima {
             return Ok(cached);
         }
 
-        let user: ServiceUser = self.service_layer.request(
-            SERVICE_REQUEST_GETUSERPLAYER,
-            ServiceGetUserPlayerRequest {},
-        )
-        .await?;
+        let user: ServiceUser = self
+            .service_layer
+            .request(
+                SERVICE_REQUEST_GETUSERPLAYER,
+                ServiceGetUserPlayerRequest {},
+            )
+            .await?;
 
         self.request_cache
             .insert(cache_key.to_owned(), user.clone());
@@ -162,24 +170,26 @@ impl Maxima {
     }
 
     pub async fn owned_games(&self, page: u32) -> Result<ServiceUser> {
-        let data: ServiceUser = self.service_layer.request(
-            SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
-            ServiceGetPreloadedOwnedGamesRequestBuilder::default()
-                .is_mac(false)
-                .locale(self.locale.to_owned())
-                .limit(1000)
-                .next(((page - 1) * 1000).to_string())
-                .r#type(ServiceGameType::DigitalFullGame)
-                .entitlement_enabled(None)
-                .storefronts(vec![
-                    ServiceStorefront::Ea,
-                    ServiceStorefront::Steam,
-                    ServiceStorefront::Epic,
-                ])
-                .platforms(vec![ServicePlatform::Pc])
-                .build()?,
-        )
-        .await?;
+        let data: ServiceUser = self
+            .service_layer
+            .request(
+                SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
+                ServiceGetPreloadedOwnedGamesRequestBuilder::default()
+                    .is_mac(false)
+                    .locale(self.locale.to_owned())
+                    .limit(1000)
+                    .next(((page - 1) * 1000).to_string())
+                    .r#type(ServiceGameProductType::DigitalFullGame)
+                    .entitlement_enabled(None)
+                    .storefronts(vec![
+                        ServiceStorefront::Ea,
+                        ServiceStorefront::Steam,
+                        ServiceStorefront::Epic,
+                    ])
+                    .platforms(vec![ServicePlatform::Pc])
+                    .build()?,
+            )
+            .await?;
 
         Ok(data)
     }
@@ -198,13 +208,15 @@ impl Maxima {
             return Ok(cached);
         }
 
-        let data: ServicePlayer = self.service_layer.request(
-            SERVICE_REQUEST_GETBASICPLAYER,
-            ServiceGetBasicPlayerRequestBuilder::default()
-                .pd(id.to_string())
-                .build()?,
-        )
-        .await?;
+        let data: ServicePlayer = self
+            .service_layer
+            .request(
+                SERVICE_REQUEST_GETBASICPLAYER,
+                ServiceGetBasicPlayerRequestBuilder::default()
+                    .pd(id.to_string())
+                    .build()?,
+            )
+            .await?;
 
         let avatars = data.avatar();
         self.cache_avatar_image(&id, avatars.large()).await?;

@@ -17,8 +17,8 @@ pub async fn handle_settings_request(
     request: LSXGetSetting,
 ) -> Result<Option<LSXResponseType>> {
     let setting = match request.attr_SettingId {
-        MaximaSetting::IsIgoEnabled => "true".to_string(),
-        MaximaSetting::IsIgoAvailable => "true".to_string(),
+        MaximaSetting::IsIgoEnabled => "false".to_string(),
+        MaximaSetting::IsIgoAvailable => "false".to_string(),
         MaximaSetting::Environment => "production".to_string(),
     };
 

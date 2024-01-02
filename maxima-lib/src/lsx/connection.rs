@@ -8,6 +8,7 @@ use std::{
 use anyhow::{bail, Result};
 
 use derive_getters::Getters;
+use lazy_static::lazy_static;
 use log::{debug, error, warn};
 use regex::Regex;
 use sysinfo::{PidExt, ProcessExt, System, SystemExt};
@@ -51,6 +52,10 @@ const CORE_SENDER: &str = "EALS";
 const CHALLENGE_BUILD: &str = "release";
 const CHALLENGE_KEY: &str = "cacf897a20b6d612ad0c05e011df52bb"; // Need to figure out how to generate this
 const CHALLENGE_VERSION: &str = "10,5,30,15625";
+
+lazy_static! {
+    static ref LSX_PATTERN: Regex = Regex::new(r"<LSX>.*?</LSX>").unwrap();
+}
 
 macro_rules! lsx_message_matcher {
     (
@@ -207,7 +212,6 @@ impl Connection {
     }
 
     pub async fn listen(&mut self) -> Result<()> {
-        let re = Regex::new(r"(<LSX>.*?</LSX>)").unwrap();
         let mut buffer = [0; 1024 * 8];
 
         let n = match self.stream.read(&mut buffer) {
@@ -236,9 +240,8 @@ impl Connection {
 
         drop(state);
 
-        let captures = re.captures(message.as_str()).unwrap();
-        for group in captures.iter().skip(1) {
-            if let Err(err) = self.process_message(group.unwrap().as_str()).await {
+        for mat in LSX_PATTERN.find_iter(message.as_str()) {
+            if let Err(err) = self.process_message(mat.as_str()).await {
                 error!("Failed to process message: {}", err);
             }
         }
@@ -249,7 +252,6 @@ impl Connection {
     pub async fn process_queue(&mut self) -> Result<()> {
         let mut state = self.state.write().await;
         for message in &state.queued_messages {
-            debug!("Sending message: {}", message);
             if let Err(err) = self.stream.write(message.as_bytes()) {
                 error!("Failed to send LSX message: {}", err);
             }

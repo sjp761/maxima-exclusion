@@ -4,6 +4,7 @@ use chrono::Datelike;
 use openssl::symm::{decrypt, encrypt, Cipher};
 
 const CRYPTO_KEY: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
 const PRIME_10K: u32 = 104729;
 const PRIME_20K: u32 = 224737;
 const PRIME_30K: u32 = 350377;

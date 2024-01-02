@@ -67,6 +67,7 @@ define_graphql_request!(GetBasicPlayer);
 define_graphql_request!(getPreloadedOwnedGames);
 define_graphql_request!(GetUserPlayer);
 
+#[derive(Clone)]
 pub struct ServiceLayerClient {
     auth: LockedAuthStorage,
     client: Client,
@@ -122,13 +123,9 @@ impl ServiceLayerClient {
             self.client.get(API_SERVICE_AGGREGATION_LAYER)
         };
 
-        let mut auth = self.auth.lock().await;
-        let access_token = auth.access_token().await?;
+        let access_token = self.auth.lock().await.access_token().await?;
         if let Some(access_token) = access_token {
-            request = request.header(
-                "Authorization",
-                &("Bearer ".to_owned() + &access_token),
-            );
+            request = request.header("Authorization", &("Bearer ".to_owned() + &access_token));
         }
 
         let res = if full_query {
@@ -231,7 +228,15 @@ service_layer_type!(GameImagesRequest, {
     locale: String,
 });
 
-service_layer_enum!(GameType, { DigitalFullGame, DigitalExtraContent, BaseGame, PrereleaseGame });
+service_layer_enum!(GameProductType, {
+    DigitalFullGame,
+    DigitalExtraContent,
+    MicroContent,
+    ExpansionPack,
+    BundlePack,
+    BaseGame,
+    PrereleaseGame
+});
 
 service_layer_enum!(Storefront, {
     Ea,
@@ -246,7 +251,7 @@ service_layer_type!(GetPreloadedOwnedGamesRequest, {
     locale: Locale,
     limit: u32,
     next: String,
-    r#type: ServiceGameType,
+    r#type: ServiceGameProductType,
     #[serde(skip_serializing_if = "Option::is_none")]
     entitlement_enabled: Option<bool>,
     storefronts: Vec<ServiceStorefront>,
@@ -304,7 +309,7 @@ service_layer_type!(Game, {
     id: String,
     slug: Option<String>,
     base_game_slug: Option<String>,
-    game_type: Option<ServiceGameType>,
+    game_type: Option<ServiceGameProductType>,
     title: Option<String>,
     key_art: Option<ServiceImageRendition>,
     pack_art: Option<ServiceImageRendition>,
@@ -334,6 +339,7 @@ service_layer_enum!(OwnershipMethod, {
 
 service_layer_enum!(OwnershipStatus, {
     Active,
+    Disabled,
 });
 
 service_layer_type!(GameProductUserTrial, {

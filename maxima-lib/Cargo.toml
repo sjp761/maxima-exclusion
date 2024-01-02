@@ -45,6 +45,7 @@ mac_address = "1.1.5"
 filetime = "0.2.23"
 rand = "0.8.5"
 ring = "0.17.7"
+futures = "0.3.30"
 
 [target.'cfg(windows)'.dependencies]
 openssl = "0.10.55"

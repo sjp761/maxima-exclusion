@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use log::debug;
+use log::{debug, info};
 
 use crate::{
     lsx::{
@@ -26,6 +26,8 @@ pub async fn handle_challenge_response(
         "3" => ((accept_key_bytes[0] as u16) << 8) | (accept_key_bytes[1]) as u16,
         _ => bail!("Unknown LSX encryption version!"),
     };
+
+    info!("Game Connected - Name: {}, Offer ID: {}, Multiplayer Id: {}", message.title, message.content_id, message.multiplayer_id);
 
     let encryption_key = make_lsx_key(seed);
     state.write().await.enable_encryption(encryption_key);
