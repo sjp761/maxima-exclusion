@@ -105,7 +105,7 @@ jobs:
           target/release/maxima-service.exe
           target/release/maxima-bootstrap.exe
           target/release/maxima-cli.exe
-          target/release/maxima-ui.exe
+          target/release/maxima.exe
 
     - name: List Files
       if: runner.os == 'Linux'
@@ -120,4 +120,4 @@ jobs:
           target/x86_64-unknown-linux-musl/release/libmaxima_native.so
           target/x86_64-unknown-linux-musl/release/maxima-bootstrap
           target/x86_64-unknown-linux-musl/release/maxima-cli
-          target/x86_64-unknown-linux-musl/release/maxima-ui
+          target/x86_64-unknown-linux-musl/release/maxima
