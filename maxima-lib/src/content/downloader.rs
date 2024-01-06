@@ -49,7 +49,7 @@ impl ZipDownloader {
             create_dir_all(&file_path.parent().unwrap()).await?;
         }
 
-        if entry.name().ends_with("/") {
+        if entry.name().ends_with("/") && !file_path.exists() {
             // This is a folder, create the dir
             info!("{} is a directory", entry.name());
             create_dir(file_path).await?;
@@ -67,7 +67,7 @@ impl ZipDownloader {
         info!("Type: {:?}", entry.compression_type());
         info!("Compressed Size: {}", entry.compressed_size());
         info!("Offset: {}", offset);
-        
+
         let range = format!("bytes={}-{}", offset, offset + entry.compressed_size() - 1);
         let data = self
             .client
