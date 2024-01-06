@@ -67,6 +67,7 @@ impl ZipDownloader {
         info!("Type: {:?}", entry.compression_type());
         info!("Compressed Size: {}", entry.compressed_size());
         info!("Offset: {}", offset);
+        
         let range = format!("bytes={}-{}", offset, offset + entry.compressed_size() - 1);
         let data = self
             .client
@@ -74,23 +75,6 @@ impl ZipDownloader {
             .header("range", range)
             .send()
             .await?;
-
-        // let compressed = data.bytes().await?;
-        // info!("Compressed buffer: {}", compressed.len());
-
-        // let mut decompressed = vec![0; 1024];
-        // let mut decompressor = flate2::Decompress::new(false);
-        // let status = decompressor.decompress(
-        //     &compressed.to_vec(),
-        //     &mut decompressed,
-        //     flate2::FlushDecompress::None,
-        // )?;
-        // info!("Status: {:?}", status);
-        // info!(
-        //     "In: {} \t Out: {}",
-        //     decompressor.total_in(),
-        //     decompressor.total_out()
-        // );
 
         let stream = data.bytes_stream();
         let stream = stream
