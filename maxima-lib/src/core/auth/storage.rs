@@ -35,6 +35,14 @@ impl AuthAccount {
         &self.user_id
     }
 
+    fn from_token(token: &str) -> Self {
+        Self {
+            access_token: token.to_owned(),
+            expires_at: u64::MAX,
+            ..Default::default()
+        }
+    }
+
     async fn from_token_response(response: &TokenResponse) -> Result<Self> {
         let mut account = Self::default();
         account.parse_token_response(response).await?;
@@ -42,8 +50,6 @@ impl AuthAccount {
     }
 
     async fn parse_token_response(&mut self, response: &TokenResponse) -> Result<()> {
-        let client = Client::new();
-
         let secs_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         let expires_at = secs_since_epoch + response.expires_in();
 
@@ -52,7 +58,7 @@ impl AuthAccount {
         self.expires_at = expires_at;
 
         if self.user_id.is_empty() {
-            let token_info = NucleusTokenInfo::fetch(&client, &self.access_token).await?;
+            let token_info = NucleusTokenInfo::fetch(&self.client, &self.access_token).await?;
             self.user_id = token_info.user_id().to_owned();
         }
 
@@ -100,6 +106,21 @@ pub struct AuthStorage {
 pub type LockedAuthStorage = Arc<Mutex<AuthStorage>>;
 
 impl AuthStorage {
+    /// This is to be used only in circumstances where you want
+    /// to make a single request to a single system with a
+    /// single account. This will not be persisted, and
+    /// saving and refreshing is disabled.
+    pub fn from_token(token: &str) -> Result<LockedAuthStorage> {
+        let account = AuthAccount::from_token(token);
+
+        let storage = Self {
+            accounts: HashMap::from([("direct".to_owned(), account)]),
+            selected: Some("direct".to_owned()),
+        };
+
+        Ok(Arc::new(Mutex::new(storage)))
+    }
+
     pub(crate) fn load() -> Result<LockedAuthStorage> {
         let file = maxima_dir()?.join(FILE);
         if !file.exists() {
