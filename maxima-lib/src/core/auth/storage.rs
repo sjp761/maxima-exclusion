@@ -110,7 +110,7 @@ impl AuthStorage {
     /// to make a single request to a single system with a
     /// single account. This will not be persisted, and
     /// saving and refreshing is disabled.
-    pub fn from_token(token: &str) -> Result<LockedAuthStorage> {
+    pub fn from_token(token: &str) -> LockedAuthStorage {
         let account = AuthAccount::from_token(token);
 
         let storage = Self {
@@ -118,7 +118,7 @@ impl AuthStorage {
             selected: Some("direct".to_owned()),
         };
 
-        Ok(Arc::new(Mutex::new(storage)))
+        Arc::new(Mutex::new(storage))
     }
 
     pub(crate) fn load() -> Result<LockedAuthStorage> {
