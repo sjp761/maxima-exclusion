@@ -124,9 +124,12 @@ pub fn module_path() -> PathBuf {
 #[cfg(not(unix))]
 pub fn maxima_dir() -> Result<PathBuf> {
     use directories::ProjectDirs;
+    use std::fs::create_dir_all;
 
-    let dirs = ProjectDirs::from("com", "Maxima", "Maxima");
-    Ok(dirs.unwrap().data_dir().to_path_buf())
+    let dirs = ProjectDirs::from("com", "ArmchairDevelopers", "Maxima");
+    let path = dirs.unwrap().data_dir().to_path_buf();
+    create_dir_all(&path)?;
+    Ok(path)
 }
 
 #[cfg(unix)]
