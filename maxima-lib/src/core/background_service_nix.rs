@@ -32,7 +32,7 @@ pub async fn request_library_injection(pid: u32, path: &str) -> Result<()> {
             .join("wine-injector.exe")
             .to_str()
             .unwrap(),
-        Some(vec![b64]),
+        Some(vec![&b64]),
     )?;
 
     Ok(())
