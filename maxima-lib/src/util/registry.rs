@@ -238,6 +238,10 @@ fn set_mime_type(mime_type: &str, desktop_file_path: &str) -> Result<()> {
 
 #[cfg(unix)]
 pub fn check_registry_validity() -> Result<()> {
+    if std::env::var("MAXIMA_DISABLE_QRC").is_ok() {
+        return Ok(())
+    }
+
     if !verify_protocol_handler("qrc")? {
         bail!("Protocol is not registered");
     }
