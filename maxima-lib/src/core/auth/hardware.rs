@@ -144,23 +144,25 @@ impl HardwareInfo {
         // TODO: Maybe, in the future, look for a good way to get the actual disk serial number
         // instead of using the partition UUID
         let mut disk_sn = String::from("None");
-        let fstab = fs::read_to_string("/etc/fstab")?;
-        for line in fstab.lines() {
-            // Skip comments and empty lines
-            if !line.starts_with('#') && !line.is_empty() {
-                // Split the line into fields
-                let fields: Vec<&str> = line.split_whitespace().collect();
-
-                // Check if the line corresponds to the root filesystem ("/")
-                if fields.len() >= 2 && fields[1] == "/" {
-                    // Extract the UUID
-                    if let Some(uuid_field) =
-                        fields.iter().find(|&&field| field.starts_with("UUID="))
-                    {
-                        disk_sn = uuid_field
-                            .trim_start_matches("UUID=")
-                            .trim_matches('"')
-                            .to_owned();
+        let fstab = fs::read_to_string("/etc/fstab");
+        if let Ok(fstab) = fstab {
+            for line in fstab.lines() {
+                // Skip comments and empty lines
+                if !line.starts_with('#') && !line.is_empty() {
+                    // Split the line into fields
+                    let fields: Vec<&str> = line.split_whitespace().collect();
+    
+                    // Check if the line corresponds to the root filesystem ("/")
+                    if fields.len() >= 2 && fields[1] == "/" {
+                        // Extract the UUID
+                        if let Some(uuid_field) =
+                            fields.iter().find(|&&field| field.starts_with("UUID="))
+                        {
+                            disk_sn = uuid_field
+                                .trim_start_matches("UUID=")
+                                .trim_matches('"')
+                                .to_owned();
+                        }
                     }
                 }
             }
