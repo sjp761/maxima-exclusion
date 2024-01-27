@@ -338,6 +338,7 @@ impl DemoEguiApp {
         cc.egui_ctx.set_style(style);
         cc.egui_ctx.set_fonts(fonts);
 
+        #[cfg(debug_assertions)]
         cc.egui_ctx.set_debug_on_hover(args.debug);
 
         
