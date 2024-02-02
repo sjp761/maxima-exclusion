@@ -57,8 +57,8 @@ impl HardwareInfo {
         let mut bios_manufacturer = "Microsoft Corporation";
         let mut bios_sn = "None";
         if let Some(bios_info) = bios_data.get(0) {
-            bios_manufacturer = bios_info.manufacturer.as_str();
-            bios_sn = bios_info.serial_number.as_str();
+            bios_manufacturer = bios_info.manufacturer.unwrap_or_default().as_str();
+            bios_sn = bios_info.serial_number.unwrap_or_default().as_str();
         }
 
         let mut os_install_date = "1970-01-0100:00:00.000000000+0000";

@@ -368,6 +368,7 @@ async fn create_auth_code(maxima_arc: LockedMaxima, client_id: &str) -> Result<(
 
     let auth_code = execute_auth_exchange(&context, client_id, "code").await?;
     info!("Auth Code for {}: {}", client_id, auth_code);
+    info!("Code verifier: {}", context.code_verifier());
     Ok(())
 }
 

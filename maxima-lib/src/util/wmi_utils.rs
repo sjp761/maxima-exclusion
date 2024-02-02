@@ -12,8 +12,8 @@ pub struct Win32OperatingSystem {
 #[serde(rename = "Win32_BIOS")]
 #[serde(rename_all = "PascalCase")]
 pub struct Win32BIOS {
-    pub serial_number: String,
-    pub manufacturer: String,
+    pub serial_number: Option<String>,
+    pub manufacturer: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
