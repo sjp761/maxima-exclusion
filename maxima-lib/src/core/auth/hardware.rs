@@ -47,7 +47,7 @@ impl HardwareInfo {
         let wmi_data = wmi_thread.join();
         if wmi_data.is_err() {
             warn!("WMI call failed, using dummy hardware info. Please report this! {:?}", wmi_data.err().unwrap());
-            Ok(Self::default())
+            return Ok(Self::default());
         }
 
         let (os_data, bios_data, board_data, gpu_data, disk_data) = *wmi_data.unwrap();
