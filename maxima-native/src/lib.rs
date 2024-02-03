@@ -9,8 +9,7 @@ use anyhow::{bail, Error, Result};
 
 use maxima::{
     core::{
-        auth::{context::AuthContext, login},
-        launch, Maxima, MaximaEvent,
+        auth::{context::AuthContext, execute_auth_exchange, login}, clients::JUNO_PC_CLIENT_ID, launch, Maxima, MaximaEvent
     },
     util::{
         log::init_logger,
@@ -35,6 +34,7 @@ pub const ERR_UNKNOWN: usize = 1;
 pub const ERR_CHECK_LE: usize = 2;
 pub const ERR_LOGIN_FAILED: usize = 3;
 pub const ERR_INVALID_ARGUMENT: usize = 4;
+pub const ERR_NOT_LOGGED_IN: usize = 5;
 
 static mut LAST_ERROR: Option<String> = None;
 
@@ -217,6 +217,92 @@ pub extern "C" fn maxima_login(runtime: *mut *mut Runtime, token_out: *mut *mut 
         *runtime = Box::into_raw(rt);
         *token_out = raw_token.unwrap().into_raw();
     }
+
+    ERR_SUCCESS
+}
+
+/// Log into an EA account with a persona (email/username) and password.
+#[no_mangle]
+pub extern "C" fn maxima_login_manual(runtime: *mut *mut Runtime, mx: *mut *mut c_void, persona: *const c_char, password: *const c_char) -> usize {
+    let rt = unsafe { Box::from_raw(*runtime) };
+
+    let auth_context = AuthContext::new();
+    if auth_context.is_err() {
+        set_last_error_from_result(auth_context);
+        return ERR_CHECK_LE;
+    }
+
+    let result = rt.block_on(async {
+        let token = login::manual_login(
+            &unsafe { parse_raw_string(persona) },
+            &unsafe { parse_raw_string(password) }
+        ).await;
+        if token.is_err() {
+            return Err(token.err().unwrap());
+        }
+
+        let mut auth_context = auth_context.unwrap();
+        auth_context.set_access_token(&token.unwrap());
+        let code = execute_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
+        auth_context.set_code(&code);
+
+        let token_res = nucleus_connect_token(&auth_context).await;
+        if token_res.is_err() {
+            bail!("Login failed: {}", token_res.err().unwrap().to_string());
+        }
+
+        unsafe {
+            let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
+
+            {
+                let maxima = maxima_arc.lock().await;
+                let mut auth_storage = maxima.auth_storage().lock().await;
+                auth_storage.add_account(&token_res.unwrap()).await?;
+            }
+
+            *mx = Arc::into_raw(maxima_arc) as *mut c_void;
+        }
+        Ok(())
+    });
+
+    if result.is_err() {
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
+    }
+
+    unsafe {
+        *runtime = Box::into_raw(rt);
+    }
+
+    ERR_SUCCESS
+}
+
+/// Retrieve the access token for the currently selected account. Can return [ERR_NOT_LOGGED_IN]
+#[no_mangle]
+pub unsafe extern "C" fn maxima_access_token(runtime: *mut *mut Runtime, mx: *mut *mut c_void, token_out: *mut *const c_char) -> usize {
+    let rt = Box::from_raw(*runtime);
+    let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
+
+    let result = rt.block_on(async {
+        let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
+        let maxima = maxima_arc.lock().await;
+        let mut auth_storage = maxima.auth_storage().lock().await;
+        auth_storage.access_token().await
+    });
+
+    if result.is_err() {
+        set_last_error_from_result(result);
+        return ERR_CHECK_LE;
+    }
+
+    let result = result.unwrap();
+    if result.is_none() {
+        return ERR_NOT_LOGGED_IN;
+    }
+
+    *runtime = Box::into_raw(rt);
+    *mx = Arc::into_raw(maxima_arc) as *mut c_void;
+    *token_out = CString::new(result.unwrap()).unwrap().into_raw();
 
     ERR_SUCCESS
 }
