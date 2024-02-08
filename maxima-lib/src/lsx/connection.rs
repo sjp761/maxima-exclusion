@@ -135,11 +135,16 @@ pub fn get_os_pid(context: &ActiveGameContext) -> Result<u32> {
         }
 
         let mut cmd = process.cmd()[0].to_owned();
-        if !cmd.starts_with("Z:") {
-            continue;
+        
+        // Wine path handling
+        if cfg!(unix) {
+            if !cmd.starts_with("Z:") {
+                continue;
+            }
+    
+            cmd = cmd.replace("Z:", "").replace('\\', "/");
         }
 
-        cmd = cmd.replace("Z:", "").replace('\\', "/");
         if !cmd.starts_with(context.game_path()) {
             continue;
         }
