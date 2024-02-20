@@ -540,3 +540,14 @@ service_layer_type!(Friends, {
     pd: String,
     friends: ServiceFriendsOffsetPage,
 });
+
+service_layer_type!(SearchPlayerRequest, {
+    is_mutual_friends_enabled: bool,
+    page_number: u32,
+    page_size: u32,
+    search_text: String,
+});
+
+service_layer_type!(PlayersPage, {
+    items: Vec<ServicePlayer>,
+});

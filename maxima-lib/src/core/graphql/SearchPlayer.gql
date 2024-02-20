@@ -1,0 +1,56 @@
+query SearchPlayer($searchText: String!, $pageNumber: Int!, $pageSize: Int!, $isMutualFriendsEnabled: Boolean = false) {
+  players(searchText: $searchText, paging: {pageNumber: $pageNumber, pageSize: $pageSize}) {
+    items {
+      ...PlayerWithMutualFriendsCount
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment PlayerWithMutualFriendsCount on Player {
+  ...Player
+  mutualFriends @include(if: $isMutualFriendsEnabled) {
+    totalCount
+    __typename
+  }
+  __typename
+}
+
+fragment Player on Player {
+  id: pd
+  pd
+  psd
+  displayName
+  uniqueName
+  nickname
+  avatar {
+    ...Avatar
+    __typename
+  }
+  relationship
+  __typename
+}
+
+fragment Avatar on AvatarList {
+  large {
+    ...image
+    __typename
+  }
+  medium {
+    ...image
+    __typename
+  }
+  small {
+    ...image
+    __typename
+  }
+  __typename
+}
+
+fragment image on Image {
+  height
+  width
+  path
+  __typename
+}
