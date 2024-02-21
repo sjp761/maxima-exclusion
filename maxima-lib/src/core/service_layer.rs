@@ -69,6 +69,7 @@ define_graphql_request!(getPreloadedOwnedGames); // Input: ServiceGetPreloadedOw
 define_graphql_request!(GetUserPlayer); // Input: ServiceGetUserPlayerRequest, Output: ServiceUser
 define_graphql_request!(GameSystemRequirements); // Input: ServiceGameSystemRequirementsRequest, Output: ServiceGameSystemRequirements
 define_graphql_request!(GetMyFriends); // Input: ServiceGetMyFriendsRequest, Output: ServiceFriends
+define_graphql_request!(SearchPlayer); // Input: ServiceSearchPlayerRequest, Output: ServicePlayersPage
 
 #[derive(Clone)]
 pub struct ServiceLayerClient {
