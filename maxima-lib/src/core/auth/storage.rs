@@ -77,7 +77,12 @@ impl AuthAccount {
     }
 
     async fn validate(&mut self) -> Result<bool> {
-        let access_token = self.access_token().await?.to_owned();
+        let access_token = self.access_token().await;
+        if access_token.is_err() {
+            return Ok(false);
+        }
+
+        let access_token = access_token.unwrap().to_owned();
         let token_info = NucleusTokenInfo::fetch(&self.client, &access_token).await;
         if token_info.is_err() {
             return Ok(false);

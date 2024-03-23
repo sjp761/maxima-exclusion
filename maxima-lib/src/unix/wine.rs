@@ -12,7 +12,7 @@ use xz2::read::XzDecoder;
 use crate::util::{native::maxima_dir, github::{fetch_github_release, github_download_asset, fetch_github_releases, GithubRelease}};
 
 lazy_static! {
-    static ref DXVK_PATTERN: Regex = Regex::new(r"dxvk-([0-9]\.[0-9])\.tar\.gz").unwrap();
+    static ref DXVK_PATTERN: Regex = Regex::new(r"dxvk-(.*)\.tar\.gz").unwrap();
     static ref VKD3D_PATTERN: Regex = Regex::new(r"vkd3d-proton-(.*)\.tar\.zst").unwrap();
     static ref PROTON_PATTERN: Regex = Regex::new(r"wine-lutris-GE-Proton.*\.tar\.xz").unwrap();
 }

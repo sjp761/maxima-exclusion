@@ -287,7 +287,7 @@ fn verify_protocol_handler(protocol: &str) -> Result<bool> {
 
 #[cfg(unix)]
 pub fn read_game_path(_name: &str) -> Result<PathBuf> {
-    todo!();
+    todo!("Cannot read game path on unix");
 }
 
 #[cfg(target_os = "linux")]
