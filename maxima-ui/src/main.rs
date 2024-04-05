@@ -3,10 +3,7 @@ use clap::{arg, command, Parser};
 
 use eframe::IconData;
 use egui::style::Spacing;
-use egui::ColorImage;
 use egui::Style;
-//lmao?
-//use winapi::um::winuser::{SetWindowLongA, GWL_STYLE, ShowWindow, SW_SHOW, GWL_EXSTYLE, WS_EX_TOOLWINDOW, SetWindowTextA};
 use log::{error, info, warn};
 use std::{ops::RangeInclusive, rc::Rc, sync::Arc};
 use ui_image::UIImage;
@@ -159,6 +156,7 @@ enum PageType {
 #[derive(Debug, PartialEq)]
 enum InProgressLoginType {
     Oauth,
+    /// Broken
     UsernamePass,
 }
 
@@ -244,6 +242,7 @@ pub struct DemoEguiApp {
     game_sel: usize,                  // selected game
     friends: Vec<UIFriend>,           // friends
     friends_width: f32,               // width of the friends sidebar
+    force_friends: bool,              // force visibility of friends sidebar
     //game_view_rows: bool,                               // if the game view is in rows mode
     page_view: PageType, // what page you're on (games, friends, etc)
     game_view_bg_renderer: Option<GameViewBgRenderer>, // Renderer for the blur effect in the game view
@@ -373,6 +372,7 @@ impl DemoEguiApp {
             game_sel: 0,
             friends: Vec::new(),
             friends_width: 300.0,
+            force_friends: false,
             //game_view_rows: false,
             page_view: PageType::Games,
             game_view_bg_renderer: GameViewBgRenderer::new(cc),
@@ -623,8 +623,8 @@ impl eframe::App for DemoEguiApp {
                 let mut fullrect = ui.available_rect_before_wrap().clone();
                 fullrect.min -= APP_MARGIN;
                 fullrect.max += APP_MARGIN;
-                let gaming = self.page_view == PageType::Games;
                 let has_game_img = self.logged_in && self.games.len() > self.game_sel;
+                let gaming = self.page_view == PageType::Games && has_game_img;
                 let how_game: f32 = ctx.animate_bool(egui::Id::new("MainAppBackgroundGamePageFadeBool"), gaming);
                 if has_game_img
                 {
@@ -717,7 +717,7 @@ impl eframe::App for DemoEguiApp {
                                 ui.allocate_exact_size(
                                     vec2(
                                         (ui.available_width()
-                                            - (330.0 + ui.style().spacing.item_spacing.x))
+                                            - (160.0 + ui.style().spacing.item_spacing.x))
                                             / 2.0,
                                         0.0,
                                     ),
@@ -740,7 +740,7 @@ impl eframe::App for DemoEguiApp {
                                         .send(bridge_thread::MaximaLibRequest::LoginRequestOauth)
                                         .unwrap();
                                 }
-                                if ui
+                                /*if ui
                                     .add_sized(
                                         [160.0, 60.0],
                                         egui::Button::new(
@@ -751,7 +751,7 @@ impl eframe::App for DemoEguiApp {
                                 {
                                     self.in_progress_login_type = InProgressLoginType::UsernamePass;
                                     self.in_progress_login = true;
-                                }
+                                }*/
                             })
                         });
                     }

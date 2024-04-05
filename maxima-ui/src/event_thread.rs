@@ -1,23 +1,30 @@
 use anyhow::{Ok, Result};
 use egui::Context;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 
 use log::info;
-use maxima::{core::{service_layer::{ServiceFriends, ServiceGetMyFriendsRequestBuilder, SERVICE_REQUEST_GETMYFRIENDS}, LockedMaxima, Maxima}, rtm::client::BasicPresence};
-
-use crate::views::friends_view::UIFriend;
+use maxima::{
+    core::{
+        service_layer::{
+            ServiceFriends, ServiceGetMyFriendsRequestBuilder, SERVICE_REQUEST_GETMYFRIENDS,
+        },
+        LockedMaxima, Maxima, MaximaOptionsBuilder,
+    },
+    rtm::client::BasicPresence,
+};
 
 pub struct EventThreadFriendStatusResponse {
     pub id: String,
-    pub presence: maxima::rtm::client::RichPresence
+    pub presence: maxima::rtm::client::RichPresence,
 }
 
 pub enum MaximaEventResponse {
-    FriendStatusResponse(EventThreadFriendStatusResponse)
+    FriendStatusResponse(EventThreadFriendStatusResponse),
 }
 
 pub enum MaximaEventRequest {
-    ShutdownRequest
+    SubscribeToFriendPresence,
+    ShutdownRequest,
 }
 
 pub struct EventThread {
@@ -30,10 +37,8 @@ impl EventThread {
         let (tx0, rx1) = std::sync::mpsc::channel();
         let (tx1, rx0) = std::sync::mpsc::channel();
         let context = ctx.clone();
-        
+
         tokio::task::spawn(async move {
-            let die_fallback_transmittter = tx1.clone();
-            //panic::set_hook(Box::new( |_| {}));
             let result = EventThread::run(rx1, tx1, &context).await;
             if result.is_err() {
                 panic!("Event thread failed! {}", result.err().unwrap());
@@ -42,7 +47,7 @@ impl EventThread {
             }
         });
 
-        Self { rx: rx0, tx: tx0}
+        Self { rx: rx0, tx: tx0 }
     }
 
     async fn run(
@@ -50,35 +55,40 @@ impl EventThread {
         tx: Sender<MaximaEventResponse>,
         ctx: &Context,
     ) -> Result<()> {
-        let maxima_arc: LockedMaxima = Maxima::new()?;
-        
+        let maxima_arc: LockedMaxima = Maxima::new_with_options(
+            MaximaOptionsBuilder::default()
+                .dummy_local_user(false)
+                .load_auth_storage(true)
+                .build()?,
+        )?;
+
         let mut maxima = maxima_arc.lock().await;
 
         let friends: ServiceFriends = maxima
-        .service_layer()
-        .request(
-            SERVICE_REQUEST_GETMYFRIENDS,
-            ServiceGetMyFriendsRequestBuilder::default()
-                .offset(0)
-                .limit(100)
-                .is_mutual_friends_enabled(false)
-                .build()?,
-        )
-        .await?;
-        
+            .service_layer()
+            .request(
+                SERVICE_REQUEST_GETMYFRIENDS,
+                ServiceGetMyFriendsRequestBuilder::default()
+                    .offset(0)
+                    .limit(100)
+                    .is_mutual_friends_enabled(false)
+                    .build()?,
+            )
+            .await?;
+
         let rtm = maxima.rtm();
         rtm.login().await?;
         rtm.set_presence(BasicPresence::Away, "Test", "Origin.OFR.50.0002148")
             .await?;
 
-            let mut players: Vec<String> = friends
+        let players: Vec<String> = friends
             .friends()
             .items()
             .iter()
             .map(|f| f.id().to_owned())
             .collect();
         info!("Subscribed to {} players", players.len());
-    
+
         rtm.subscribe(&players).await?;
         drop(maxima);
 
@@ -89,28 +99,17 @@ impl EventThread {
             {
                 let store = maxima.rtm().presence_store().lock().await;
                 for entry in store.iter() {
-                    info!(
-                        "{}/{} is {:?}: In {}",
-                        friends
-                            .friends()
-                            .items()
-                            .iter()
-                            .find(|x| x.id().to_owned() == *entry.0)
-                            .unwrap()
-                            .player()
-                            .display_name(),
-                        entry.0,
-                        entry.1.basic(),
-                        entry.1.status()
-                    );
-                    tx.send(MaximaEventResponse::FriendStatusResponse(EventThreadFriendStatusResponse {
-                        id: entry.0.to_string(),
-                        presence: entry.1
-                    }))?;
+                    tx.send(MaximaEventResponse::FriendStatusResponse(
+                        EventThreadFriendStatusResponse {
+                            id: entry.0.to_string(),
+                            presence: entry.1,
+                        },
+                    ))?;
+                    // This can cause excessive repainting if it keeps updating friends we know about
                     egui::Context::request_repaint(&ctx);
                 }
             }
-    
+
             drop(maxima);
 
             let request = rx.try_recv();
@@ -120,6 +119,7 @@ impl EventThread {
             }
 
             match request? {
+                MaximaEventRequest::SubscribeToFriendPresence => {}
                 MaximaEventRequest::ShutdownRequest => break 'outer Ok(()),
             }
 

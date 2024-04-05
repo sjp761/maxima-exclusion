@@ -1,6 +1,4 @@
-use crate::{
-    event_thread, DemoEguiApp
-};
+use crate::{event_thread, DemoEguiApp};
 
 pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
     puffin::profile_function!();
@@ -14,6 +12,9 @@ pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
                     }
 
                     friend.online = res.presence.basic().clone();
+                    if res.presence.game().is_some() {
+                        friend.game = Some(res.presence.status().clone());
+                    }
                 }
             }
         }

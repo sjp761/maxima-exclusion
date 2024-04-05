@@ -43,9 +43,11 @@ void main() {
     bool layer = (gl_VertexID > 5);
     if (!layer) {
         if ( (src_aspect / dst_aspect) < 1.0 ) {        // Taller
-            vpos.x *= ((u_dimensions.y/u_img_dimensions.y) * u_img_dimensions.x) / u_dimensions.x;
+            float vpos_mod = vpos.x * (((u_dimensions.y/u_img_dimensions.y) * u_img_dimensions.x) / u_dimensions.x);
+            vpos.x = mix(vpos.x, vpos_mod, u_dimensions.z);
         } else if ( (src_aspect / dst_aspect) > 1.0 ) { // Wider
-            vpos.y *= ((u_dimensions.x/u_img_dimensions.x) * u_img_dimensions.y) / u_dimensions.y;
+            float vpos_mod = vpos.y * (((u_dimensions.x/u_img_dimensions.x) * u_img_dimensions.y) / u_dimensions.y);
+            vpos.y = mix(vpos.y, vpos_mod, u_dimensions.z);
         }
     }
 

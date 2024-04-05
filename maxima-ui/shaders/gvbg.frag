@@ -6,6 +6,7 @@ in vec2 position;
 out vec4 out_color;
 uniform sampler2D u_hero;
 uniform vec2 u_dimensions;
+uniform vec2 u_img_dimensions;
 
 void main() {
     float gamma = 1.8;
@@ -16,14 +17,14 @@ void main() {
         fade1 = pow(fade1, gamma/1.0);
         out_color = vec4(pow(texture(u_hero, tex_coords).rgb, vec3(1.0/gamma)) * vec3(fade1), fade1);
     } else {                    // blurred background, space filler
-        float Pi = 6.28318530718; // Pi*2
-    
+        float Tau = 6.28318530718;
+
         // Gaussian blur, https://www.shadertoy.com/view/Xltfzj
         float Directions = 16.0; // BLUR DIRECTIONS (Default 16.0 - More is better but slower)
-        float Quality = 7.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
+        float Quality = 14.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
         float Size = 16.0;
-    
-        vec2 Radius = Size/u_dimensions;
+
+        vec2 Radius = Size/u_img_dimensions.xy;
         
         // Normalized pixel coordinates (from 0 to 1)
         vec2 uv = tex_coords;
@@ -31,14 +32,14 @@ void main() {
         vec3 Color = texture(u_hero, tex_coords).rgb;
         
         // Blur calculations
-        for( float d=0.0; d<Pi; d+=Pi/Directions)
+        for( float d=0.0; d<Tau; d+=Tau/Directions)
         {
             for(float i=1.0/Quality; i<=1.0; i+=1.0/Quality)
             {
                 Color += texture(u_hero, uv+vec2(cos(d),sin(d))*Radius*i).rgb;
             }
         }
-        
+
         // Output to screen
         Color /= Quality * Directions - 15.0;
         Color = pow(Color, vec3(1.0/gamma));

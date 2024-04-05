@@ -12,7 +12,7 @@ pub fn enum_dropdown<T>(
     val: &mut T,
     width: f32,
     enum_holder: &impl EnumToString<T>,
-) -> egui::Response
+) -> egui::InnerResponse<Option<()>>
 where
     T: IntoEnumIterator + PartialEq,
 {
@@ -60,5 +60,4 @@ where
                 contents.selectable_value(val, iter, display);
             }
         })
-        .response
 }

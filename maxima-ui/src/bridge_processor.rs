@@ -1,15 +1,15 @@
 use log::{debug, error, info, warn};
 
 use crate::{
-    bridge_thread, DemoEguiApp, GameDetails, GameDetailsWrapper, GameUIImages,
-    GameUIImagesWrapper, views::friends_view::UIFriendImageWrapper,
+    bridge_thread, event_thread, views::friends_view::UIFriendImageWrapper, DemoEguiApp,
+    GameDetails, GameDetailsWrapper, GameUIImages, GameUIImagesWrapper,
 };
 
 pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
     puffin::profile_function!();
- 
+
     while let Ok(result) = app.backend.rx.try_recv() {
-        match result{
+        match result {
             bridge_thread::MaximaLibResponse::LoginResponse(res) => {
                 info!("Got something");
                 if !res.success {
@@ -17,7 +17,7 @@ pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
                     app.in_progress_credential_status = res.description;
                     continue;
                 }
-    
+
                 app.logged_in = true;
                 info!("Logged in as {}!", &res.description);
                 app.user_name = res.description.clone();
@@ -29,6 +29,10 @@ pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
                 app.backend
                     .tx
                     .send(bridge_thread::MaximaLibRequest::GetFriendsRequest)
+                    .unwrap();
+                app.events
+                    .tx
+                    .send(event_thread::MaximaEventRequest::SubscribeToFriendPresence)
                     .unwrap();
             }
             bridge_thread::MaximaLibResponse::LoginCacheEmpty => {
@@ -42,14 +46,14 @@ pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
                 if res.response.is_err() {
                     continue;
                 }
-    
+
                 let response = res.response.unwrap();
-    
+
                 for game in &mut app.games {
                     if game.slug != res.slug {
                         continue;
                     }
-                    
+
                     game.details = GameDetailsWrapper::Available(GameDetails {
                         time: response.time,
                         achievements_unlocked: response.achievements_unlocked,
@@ -59,7 +63,7 @@ pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
                         system_requirements_rec: response.system_requirements_rec.clone(),
                     });
                 }
-    
+
                 ctx.request_repaint();
             }
             bridge_thread::MaximaLibResponse::FriendInfoResponse(res) => {
@@ -71,14 +75,14 @@ pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
                 if res.response.is_err() {
                     continue;
                 }
-    
+
                 let response = res.response.unwrap();
-    
+
                 for game in &mut app.games {
                     if game.slug != res.slug {
                         continue;
                     }
-    
+
                     debug!("setting images for {:?}", game.slug);
                     game.images = GameUIImagesWrapper::Available(GameUIImages {
                         hero: response.hero.to_owned(),
@@ -93,9 +97,9 @@ pub fn frontend_processor(app: &mut DemoEguiApp, ctx: &egui::Context) {
                     error!("{}", res.response.err().expect("").to_string());
                     continue;
                 }
-    
+
                 let response = res.response.unwrap();
-    
+
                 for user in &mut app.friends {
                     if !user.id.eq(&res.id) {
                         continue;

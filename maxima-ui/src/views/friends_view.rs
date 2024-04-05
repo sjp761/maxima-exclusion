@@ -67,18 +67,24 @@ const PFP_IMG_SIZE: f32 = PFP_SIZE - 4.0;
 
 pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
   puffin::profile_function!();
+  ui.style_mut().spacing.item_spacing = vec2(5.0,0.0);
   let context = ui.ctx().clone();
   // this is a fucking mistake.
   let sidebar_rect = ui.available_rect_before_wrap();
-  let mistake = ui.allocate_rect(sidebar_rect, Sense::hover()); //TODO: better hover handling
-  // egui, for better or worse, only counts hovering if you're right on it, and nothing's above it
-  // the fringe edge cases of one or both of those being true are already present
-  // if you move your cursor off the window or open a sub-menu in this pane, it will shrink
-  // this is egregiously bad UX and i need to fix that
-  let hovering_friends = context.animate_bool_with_time(egui::Id::new("FriendsListWidthAnimator"), mistake.hovered(), ui.style().animation_time*2.0);
+
+  let mut hittest_rect = sidebar_rect.clone().expand2(vec2(12.0,12.0));
+  hittest_rect.min.x += 4.0; // fix overlapping the scrollbar of the left view
+  
+  let friend_rect_hovered = if let Some(pos) = ui.ctx().input(|i| i.pointer.interact_pos()) {
+    hittest_rect.contains(pos)
+  } else {
+    false
+  } || app.force_friends;
+  app.force_friends = false; // reset, it won't go away without this
+  
+  let hovering_friends = context.animate_bool_with_time(egui::Id::new("FriendsListWidthAnimator"), friend_rect_hovered, ui.style().animation_time*2.0);
   let hover_diff = 300.0 - PFP_SIZE;
   app.friends_width = PFP_SIZE + (hovering_friends * hover_diff);
-  ui.allocate_space(vec2(0.0, -mistake.rect.height()));
 
   let top_bar = egui::Frame::default()
   //.fill(Color32::from_gray(255))
@@ -119,12 +125,19 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
         ui.visuals_mut().widgets.open.bg_stroke = Stroke::new(2.0, DARK_GREY);
         ui.visuals_mut().widgets.open.rounding = Rounding::same(2.0);
 
-        ui.add_sized([ui.available_width(), 20.0], egui::TextEdit::hint_text(egui::text_edit::TextEdit::singleline(&mut app.friends_view_bar.search_buffer), "Search friends list"));
-        let combo_width = (ui.available_width() / 2.0) - ui.spacing().item_spacing.x; //a lot of accounting for shit when i'm just gonna make it a fixed width anyway
-        ui.horizontal(|ui| {
-          enum_dropdown(ui, "FriendsListStatusFilterComboBox".to_owned(), &mut app.friends_view_bar.page, combo_width, &app.locale);
-          enum_dropdown(ui, "FriendsListFilterTypeComboBox".to_owned(), &mut app.friends_view_bar.status_filter, combo_width, &app.locale);
-        });
+        if friend_rect_hovered { //TODO : smooth transition
+          if ui.add_sized([ui.available_width(), 20.0], egui::TextEdit::hint_text(egui::text_edit::TextEdit::singleline(&mut app.friends_view_bar.search_buffer), "Search friends list")).has_focus() {
+            app.force_friends = true;
+          }
+          let combo_width = (ui.available_width() / 2.0) - ui.spacing().item_spacing.x; //a lot of accounting for shit when i'm just gonna make it a fixed width anyway
+          ui.horizontal(|ui| {
+            let dropdown0 = enum_dropdown(ui, "FriendsListStatusFilterComboBox".to_owned(), &mut app.friends_view_bar.page, combo_width, &app.locale).inner.is_some();
+            let dropdown1 = enum_dropdown(ui, "FriendsListFilterTypeComboBox".to_owned(), &mut app.friends_view_bar.status_filter, combo_width, &app.locale).inner.is_some();
+            if dropdown0 || dropdown1 {
+              app.force_friends = true;
+            }
+          });
+        }
       });
       
       
@@ -164,7 +177,7 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
       ui.style_mut().visuals.widgets.active.rounding = Rounding::same(4.0);
       ui.style_mut().visuals.widgets.hovered.rounding = Rounding::same(4.0);
 
-      egui::ScrollArea::new([false,mistake.hovered()])
+      egui::ScrollArea::new([false,friend_rect_hovered])
       .id_source("FriendsListFriendListScrollArea") //hmm yes, the friends list is made of friends list
       .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
       .show(ui, |ui| {
@@ -172,15 +185,13 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
         let mut marge = Margin::same(0.0);
         marge.bottom = 4.5;
         let scrollbar_width = ui.spacing().scroll_bar_width;
-        let item_width = app.friends_width - (if mistake.hovered() { scrollbar_width + 3.0 } else { 0.0 });
-        ui.label(format!("{} friends", friends.len()));
         StripBuilder::new(ui)
         .clip(true)
         .sizes(egui_extras::Size::initial(PFP_SIZE), friends.len()) 
         .vertical(|mut friends_ui| {
           for friend in friends {
             puffin::profile_scope!("friend");
-            let buttons = app.friends_view_bar.friend_sel.eq(&friend.id) && mistake.hovered();
+            let buttons = app.friends_view_bar.friend_sel.eq(&friend.id) && friend_rect_hovered;
             let how_buttons = context.animate_bool(Id::new("friendlistbuttons_".to_owned()+&friend.id), buttons);
             let avatar: Option<&Arc<UIImage>> = match &friend.avatar {
               UIFriendImageWrapper::DoNotLoad => {

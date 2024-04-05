@@ -10,7 +10,7 @@ use std::{
     },
 };
 
-use maxima::core::{LockedMaxima, Maxima};
+use maxima::core::{LockedMaxima, Maxima, MaximaOptions, MaximaOptionsBuilder};
 
 use crate::{
     bridge::{
@@ -86,7 +86,7 @@ impl BridgeThread {
         let (tx0, rx1) = std::sync::mpsc::channel();
         let (tx1, rx0) = std::sync::mpsc::channel();
         let context = ctx.clone();
-        
+
         tokio::task::spawn(async move {
             let die_fallback_transmittter = tx1.clone();
             //panic::set_hook(Box::new( |_| {}));
@@ -109,7 +109,12 @@ impl BridgeThread {
         tx1: Sender<MaximaLibResponse>,
         ctx: &Context,
     ) -> Result<()> {
-        let maxima_arc: LockedMaxima = Maxima::new()?;
+        let maxima_arc: LockedMaxima = Maxima::new_with_options(
+            MaximaOptionsBuilder::default()
+                .dummy_local_user(false)
+                .load_auth_storage(true)
+                .build()?,
+        )?;
 
         {
             let maxima = maxima_arc.lock().await;
