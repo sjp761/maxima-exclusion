@@ -41,7 +41,7 @@ impl GameLibrary {
             .map(|x| (x.clone(), self.service_layer.clone()))
             .collect();
 
-        let responses: Vec<ServiceUser> =
+        let _responses: Vec<ServiceUser> =
             execute_batch_concurrent(16, requests_and_clients, |x| async move {
                 x.1.request(SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES, x.0)
                     .await

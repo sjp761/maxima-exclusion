@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose, Engine};
 use derive_getters::Getters;
 use log::info;
-use std::{env, fmt::Display, path::PathBuf, sync::Arc, vec::Vec};
+use std::{env, fmt::Display, path::PathBuf, sync::Arc};
 use tokio::{
     process::{Child, Command},
     sync::Mutex,

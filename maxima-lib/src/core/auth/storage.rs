@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use log::{info, warn};
+use log::info;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;

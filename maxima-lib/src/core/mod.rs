@@ -56,7 +56,7 @@ use self::{
     library::GameLibrary,
     locale::Locale,
     service_layer::{
-        ServiceAvatarList, ServiceAvatarListBuilder, ServiceFriends, ServiceGameProductType,
+        ServiceAvatarListBuilder, ServiceFriends, ServiceGameProductType,
         ServiceGetBasicPlayerRequestBuilder, ServiceGetMyFriendsRequestBuilder,
         ServiceGetPreloadedOwnedGamesRequestBuilder, ServiceGetUserPlayerRequest, ServiceImage,
         ServiceImageBuilder, ServiceLayerClient, ServicePlatform, ServicePlayer,

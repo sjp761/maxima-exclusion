@@ -37,7 +37,6 @@ macro_rules! send_rtm_request {
                     match fut.await {
                         Ok(communication_v1::Body::Success(success)) => match success.body.unwrap() {
                             success_v1::Body::$response_body_name(data) => Some(data),
-                            _ => None,
                         },
                         _ => None,
                     }

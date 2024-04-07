@@ -163,7 +163,7 @@ pub fn get_os_pid(context: &ActiveGameContext) -> Result<u32> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn get_wine_pid(launch_id: &str, name: &str) -> Result<u32> {
+pub fn get_wine_pid(_launch_id: &str, _name: &str) -> Result<u32> {
     Ok(0)
 }
 
