@@ -237,6 +237,8 @@ service_layer_type!(GameImagesRequest, {
 service_layer_enum!(GameProductType, {
     DigitalFullGame,
     DigitalExtraContent,
+    PackagedFullGame,
+    PackagedExtraContent,
     MicroContent,
     ExpansionPack,
     BundlePack,

@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use log::{error, info, warn};
 use regex::Regex;
 
-use std::{sync::Arc, time::Instant, vec::Vec};
+use std::{sync::Arc, time::Instant};
 
 #[cfg(windows)]
 use is_elevated::is_elevated;
@@ -25,8 +25,7 @@ use maxima::{
         clients::JUNO_PC_CLIENT_ID,
         launch::LaunchMode,
         service_layer::{
-            ServiceFriends, ServiceGetBasicPlayerRequestBuilder, ServicePlayer,
-            SERVICE_REQUEST_GETBASICPLAYER,
+            ServiceGetBasicPlayerRequestBuilder, ServicePlayer, SERVICE_REQUEST_GETBASICPLAYER,
         },
         LockedMaxima, MaximaOptionsBuilder,
     },
@@ -83,6 +82,10 @@ enum Mode {
     GetUserById {
         #[arg(long)]
         user_id: String,
+    },
+    GetGameBySlug {
+        #[arg(long)]
+        slug: String,
     },
     TestRTMConnection,
     ListFriends,
@@ -262,6 +265,7 @@ async fn startup() -> Result<()> {
         Mode::ReadLicenseFile { content_id } => read_license_file(&content_id).await,
         Mode::ListFriends => list_friends(maxima_arc.clone()).await,
         Mode::GetUserById { user_id } => get_user_by_id(maxima_arc.clone(), &user_id).await,
+        Mode::GetGameBySlug { slug } => get_game_by_slug(maxima_arc.clone(), &slug).await,
         Mode::TestRTMConnection => test_rtm_connection(maxima_arc.clone()).await,
     }?;
 
@@ -499,6 +503,17 @@ async fn get_user_by_id(maxima_arc: LockedMaxima, user_id: &str) -> Result<()> {
     Ok(())
 }
 
+async fn get_game_by_slug(maxima_arc: LockedMaxima, slug: &str) -> Result<()> {
+    let maxima = maxima_arc.lock().await;
+
+    match maxima.owned_game_by_slug(slug).await {
+        Ok(game) => info!("Game: {}", game.id()),
+        Err(err) => error!("{}", err),
+    };
+
+    Ok(())
+}
+
 async fn test_rtm_connection(maxima_arc: LockedMaxima) -> Result<()> {
     let mut maxima = maxima_arc.lock().await;
     let friends = maxima.friends(0).await?;
@@ -508,7 +523,7 @@ async fn test_rtm_connection(maxima_arc: LockedMaxima) -> Result<()> {
     rtm.set_presence(BasicPresence::Online, "Test", "Origin.OFR.50.0002148")
         .await?;
 
-    let mut players: Vec<String> = friends.iter().map(|f| f.id().to_owned()).collect();
+    let players: Vec<String> = friends.iter().map(|f| f.id().to_owned()).collect();
     info!("Subscribed to {} players", players.len());
 
     rtm.subscribe(&players).await?;

@@ -59,10 +59,11 @@ use self::{
         ServiceAvatarListBuilder, ServiceFriends, ServiceGameProductType,
         ServiceGetBasicPlayerRequestBuilder, ServiceGetMyFriendsRequestBuilder,
         ServiceGetPreloadedOwnedGamesRequestBuilder, ServiceGetUserPlayerRequest, ServiceImage,
-        ServiceImageBuilder, ServiceLayerClient, ServicePlatform, ServicePlayer,
-        ServicePlayerBuilder, ServiceStorefront, ServiceUser, ServiceUserBuilder,
-        SERVICE_REQUEST_GETBASICPLAYER, SERVICE_REQUEST_GETMYFRIENDS,
-        SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES, SERVICE_REQUEST_GETUSERPLAYER,
+        ServiceImageBuilder, ServiceLayerClient, ServiceOwnershipStatus, ServicePlatform,
+        ServicePlayer, ServicePlayerBuilder, ServicePurchaseStatus, ServiceStorefront, ServiceUser,
+        ServiceUserBuilder, ServiceUserGameProduct, SERVICE_REQUEST_GETBASICPLAYER,
+        SERVICE_REQUEST_GETMYFRIENDS, SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
+        SERVICE_REQUEST_GETUSERPLAYER,
     },
 };
 
@@ -303,6 +304,45 @@ impl Maxima {
             .await?;
 
         Ok(data)
+    }
+
+    pub async fn owned_game_by_slug(&self, slug: &str) -> Result<ServiceUserGameProduct> {
+        let games = self.owned_games(1).await?;
+        let game = games
+            .owned_game_products()
+            .as_ref()
+            .unwrap()
+            .items()
+            .iter()
+            .filter(|x| {
+                // Ensure the entitlement is active
+                if x.status() != &ServiceOwnershipStatus::Active {
+                    return false;
+                }
+                // Ensure it's the full game
+                if x.product().base_item().game_type().as_ref().unwrap_or(&ServiceGameProductType::ExpansionPack)
+                    != &ServiceGameProductType::BaseGame
+                {
+                    return false;
+                }
+
+                // Ensure it isn't a trial
+                if x.product()
+                    .game_product_user()
+                    .game_product_user_trial()
+                    .is_some()
+                {
+                    return false;
+                }
+
+                true
+            })
+            .find(|x| x.product().game_slug() == &slug);
+
+        match game {
+            Some(game) => Ok(game.to_owned()),
+            None => bail!("Failed to find game"),
+        }
     }
 
     pub async fn player_by_id(&self, id: &str) -> Result<ServicePlayer> {
