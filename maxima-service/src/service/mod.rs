@@ -19,6 +19,7 @@ use windows_service::{
     service_control_handler::{self, ServiceControlHandlerResult},
     service_dispatcher,
 };
+use std::sync::mpsc::{self, Receiver};
 
 use maxima::core::background_service::{ServiceLibraryInjectionRequest, BACKGROUND_SERVICE_PORT};
 
@@ -37,10 +38,13 @@ fn service_main(arguments: Vec<OsString>) {
 }
 
 fn bootstrap_service(_arguments: Vec<OsString>) -> windows_service::Result<()> {
+    let (shutdown_tx, shutdown_rx) = mpsc::channel();
+    
     let event_handler = move |control_event| -> ServiceControlHandlerResult {
         match control_event {
             ServiceControl::Stop | ServiceControl::Interrogate => {
-                std::process::exit(0);
+                shutdown_tx.send(()).unwrap();
+                ServiceControlHandlerResult::NoError
             }
             _ => ServiceControlHandlerResult::NotImplemented,
         }
@@ -59,7 +63,19 @@ fn bootstrap_service(_arguments: Vec<OsString>) -> windows_service::Result<()> {
     };
 
     status_handle.set_service_status(next_status)?;
-    run_service().expect("Failed to run service");
+    run_service(shutdown_rx).expect("Failed to run service");
+
+    info!("Shutting down...");
+
+    status_handle.set_service_status(ServiceStatus {
+        service_type: ServiceType::OWN_PROCESS,
+        current_state: ServiceState::Stopped,
+        controls_accepted: ServiceControlAccept::empty(),
+        exit_code: ServiceExitCode::Win32(0),
+        checkpoint: 0,
+        wait_hint: Duration::default(),
+        process_id: None,
+    })?;
 
     Ok(())
 }
@@ -72,7 +88,7 @@ async fn req_set_up_registry() -> impl Responder {
         return format!("Error: {}", result.err().unwrap());
     }
 
-    format!("Hello!")
+    format!("Done")
 }
 
 // This is for KYBER. Ideally this would be moved to a separate Kyber service,
@@ -104,7 +120,7 @@ async fn req_inject_library(body: web::Bytes) -> Result<HttpResponse, ServiceErr
     Ok(HttpResponse::Ok().body("Injected"))
 }
 
-fn run_service() -> Result<()> {
+fn run_service(shutdown_rx: Receiver<()>) -> Result<()> {
     let log_path = Path::new("C:/ProgramData/Maxima/Logs/MaximaBackgroundService.log");
     std::fs::create_dir_all(log_path.parent().unwrap())?;
     let log_file = File::create(log_path)?;
@@ -118,8 +134,8 @@ fn run_service() -> Result<()> {
     thread::spawn(|| {
         actix_web::rt::System::new().block_on(async {
             use actix_web::{App, HttpServer};
-
-            HttpServer::new(|| {
+    
+            let _ = HttpServer::new(|| {
                 App::new()
                     .service(req_set_up_registry)
                     .service(req_inject_library)
@@ -127,10 +143,11 @@ fn run_service() -> Result<()> {
             .bind(("127.0.0.1", BACKGROUND_SERVICE_PORT))
             .unwrap()
             .run()
-            .await
-            .unwrap();
+            .await;
         });
     });
+
+    let _ = shutdown_rx.recv();
 
     Ok(())
 }
