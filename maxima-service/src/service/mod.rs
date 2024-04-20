@@ -4,7 +4,7 @@ use actix_web::{get, post, web, HttpResponse, Responder};
 use anyhow::Result;
 use dll_syringe::process::OwnedProcess;
 use dll_syringe::Syringe;
-use log::info;
+use log::{info, warn};
 use maxima::util::registry::set_up_registry;
 use maxima::util::service::SERVICE_NAME;
 use std::ffi::OsString;
@@ -46,30 +46,19 @@ fn bootstrap_service(_arguments: Vec<OsString>) -> windows_service::Result<()> {
         }
     };
 
-    // Register system service event handler
     let status_handle = service_control_handler::register(SERVICE_NAME, event_handler)?;
 
     let next_status = ServiceStatus {
-        // Should match the one from system service registry
         service_type: ServiceType::OWN_PROCESS,
-        // The new state
         current_state: ServiceState::Running,
-        // Accept stop events when running
         controls_accepted: ServiceControlAccept::STOP,
-        // Used to report an error when starting or stopping only, otherwise must be zero
         exit_code: ServiceExitCode::Win32(0),
-        // Only used for pending states, otherwise must be zero
         checkpoint: 0,
-        // Only used for pending states, otherwise must be zero
         wait_hint: Duration::default(),
-        // Unused for setting status
         process_id: None,
     };
 
-    // Tell the system that the service is running now
     status_handle.set_service_status(next_status)?;
-
-    // Do some work
     run_service().expect("Failed to run service");
 
     Ok(())
@@ -86,17 +75,28 @@ async fn req_set_up_registry() -> impl Responder {
     format!("Hello!")
 }
 
+// This is for KYBER. Ideally this would be moved to a separate Kyber service,
+// but it isn't a great user experience to have to install two windows services.
+// We'll eventually find a better workaround and move this somewhere else.
 #[post("/inject_library")]
 async fn req_inject_library(body: web::Bytes) -> Result<HttpResponse, ServiceError> {
     info!("Injecting...");
+
     let obj: ServiceLibraryInjectionRequest = serde_json::from_slice(&body)?;
     let process = OwnedProcess::from_pid(obj.pid)?;
+
     let hash_result = get_sha256_hash_of_pid(obj.pid);
     if hash_result.is_err() {
         return Err(ServiceError::InternalError);
     }
 
-    info!("Process hash: {}", hex::encode(hash_result.unwrap()));
+    // Ensure we're only injecting into STAR WARS Battlefront 2. Ideally we would check
+    // the hash of the dll as well, but there isn't a great way to do that since there
+    // are multiple release channels and dev builds.
+    if hex::encode(hash_result.unwrap()) != "7880e40d79e981b064baaf06f10785601222c6e227a656b70112c24b1f82e2ce" {
+        warn!("Attempted to inject into invalid process!");
+        return Err(ServiceError::InternalError);
+    }
 
     let syringe = Syringe::for_process(process);
     syringe.inject(obj.path).unwrap();
@@ -117,7 +117,6 @@ fn run_service() -> Result<()> {
 
     thread::spawn(|| {
         actix_web::rt::System::new().block_on(async {
-            // Import your actix_web::App here
             use actix_web::{App, HttpServer};
 
             HttpServer::new(|| {

@@ -480,7 +480,7 @@ async fn list_friends(maxima_arc: LockedMaxima) -> Result<()> {
     let maxima = maxima_arc.lock().await;
 
     for ele in maxima.friends(0).await? {
-        info!("{}", ele.display_name());
+        info!("{} - Persona ID: {}", ele.display_name(), ele.psd());
     }
 
     Ok(())
