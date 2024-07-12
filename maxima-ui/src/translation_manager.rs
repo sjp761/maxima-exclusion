@@ -19,6 +19,7 @@ pub struct LocalizedStrings {
 #[derive(Deserialize)]
 pub struct LocalizedGenericErrors {
     pub view_not_impl: String,
+    pub view_coming_soon: String,
     pub critical_thread_crashed: String,
 }
 

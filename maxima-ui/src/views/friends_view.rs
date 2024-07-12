@@ -1,7 +1,6 @@
 use std::{cmp, sync::Arc};
 
 use egui::{text::{LayoutJob, TextWrapping}, vec2, Color32, Id, Margin, Rounding, Sense, Stroke, TextFormat, Ui};
-use egui_extras::StripBuilder;
 use maxima::rtm::{client::BasicPresence};
 
 use crate::{DemoEguiApp, bridge_thread, ui_image::UIImage, widgets::enum_dropdown::enum_dropdown};
@@ -177,18 +176,17 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
       ui.style_mut().visuals.widgets.active.rounding = Rounding::same(4.0);
       ui.style_mut().visuals.widgets.hovered.rounding = Rounding::same(4.0);
 
+      let clip_rect = ui.available_rect_before_wrap();
       egui::ScrollArea::new([false,friend_rect_hovered])
       .id_source("FriendsListFriendListScrollArea") //hmm yes, the friends list is made of friends list
       .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
       .show(ui, |ui| {
+        ui.allocate_space(vec2(ui.available_width(), 0.0));
+        ui.set_clip_rect(clip_rect);
         puffin::profile_scope!("friends");
         let mut marge = Margin::same(0.0);
         marge.bottom = 4.5;
-        let scrollbar_width = ui.spacing().scroll_bar_width;
-        StripBuilder::new(ui)
-        .clip(true)
-        .sizes(egui_extras::Size::initial(PFP_SIZE), friends.len()) 
-        .vertical(|mut friends_ui| {
+        let scrollbar_width = ui.spacing().scroll.bar_width;
           for friend in friends {
             puffin::profile_scope!("friend");
             let buttons = app.friends_view_bar.friend_sel.eq(&friend.id) && friend_rect_hovered;
@@ -241,14 +239,15 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
             };
 
 
-
-            friends_ui.cell(|friendo| {
+            //TODO: rewrite with custom painting
+            ui.label("guh!");
+            /* friends_ui.cell(|friendo| {
               friendo.spacing_mut().item_spacing = vec2(0.0,0.0);
               let sensor = friendo.allocate_rect(friendo.available_rect_before_wrap(), Sense::click());
               let how_hover = context.animate_bool(Id::new("friendlistrect_".to_owned()+&friend.id), sensor.hovered() || buttons);
               let rect_bg_col = Color32::from_white_alpha((how_hover*u8::MAX as f32) as u8);
               let text_col = Color32::from_gray(((1.0-how_hover)*u8::MAX as f32) as u8);
-              friendo.allocate_space(-sensor.rect.size());
+              friendo.allocate_space(-sensor.rect.size().max(vec2(0.0, 0.0)));
               friendo.painter().rect_filled(sensor.rect, Rounding::same(4.0), rect_bg_col);
               friendo.horizontal(|friendo| {
                 friendo.allocate_space(vec2(2.0,0.0));
@@ -276,7 +275,7 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
                 friendo.allocate_space(vec2(6.0 + (30.0 - (hovering_friends * 30.0)),0.0));
                 friendo.vertical(|muchotexto| {
                   muchotexto.allocate_space(vec2(0.0,2.0));
-                  let friend_name = egui::Label::new(egui::RichText::new(&friend.name).size(15.0).color(text_col)).wrap(false);
+                  let friend_name = egui::Label::new(egui::RichText::new(&friend.name).size(15.0).color(text_col));
                   muchotexto.add(friend_name);
                   muchotexto.allocate_space(vec2(0.0,3.0));
                   muchotexto.label(egui::RichText::new(friend_status).color(text_col).size(10.0));
@@ -285,11 +284,8 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
               });
 
 
-            });
+            });*/
           }
-        });
-        
-        //ui.allocate_space(vec2(item_width-2.0,ui.available_size_before_wrap().y));
       });
     });
   });

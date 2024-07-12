@@ -1,15 +1,17 @@
 #![feature(slice_pattern)]
 use clap::{arg, command, Parser};
 
-use eframe::IconData;
-use egui::style::Spacing;
+use egui::{pos2, ViewportBuilder};
+use egui::style::{ScrollStyle, Spacing};
 use egui::Style;
 use log::{error, info, warn};
+use views::undefinied_view::coming_soon_view;
+use std::default::Default;
 use std::{ops::RangeInclusive, rc::Rc, sync::Arc};
 use ui_image::UIImage;
 use views::friends_view::UIFriend;
 
-use eframe::egui;
+
 use eframe::egui_glow;
 use egui::{
     style::{WidgetVisuals, Widgets},
@@ -106,19 +108,19 @@ async fn main() {
     }
 
     let native_options = eframe::NativeOptions {
-        transparent: true,
-        #[cfg(target_os = "macos")]
-        fullsize_content: true,
-        icon_data: {
+        viewport: ViewportBuilder::default()
+        .with_inner_size([1280.0, 720.0])
+        .with_min_inner_size([940.0, 480.0]),
+        
+        /* icon_data: {
             let res = IconData::try_from_png_bytes(include_bytes!("../../maxima-resources/assets/logo.png"));
             if let Ok(icon) = res {
                 Some(icon)
             } else {
                 None
             }
-        },
-        initial_window_size: Some(vec2(1280.0, 720.0)),
-        min_window_size: Some(vec2(940.0, 480.0)),
+        },*/
+        //min_window_size: Some(vec2()),
         ..Default::default()
     };
     eframe::run_native(
@@ -129,7 +131,7 @@ async fn main() {
             // Run initialization code that needs access to the UI here, but DO NOT run any long-runtime functions here,
             // as it's before the UI is shown
             if args.no_login {
-                return Box::new(app);
+                return Ok(Box::new(app));
             }
             if let Err(err) = check_registry_validity() {
                 warn!("{}, fixing...", err);
@@ -138,7 +140,7 @@ async fn main() {
                     error!("Registry setup failed!");
                 }
             }
-            Box::new(app)
+            Ok(Box::new(app))
         }),
     )
     .expect("Failed i guess?")
@@ -270,10 +272,14 @@ impl DemoEguiApp {
     fn new(cc: &eframe::CreationContext<'_>, args: Args) -> Self {
         let style: Style = Style {
             spacing: Spacing {
-                scroll_bar_width: 8.0,
-                scroll_handle_min_length: 12.0,
-                scroll_bar_inner_margin: 4.0,
-                scroll_bar_outer_margin: 0.0,
+                scroll: ScrollStyle {
+                    bar_width: 8.0,
+                    floating_width: 8.0,
+                    handle_min_length: 12.0,
+                    bar_inner_margin: 4.0,
+                    bar_outer_margin: 0.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             visuals: Visuals {
@@ -417,6 +423,7 @@ pub fn tab_bar_button(ui: &mut Ui, res: Response) {
     );
 }
 
+/// We used to have a semi-functional implementation that only worked on Mac, but, as i would say, we do not care 🗣️🗣️🗣️
 fn custom_window_frame(
     ctx: &egui::Context,
     frame: &mut eframe::Frame,
@@ -430,11 +437,7 @@ fn custom_window_frame(
         fill: Color32::RED,
         rounding: 0.0.into(),
         stroke: Stroke::NONE,
-        outer_margin: if frame.info().window_info.maximized {
-            0.0.into()
-        } else {
-            0.0.into()
-        },
+        outer_margin: 0.0.into(), // this used to check if it was maximized but that got deprecated and we don't care
         ..Default::default()
     };
 
@@ -448,129 +451,16 @@ fn custom_window_frame(
             rect.max.y = rect.min.y + title_bar_height;
             rect
         };
-        #[cfg(target_os = "macos")]
-        //eventually offer this on other platforms, but mac is the only functional one
-        title_bar_ui(ui, frame, _title_bar_rect, _title);
-
-        // Add the contents:
-        #[cfg(target_os = "macos")]
-        let content_rect = Rect {
-            min: pos2(app_rect.min.x, _title_bar_rect.max.y) + APP_MARGIN,
-            max: app_rect.max - APP_MARGIN,
-        };
-        #[cfg(not(target_os = "macos"))]
+        
         let content_rect = Rect {
             min: app_rect.min + APP_MARGIN,
             max: app_rect.max - APP_MARGIN,
         };
 
-        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+        let mut content_ui = ui.child_ui(content_rect, *ui.layout(), None);
 
         add_contents(&mut content_ui);
     });
-}
-
-
-fn title_bar_ui(
-    ui: &mut egui::Ui,
-    frame: &mut eframe::Frame,
-    title_bar_rect: eframe::epaint::Rect,
-    title: &str,
-) {
-    use egui::*;
-
-    let painter = ui.painter();
-
-    let title_bar_response = ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
-
-    // Paint the title:
-    painter.text(
-        title_bar_rect.center(),
-        Align2::CENTER_CENTER,
-        title,
-        FontId::proportional(20.0),
-        ui.style().visuals.text_color(),
-    );
-
-    // Paint the line under the title:
-    painter.line_segment(
-        [
-            title_bar_rect.left_bottom() + vec2(1.0, 0.0),
-            title_bar_rect.right_bottom() + vec2(-1.0, 0.0),
-        ],
-        ui.visuals().widgets.noninteractive.bg_stroke,
-    );
-
-    // Interact with the title bar (drag to move window):
-    if title_bar_response.double_clicked() {
-        frame.set_maximized(!frame.info().window_info.maximized);
-    } else if title_bar_response.is_pointer_button_down_on() {
-        frame.drag_window();
-    }
-
-    ui.allocate_ui_at_rect(title_bar_rect, |ui| {
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.spacing_mut().item_spacing.x = 0.0;
-            ui.visuals_mut().button_frame = false;
-            #[cfg(not(target_os = "macos"))]
-            close_maximize_minimize(ui, frame);
-        });
-    });
-} 
-
-/// wrapper/help func to avoid nesting hell in custom window decorations
-fn close_maximize_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-    use egui::{Button, RichText};
-
-    let button_height = 12.0;
-    ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
-    ui.style_mut().visuals.widgets.hovered.weak_bg_fill = Color32::LIGHT_RED;
-    ui.style_mut().visuals.widgets.active.weak_bg_fill = Color32::RED;
-
-    let close_response = ui.add_sized(
-        vec2(42.0, 32.0),
-        Button::new(RichText::new("❌"))
-            .rounding(Rounding::ZERO)
-            .stroke(Stroke::NONE),
-    );
-    if close_response.clicked() {
-        frame.close();
-    }
-
-    ui.style_mut().visuals.widgets.hovered.weak_bg_fill = Color32::from_black_alpha(50);
-    ui.style_mut().visuals.widgets.active.weak_bg_fill = Color32::from_black_alpha(70);
-
-    if frame.info().window_info.maximized {
-        let maximized_response = ui.add_sized(
-            vec2(42.0, 32.0),
-            Button::new(RichText::new("🗗"))
-                .rounding(Rounding::ZERO)
-                .stroke(Stroke::NONE),
-        );
-        if maximized_response.clicked() {
-            frame.set_maximized(false);
-        }
-    } else {
-        let maximized_response = ui.add_sized(
-            vec2(42.0, 32.0),
-            Button::new(RichText::new("🗗"))
-                .rounding(Rounding::ZERO)
-                .stroke(Stroke::NONE),
-        );
-        if maximized_response.clicked() {
-            frame.set_maximized(true);
-        }
-    }
-
-    let minimized_response = ui.add_sized(
-        vec2(42.0, 32.0),
-        Button::new(RichText::new("🗕"))
-            .rounding(Rounding::ZERO)
-            .stroke(Stroke::NONE),
-    );
-    if minimized_response.clicked() {
-        frame.set_minimized(true);
-    }
 }
 
 /// Wrapper/helper for the tab buttons in the top left of the app
@@ -914,24 +804,29 @@ impl eframe::App for DemoEguiApp {
                             });
 
                             strip.cell(|main| {
-                                
                                 puffin::profile_scope!("main content");
-                                StripBuilder::new(main)
-                                .size(Size::remainder())
-                                .size(Size::exact(self.friends_width))
-                                .horizontal(|mut strip| {
-                                    strip.cell(|bigmain| {
-                                        puffin::profile_scope!("main view");
-                                        match self.page_view {
-                                            PageType::Games => games_view(self, bigmain),
-                                            PageType::Settings => settings_view(self, bigmain),
-                                            PageType::Debug => debug_view(self, bigmain),
-                                            _ => undefined_view(self, bigmain),
-                                        }
-                                    });
-                                    strip.cell(|friends| {
-                                        friends_view(self, friends);
-                                    });
+
+                                let bigmain_rect = Rect {
+                                    min: main.available_rect_before_wrap().min,
+                                    max: main.available_rect_before_wrap().max - vec2(self.friends_width + main.style().spacing.item_spacing.x, 0.0)
+                                };
+                                let friends_rect = Rect {
+                                    min: pos2(main.available_rect_before_wrap().max.x - self.friends_width, main.available_rect_before_wrap().min.y),
+                                    max: main.available_rect_before_wrap().max
+                                };
+
+                                main.allocate_ui_at_rect(bigmain_rect, |bigmain| {
+                                    puffin::profile_scope!("main view");
+                                    match self.page_view {
+                                        PageType::Games => games_view(self, bigmain),
+                                        PageType::Settings => settings_view(self, bigmain),
+                                        PageType::Debug => debug_view(self, bigmain),
+                                        PageType::Store => coming_soon_view(self, bigmain),
+                                        _ => undefined_view(self, bigmain),
+                                    }
+                                });
+                                main.allocate_ui_at_rect(friends_rect, |friends| {
+                                    friends_view(self, friends);
                                 });
                             });
                         });

@@ -1,6 +1,7 @@
 {
     "errors" : {
         "view_not_impl" : "View not implemented",
+        "view_coming_soon": "Coming Soon™!",
         "critical_thread_crashed" : "A critical background thread has crashed, and the application cannot continue functioning."
     },
     "menubar" : {
