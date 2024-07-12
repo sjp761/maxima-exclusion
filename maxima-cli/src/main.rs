@@ -659,17 +659,6 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
     info!("Owned games:");
     let titles = maxima.mut_library().games().await;
 
-    // let owned_games = maxima.owned_games(1).await?;
-    // for game in owned_games.owned_game_products().as_ref().unwrap().items() {
-    //     info!(
-    //         "{:<width$} - {:<width2$}",
-    //         game.product().name(),
-    //         game.origin_offer_id(),
-    //         width = 55,
-    //         width2 = 25
-    //     );
-    // }
-
     for title in titles {
         info!(
             "{:<width$} - {:<width2$} - Installed: {}",
@@ -679,8 +668,6 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
             width = 35,
             width2 = 35
         );
-
-        //info!("{}", title.base_offer().installed());
 
         for game in title.extra_offers() {
             info!(
