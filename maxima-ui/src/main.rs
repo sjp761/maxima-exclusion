@@ -311,6 +311,9 @@ impl DemoEguiApp {
                     handle_min_length: 12.0,
                     bar_inner_margin: 4.0,
                     bar_outer_margin: 0.0,
+                    dormant_background_opacity: 0.4,
+                    dormant_handle_opacity: 0.6,
+                    foreground_color: false,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -328,7 +331,7 @@ impl DemoEguiApp {
                         bg_stroke: Stroke::NONE,
                         fg_stroke: Stroke::new(1.0, Color32::BLACK),
                         rounding: Rounding::ZERO,
-                        expansion: 0.0,
+                        expansion: -1.0,
                     },
                     inactive: WidgetVisuals {
                         weak_bg_fill: Color32::TRANSPARENT,

@@ -64,6 +64,8 @@ const DARK_GREY: Color32 = Color32::from_rgb(64, 64, 64);
 const PFP_SIZE: f32 = 42.0;
 const PFP_IMG_SIZE: f32 = PFP_SIZE - 4.0;
 
+const FRIEND_HIGHLIGHT_ROUNDING: Rounding = Rounding { nw: 6.0, ne: 4.0, sw: 6.0, se: 4.0 }; // the status border is flawed somehow, this "fixes" it slightly more than if i didn't
+
 pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
   puffin::profile_function!();
   ui.style_mut().spacing.item_spacing = vec2(5.0,0.0);
@@ -72,7 +74,7 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
   let sidebar_rect = ui.available_rect_before_wrap();
 
   let mut hittest_rect = sidebar_rect.clone().expand2(vec2(12.0,12.0));
-  hittest_rect.min.x += 4.0; // fix overlapping the scrollbar of the left view
+  hittest_rect.min.x += 8.0; // fix overlapping the scrollbar of the left view
   
   let friend_rect_hovered = if let Some(pos) = ui.ctx().input(|i| i.pointer.interact_pos()) {
     hittest_rect.contains(pos)
@@ -280,7 +282,7 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
           }
 
           if f_res.hovered() || buttons {
-            f_painter.rect_filled(highlight_rect, Rounding::same(4.0), Color32::WHITE);
+            f_painter.rect_filled(highlight_rect, FRIEND_HIGHLIGHT_ROUNDING, Color32::WHITE);
           }
 
           let outline_rect = Rect {
