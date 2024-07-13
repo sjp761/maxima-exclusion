@@ -285,7 +285,8 @@ impl GameLibrary {
             });
         }
 
-        let titles = group_offers(offers);
+        let mut titles = group_offers(offers);
+        titles.sort_by(|a, b| a.name().to_lowercase().cmp(&b.name().to_lowercase()));
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

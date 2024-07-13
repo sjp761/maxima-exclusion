@@ -65,8 +65,6 @@ webpki-roots = "0.22.0"
 aes = "0.8.4"
 ecb = { version = "0.1.2", features = ["std"] }
 cbc = { version = "0.1.2", features = ["std"] }
-snafu = "0.8.4"
-case_insensitive_hashmap = "1.0.1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = [
