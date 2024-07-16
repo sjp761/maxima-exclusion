@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use futures::StreamExt;
 use log::info;
 use serde::{Deserialize, Serialize};
-use tokio::{fs, sync::{Mutex, Notify}};
+use tokio::{fs, sync::Notify};
 use tokio_util::sync::CancellationToken;
 
 use crate::{core::auth::storage::LockedAuthStorage, util::native::maxima_dir};
@@ -62,9 +62,8 @@ impl DownloadQueue {
 
 pub struct GameDownloader {
     offer_id: String,
-    build_id: String,
 
-    downloader: Arc<ZipDownloader>, // Replace Downloader with your actual downloader type
+    downloader: Arc<ZipDownloader>,
     cancel_token: CancellationToken,
     completed_count: Arc<AtomicUsize>,
     total_count: usize,
@@ -72,7 +71,7 @@ pub struct GameDownloader {
 }
 
 impl GameDownloader {
-    pub async fn new(content_service: &ContentService, game: &QueuedGame) -> Result<Self> { // Replace Downloader with your actual downloader type
+    pub async fn new(content_service: &ContentService, game: &QueuedGame) -> Result<Self> {
         let url = content_service
             .download_url(&game.offer_id, Some(&game.build_id))
             .await?;
@@ -84,7 +83,6 @@ impl GameDownloader {
         let total_count = downloader.manifest().entries().len();
         Ok(GameDownloader {
             offer_id: game.offer_id.to_owned(),
-            build_id: game.build_id.to_owned(),
 
             downloader: Arc::new(downloader),
             cancel_token: CancellationToken::new(),
@@ -169,7 +167,7 @@ impl ContentManager {
 
         if let Some(current) = &self.queue.current {
             if current == &game {
-                self.install_direct(game);
+                self.install_direct(game).await?;
                 return Ok(());
             }
 
@@ -189,7 +187,7 @@ impl ContentManager {
 
         if let Some(current) = &self.queue.current {
             if current == &game {
-                self.install_direct(game);
+                self.install_direct(game).await?;
                 return Ok(());
             }
 
