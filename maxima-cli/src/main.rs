@@ -18,37 +18,32 @@ use maxima::{
     util::service::{is_service_running, is_service_valid, register_service_user, start_service},
 };
 
+#[cfg(unix)]
+use maxima::core::launch::mx_linux_setup;
+
 use maxima::{
-    content::downloader::ZipDownloader,
+    content::{downloader::ZipDownloader, ContentService},
     core::{
-        auth::{nucleus_token_exchange, TokenResponse},
+        auth::{
+            context::AuthContext,
+            login::{begin_oauth_login_flow, manual_login},
+            nucleus_auth_exchange, nucleus_token_exchange, TokenResponse,
+        },
         clients::JUNO_PC_CLIENT_ID,
         cloudsync::CloudSyncLockMode,
         dip::{DiPManifest, DIP_RELATIVE_PATH},
-        launch::{mx_linux_setup, LaunchMode},
+        launch,
+        launch::LaunchMode,
         library::OwnedTitle,
         service_layer::{
             ServiceGetBasicPlayerRequestBuilder, ServiceGetLegacyCatalogDefsRequestBuilder,
             ServiceLegacyOffer, ServicePlayer, SERVICE_REQUEST_GETBASICPLAYER,
             SERVICE_REQUEST_GETLEGACYCATALOGDEFS,
         },
-        LockedMaxima, MaximaOptionsBuilder,
+        LockedMaxima, Maxima, MaximaEvent, MaximaOptionsBuilder,
     },
     ooa,
     rtm::client::BasicPresence,
-};
-use maxima::{
-    content::ContentService,
-    core::{
-        auth::{
-            context::AuthContext,
-            login::{begin_oauth_login_flow, manual_login},
-            nucleus_auth_exchange,
-        },
-        launch,
-        service_layer::ServiceUserGameProduct,
-        Maxima, MaximaEvent,
-    },
     util::{log::init_logger, native::take_foreground_focus, registry::check_registry_validity},
 };
 
@@ -396,7 +391,10 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
 
     info!("URL: {}", url.url());
 
-    let path = PathBuf::from(Text::new("Where would you like to install the game? (must be an absolute path)").prompt()?);
+    let path = PathBuf::from(
+        Text::new("Where would you like to install the game? (must be an absolute path)")
+            .prompt()?,
+    );
     if !path.is_absolute() {
         error!("Path {:?} is not absolute.", path);
         return Ok(());
@@ -505,7 +503,11 @@ async fn generate_download_links(maxima_arc: LockedMaxima) -> Result<()> {
         .map(|g| g.name())
         .collect::<Vec<String>>();
 
-    let name = Select::new("What game would you like to list builds for?", owned_games_strs).prompt()?;
+    let name = Select::new(
+        "What game would you like to list builds for?",
+        owned_games_strs,
+    )
+    .prompt()?;
     let game = owned_games.iter().find(|g| g.name() == name).unwrap();
 
     info!("Working...");
