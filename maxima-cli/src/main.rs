@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 use anyhow::{bail, Result};
 use futures::StreamExt;
-use inquire::Select;
+use inquire::{Select, Text};
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn};
 use regex::Regex;
@@ -19,13 +19,13 @@ use maxima::{
 };
 
 use maxima::{
-    content::downloader::GameDownloader,
+    content::downloader::ZipDownloader,
     core::{
         auth::{nucleus_token_exchange, TokenResponse},
         clients::JUNO_PC_CLIENT_ID,
         cloudsync::CloudSyncLockMode,
         dip::{DiPManifest, DIP_RELATIVE_PATH},
-        launch::LaunchMode,
+        launch::{mx_linux_setup, LaunchMode},
         library::OwnedTitle,
         service_layer::{
             ServiceGetBasicPlayerRequestBuilder, ServiceGetLegacyCatalogDefsRequestBuilder,
@@ -59,14 +59,13 @@ lazy_static! {
 #[derive(Subcommand, Debug)]
 enum Mode {
     Launch {
+        slug: String,
+
         #[arg(long)]
         game_path: Option<String>,
 
         #[arg(long)]
         game_args: Vec<String>,
-
-        #[arg(short, long)]
-        offer_id: String,
 
         /// When set, offer_id must be a content ID, and the only authenticated
         /// requests are made to the license server. A dummy name will be used
@@ -231,7 +230,7 @@ async fn startup() -> Result<()> {
         if let Some(Mode::Launch {
             game_path: _,
             game_args: _,
-            offer_id: _,
+            slug: _,
             ref login,
         }) = args.mode
         {
@@ -280,11 +279,11 @@ async fn startup() -> Result<()> {
     let mode = args.mode.unwrap();
     match mode {
         Mode::Launch {
+            slug,
             game_path,
             game_args,
-            offer_id,
             login,
-        } => start_game(&offer_id, game_path, game_args, login, maxima_arc.clone()).await,
+        } => start_game(&slug, game_path, game_args, login, maxima_arc.clone()).await,
         Mode::ListGames => list_games(maxima_arc.clone()).await,
         Mode::LocateGame { path } => locate_game(maxima_arc.clone(), &path).await,
         Mode::CloudSync { game_slug, write } => {
@@ -397,7 +396,13 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
 
     info!("URL: {}", url.url());
 
-    let downloader = GameDownloader::new(game.base_offer().slug(), &url.url(), "/home/battledash/dev/rust/Maxima/DownloadTest").await?;
+    let path = PathBuf::from(Text::new("Where would you like to install the game? (must be an absolute path)").prompt()?);
+    if !path.is_absolute() {
+        error!("Path {:?} is not absolute.", path);
+        return Ok(());
+    }
+
+    let downloader = ZipDownloader::new(game.base_offer().slug(), &url.url(), &path).await?;
 
     let num_of_entries = downloader.manifest().entries().len();
     info!("Entries: {}", num_of_entries);
@@ -430,6 +435,14 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
         elapsed_time.subsec_millis()
     );
 
+    #[cfg(unix)]
+    mx_linux_setup().await?;
+
+    info!("Running touchup...");
+    let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await?;
+    manifest.run_touchup(path).await?;
+    info!("Installed!");
+
     Ok(())
 }
 
@@ -457,7 +470,7 @@ async fn download_specific_file(
 
     debug!("URL: {}", url.url());
 
-    let downloader = GameDownloader::new("test-game", &url.url(), "DownloadTest").await?;
+    let downloader = ZipDownloader::new("test-game", &url.url(), "DownloadTest").await?;
     let num_of_entries = downloader.manifest().entries().len();
     info!("Entries: {}", num_of_entries);
 
@@ -492,8 +505,10 @@ async fn generate_download_links(maxima_arc: LockedMaxima) -> Result<()> {
         .map(|g| g.name())
         .collect::<Vec<String>>();
 
-    let name = Select::new("What game would you like to install?", owned_games_strs).prompt()?;
+    let name = Select::new("What game would you like to list builds for?", owned_games_strs).prompt()?;
     let game = owned_games.iter().find(|g| g.name() == name).unwrap();
+
+    info!("Working...");
 
     let builds = content_service
         .available_builds(&game.base_offer().offer_id())
@@ -516,8 +531,7 @@ async fn generate_download_links(maxima_arc: LockedMaxima) -> Result<()> {
         strs += "\n";
     }
 
-    std::fs::write("test", strs).unwrap();
-
+    println!("{}", strs);
     Ok(())
 }
 
@@ -695,6 +709,9 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
 }
 
 async fn locate_game(maxima_arc: LockedMaxima, path: &str) -> Result<()> {
+    #[cfg(unix)]
+    mx_linux_setup().await?;
+
     let path = PathBuf::from(path);
     let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await?;
     manifest.run_touchup(path).await?;

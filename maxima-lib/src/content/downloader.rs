@@ -397,7 +397,7 @@ impl<'a> EntryDownloadRequest<'a> {
     }
 }
 
-pub struct GameDownloader {
+pub struct ZipDownloader {
     id: String,
     url: String,
     path: PathBuf,
@@ -405,7 +405,7 @@ pub struct GameDownloader {
     manifest: ZipFile,
 }
 
-impl GameDownloader {
+impl ZipDownloader {
     pub async fn new<P: AsRef<Path>>(id: &str, zip_url: &str, path: P) -> Result<Self>
     where
         PathBuf: From<P>,

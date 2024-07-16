@@ -47,7 +47,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    content::manager::ContentManager, lsx::{self, types::LSXRequestType}, rtm::client::RtmClient, util::native::maxima_dir
+    content::manager::ContentManager, lsx::{self, types::LSXRequestType}, rtm::client::{BasicPresence, RtmClient}, util::native::maxima_dir
 };
 
 use self::{
@@ -185,7 +185,7 @@ impl Maxima {
             lsx_event_callback: None,
             lsx_connections: 0,
             cloud_sync: CloudSyncClient::new(auth_storage.clone()),
-            content_manager: ContentManager::new(auth_storage.clone()).await?,
+            content_manager: ContentManager::new(auth_storage.clone(), false).await?,
             rtm: RtmClient::new(auth_storage),
             request_cache,
             dummy_local_user,
@@ -438,6 +438,8 @@ impl Maxima {
             }
         }
 
+        // We need to store your BasicPresence somewhere
+        self.rtm.set_presence(BasicPresence::Online, "", "").await.ok();
         self.playing = None;
     }
 
