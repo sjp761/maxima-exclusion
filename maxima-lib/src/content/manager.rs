@@ -220,6 +220,14 @@ impl GameDownloader {
         let completed = self.completed_bytes.load(Ordering::SeqCst);
         (completed as f64 / self.total_bytes as f64) * 100.0
     }
+
+    pub fn bytes_downloaded(&self) -> usize {
+        self.completed_bytes.load(Ordering::SeqCst)
+    }
+
+    pub fn bytes_total(&self) -> usize {
+        self.total_bytes
+    }
 }
 
 #[derive(Getters)]
