@@ -8,7 +8,8 @@
         "games" : "Games",
         "store" : "Store",
         "friends" : "Friends",
-        "settings" : "Settings"
+        "settings" : "Settings",
+        "downloads" : "Downloads"
     },
     "login" : {
         "oauth_option" : "OAuth (Browser)",
@@ -67,9 +68,19 @@
             },
             "search_hint" : "Search friends list"
         },
-        "status_online" : "Online",
-        "status_offline" : "Offline",
-        "prepend" : false,
-        "status_playing" : "Playing"
+        "friend_actions" : {
+            "profile" : "Profile",
+            "chat" : "Chat",
+            "unfriend" : "Remove"
+        },
+        "status" : {
+            "unknown" : "Unknown",
+            "do_not_disturb" : "Do not Disturb",
+            "away" : "Away",
+            "online" : "Online",
+            "offline" : "Offline",
+            "prepend" : false,
+            "playing" : "Playing"
+        }
     }
 }

@@ -29,6 +29,7 @@ pub struct LocalizedMenubar {
     pub store: String,
     pub friends: String,
     pub settings: String,
+    pub downloads: String,
 }
 
 #[derive(Deserialize)]
@@ -99,10 +100,8 @@ pub struct LocalizedGamesViewDetails {
 #[derive(Deserialize)]
 pub struct LocalizedFriendsView {
     pub toolbar: LocalizedFriendsViewToolbar,
-    pub status_online: String,
-    pub status_offline: String,
-    pub prepend: bool,
-    pub status_playing: String,
+    pub friend_actions: LocalizedFriendsViewFriendActions,
+    pub status: LocalizedFriendsViewStatus,
 }
 
 #[derive(Deserialize)]
@@ -114,6 +113,24 @@ pub struct LocalizedFriendsViewToolbar {
     pub add_friend: String,
     pub filter_options: LocalizedFriendsViewToolbarSearchFilterOptions,
     pub search_hint: String,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedFriendsViewFriendActions {
+    pub profile: String,
+    pub chat: String,
+    pub unfriend: String,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedFriendsViewStatus {
+    pub unknown: String,
+    pub do_not_disturb: String,
+    pub away: String,
+    pub online: String,
+    pub offline: String,
+    pub prepend: bool,
+    pub playing: String,
 }
 
 #[derive(Deserialize)]
@@ -131,22 +148,31 @@ pub struct TranslationManager {
     pub localization: LocalizedStrings,
 }
 
+macro_rules! language_include_matcher {
+    (
+        $match_var:expr, $fallback_var:expr;
+        $($name:expr => $file:expr),* $(,)?
+    ) => {
+        match $match_var {
+            $(
+                $name => include_str!(concat!("../res/locale/", $file, ".json")),
+            )*
+            _ => $fallback_var,
+        }
+    };
+}
+
 impl TranslationManager {
+    pub fn set_locale(code: &str) {
+
+    }
+    
     pub fn new() -> Option<Self> {
         let locale: Option<String> = sys_locale::get_locale();
         let english = include_str!("../res/locale/en_us.json").to_owned();
-        let locale_json: String = match locale {
-            Some(code) => 
-            if code.starts_with("en-") {
-                english
-            } else {
-                match code.as_str() {
-                    // add other languages here
-                    _ => english,
-                }
-            },
-            None => english,
-        };
+        let locale_json: String = language_include_matcher!(locale.unwrap(), english;
+            
+        );
 
         let s: LocalizedStrings = serde_json::from_str(&locale_json).unwrap();
         Some(Self { localization: s })

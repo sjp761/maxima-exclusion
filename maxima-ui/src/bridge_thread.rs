@@ -3,14 +3,13 @@ use egui::Context;
 use log::info;
 
 use std::{
-    panic,
-    sync::{
+    panic, path::PathBuf, sync::{
         mpsc::{Receiver, Sender},
         Arc,
-    }, time::{Duration, SystemTime},
+    }, time::{Duration, SystemTime}
 };
 
-use maxima::core::{launch::ActiveGameContext, LockedMaxima, Maxima, MaximaOptions, MaximaOptionsBuilder};
+use maxima::core::{dip::{DiPManifest, DIP_RELATIVE_PATH}, launch::{linux_setup, ActiveGameContext}, LockedMaxima, Maxima, MaximaOptions, MaximaOptionsBuilder};
 
 use crate::{
     bridge::{
@@ -49,6 +48,14 @@ pub struct InteractThreadGameUIImagesResponse {
     pub response: Result<GameUIImages>,
 }
 
+pub enum InteractThreadLocateGameResponse {
+    Success,
+    NotSupported,
+    NotFound,
+    ParseFailed,
+    GenericFailure
+}
+
 pub enum MaximaLibRequest {
     LoginRequestOauth,
     LoginRequestUserPass(String, String),
@@ -58,6 +65,7 @@ pub enum MaximaLibRequest {
     GetGameImagesRequest(String),
     GetGameDetailsRequest(String),
     StartGameRequest(String, bool),
+    LocateGameRequest(String, String),
     ShutdownRequest,
 }
 
@@ -69,10 +77,10 @@ pub enum MaximaLibResponse {
     UserAvatarResponse(InteractThreadUserAvatarResponse),
     GameDetailsResponse(InteractThreadGameDetailsResponse),
     GameUIImagesResponse(InteractThreadGameUIImagesResponse),
-    InteractionThreadDiedResponse,
-
+    LocateGameResponse(InteractThreadLocateGameResponse),
     // Alerts, rather than responses:
-
+    
+    InteractionThreadDiedResponse,
     ActiveGameChanged(Option<String>)
 }
 
@@ -230,6 +238,31 @@ impl BridgeThread {
                         game_details_request(maxima, slug.clone(), channel, &context).await
                     }
                     .await?;
+                }
+                MaximaLibRequest::LocateGameRequest(slug, path) => {
+                    #[cfg(unix)] {        
+                        linux_setup().await?;
+                        let mut path = path;
+                        if path.ends_with("/") || path.ends_with("\\") {
+                            path.remove(path.len()-1);
+                        }
+                        let path = PathBuf::from(path);
+                        let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await;
+                        if let std::result::Result::Ok(manifest) = manifest {
+                            let guh = manifest.run_touchup(path).await;
+                            if guh.is_err() {
+                                backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::GenericFailure)).unwrap();
+                            } else {
+                                backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Success)).unwrap();
+                            }
+                        } else {
+                            backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::ParseFailed)).unwrap(); 
+                        }
+                        info!("finished locating");
+                    }
+                    #[cfg(not(unix))] {
+                        backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::NotSupported));
+                    }
                 }
                 MaximaLibRequest::StartGameRequest(offer_id, hardcode) => {
                     start_game_request(maxima_arc.clone(), offer_id.clone(), hardcode).await;

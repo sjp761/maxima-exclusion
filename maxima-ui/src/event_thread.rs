@@ -69,8 +69,6 @@ impl EventThread {
 
         let rtm = maxima.rtm();
         rtm.login().await?;
-        rtm.set_presence(BasicPresence::Away, "Test", "Origin.OFR.50.0002148")
-            .await?;
 
         let players: Vec<String> = friends
             .friends()

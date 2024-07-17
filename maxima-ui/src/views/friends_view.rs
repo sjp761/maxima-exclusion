@@ -217,30 +217,30 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
           let game_hack: String;
           let (friend_status, friend_color) = 
           match friend.online {
-            BasicPresence::Unknown => (&"Unknown".to_string() as &String, Color32::DARK_RED),
-            BasicPresence::Offline => (&"Offline".to_string(), Color32::GRAY),
-            BasicPresence::Dnd => (&"Do not Disturb".to_string(), Color32::RED),
-            BasicPresence::Away => (&"Away".to_string(), Color32::GOLD),
+            BasicPresence::Unknown => (&app.locale.localization.friends_view.status.unknown as &String, Color32::DARK_RED),
+            BasicPresence::Offline => (&app.locale.localization.friends_view.status.offline, Color32::GRAY),
+            BasicPresence::Dnd => (&app.locale.localization.friends_view.status.do_not_disturb, Color32::RED),
+            BasicPresence::Away => (&app.locale.localization.friends_view.status.away, Color32::GOLD),
             BasicPresence::Online => {
               
               if let Some(game) = &friend.game  {
-                if app.locale.localization.friends_view.prepend {
+                if app.locale.localization.friends_view.status.prepend {
                   if let Some(presence) = &friend.game_presence {
-                    game_hack = format!("{} {}: {}", &game, &app.locale.localization.friends_view.status_playing, &presence);
+                    game_hack = format!("{} {}: {}", &game, &app.locale.localization.friends_view.status.playing, &presence);
                   } else {
-                    game_hack = format!("{} {}", &game, &app.locale.localization.friends_view.status_playing);
+                    game_hack = format!("{} {}", &game, &app.locale.localization.friends_view.status.playing);
                   }
                 } else {
                   if let Some(presence) = &friend.game_presence {
-                    game_hack = format!("{} {}: {}", &app.locale.localization.friends_view.status_playing, &game, &presence);
+                    game_hack = format!("{} {}: {}", &app.locale.localization.friends_view.status.playing, &game, &presence);
                   } else {
-                    game_hack = format!("{} {}", &app.locale.localization.friends_view.status_playing, &game);
+                    game_hack = format!("{} {}", &app.locale.localization.friends_view.status.playing, &game);
                   }
                 }
                 (&game_hack, FRIEND_INGAME_COLOR)
                 
               } else {
-                (&app.locale.localization.friends_view.status_online, Color32::GREEN)
+                (&app.locale.localization.friends_view.status.online, Color32::GREEN)
               }
             },
           };
@@ -259,27 +259,28 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
           if how_buttons > 0.0 {
             let size = vec2((width - (ui.style().spacing.item_spacing.x * 2.0)) / 3.0, PFP_IMG_SIZE * 0.6);
 
-            let fuck_rect = Rect {
+            let rect_0 = Rect {
               min: pos2(f_res.rect.min.x, f_res.rect.max.y - size.y),
               max: pos2(f_res.rect.min.x + size.x, f_res.rect.max.y)
             };
 
-            let marry_rect = Rect {
-              min: pos2(fuck_rect.max.x + ui.spacing().item_spacing.x, fuck_rect.min.y),
-              max: pos2(fuck_rect.max.x + size.x + ui.spacing().item_spacing.x, fuck_rect.max.y)
+            let rect_1 = Rect {
+              min: pos2(rect_0.max.x + ui.spacing().item_spacing.x, rect_0.min.y),
+              max: pos2(rect_0.max.x + size.x + ui.spacing().item_spacing.x, rect_0.max.y)
             };
 
-            let kill_rect = Rect {
-              min: pos2(marry_rect.max.x + ui.spacing().item_spacing.x, marry_rect.min.y),
-              max: pos2(marry_rect.max.x + size.x + ui.spacing().item_spacing.x, marry_rect.max.y)
+            let rect_2 = Rect {
+              min: pos2(rect_1.max.x + ui.spacing().item_spacing.x, rect_1.min.y),
+              max: pos2(rect_1.max.x + size.x + ui.spacing().item_spacing.x, rect_1.max.y)
             };
 
-            // This is a bit unprofessional. i don't care.
-            if ui.put(fuck_rect, egui::Button::new("FUCK")).clicked()
-            || ui.put(marry_rect, egui::Button::new("MARRY")).clicked()
-            || ui.put(kill_rect, egui::Button::new("KILL")).clicked() {
-              app.friends_view_bar.friend_sel = String::new();
+            ui.add_enabled_ui(false, |buttons| {
+              if buttons.put(rect_0, egui::Button::new(app.locale.localization.friends_view.friend_actions.profile.to_ascii_uppercase())).clicked()
+              || buttons.put(rect_1, egui::Button::new(app.locale.localization.friends_view.friend_actions.chat.to_ascii_uppercase())).clicked()
+              || buttons.put(rect_2, egui::Button::new(app.locale.localization.friends_view.friend_actions.unfriend.to_ascii_uppercase())).clicked() {
+                app.friends_view_bar.friend_sel = String::new();
             }
+          });
           }
 
           if f_res.hovered() || buttons {

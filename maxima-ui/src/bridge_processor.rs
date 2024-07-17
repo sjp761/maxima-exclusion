@@ -112,6 +112,9 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
             bridge_thread::MaximaLibResponse::ActiveGameChanged(slug) => {
                 app.playing_game = slug;
             },
+            bridge_thread::MaximaLibResponse::LocateGameResponse(res) => {
+                app.installer_state.locate_response = Some(res);
+            },
         }
     }
 }

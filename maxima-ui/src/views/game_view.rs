@@ -245,7 +245,7 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
                         .rounding(Rounding::same(2.0))
                         .min_size(vec2(50.0,40.0))
                       ).clicked() {
-                        app.install_queue.push(QueuedDownload { slug: game.slug.clone(), downloaded_bytes: 0, total_bytes: 0 })
+                        app.modal = Some(PopupModal::GameInstall(game.slug.clone()));
                         //TODO
                       }
                     }
@@ -373,7 +373,6 @@ fn game_list_button_context_menu(app : &MaximaEguiApp, game : &GameInfo, ui : &m
   });
   ui.separator();
   if ui.button("UNINSTALL").clicked() {
-    game.uninstall();
     ui.close_menu();
   }
 }

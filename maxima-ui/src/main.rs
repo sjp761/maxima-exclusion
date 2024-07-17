@@ -23,7 +23,7 @@ use egui::{
 use egui_extras::{RetainedImage, Size, StripBuilder};
 use egui_glow::glow;
 
-use bridge_thread::BridgeThread;
+use bridge_thread::{BridgeThread, InteractThreadLocateGameResponse};
 use event_thread::EventThread;
 
 use app_bg_renderer::AppBgRenderer;
@@ -161,7 +161,8 @@ enum PageType {
 
 #[derive(Debug, PartialEq, Clone)]
 enum PopupModal { // ATM Machine
-    GameSettings(String) // Slug as arg
+    GameSettings(String),
+    GameInstall(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -233,14 +234,22 @@ pub struct GameInfo {
     installed: bool,
 }
 
-impl GameInfo {
-    /// TEST FUNC FOR SHIT IDK LMAO
-    pub fn uninstall(&self) {
-        info!("Uninstall requested for \"{}\"", self.name);
-    }
-    /// TEST FUNC FOR SHIT IDK LMAO
-    pub fn launch(&self) {
-        info!("Launch requested for \"{}\"", self.name);
+/// state for the game installer modal
+pub struct InstallModalState {
+    locate_path: String,
+    locating: bool,
+    locate_response: Option<InteractThreadLocateGameResponse>,
+    should_close: bool,
+}
+
+impl InstallModalState {
+    pub fn new() -> Self {
+        Self {
+            locate_path: String::new(),
+            locating: false,
+            locate_response: None,
+            should_close: false,
+        }
     }
 }
 
@@ -267,7 +276,6 @@ pub struct MaximaEguiApp {
     friends_width: f32,
     /// force visibility of friends sidebar
     force_friends: bool,
-    //game_view_rows: bool,                               // if the game view is in rows mode
     /// what page you're on (games, friends, etc)
     page_view: PageType,
     /// Modal
@@ -304,6 +312,8 @@ pub struct MaximaEguiApp {
     playing_game: Option<String>,
     /// Queue of game installs
     install_queue: Vec<QueuedDownload>,
+    /// State for installer modal
+    installer_state: InstallModalState,
 }
 
 const F9B233: Color32 = Color32::from_rgb(249, 178, 51);
@@ -444,6 +454,7 @@ impl MaximaEguiApp {
             hardcode_game_paths: !args.remove_hardcoded_game_paths,
             playing_game: None,
             install_queue: Vec::new(),
+            installer_state: InstallModalState::new()
         }
     }
 }
@@ -511,7 +522,7 @@ fn custom_window_frame(
 }
 
 /// Wrapper/helper for the tab buttons in the top left of the app
-fn tab_button(ui: &mut Ui, edit_var: &mut PageType, page: PageType, label: String) {
+fn tab_button(ui: &mut Ui, edit_var: &mut PageType, page: PageType, label: &str) {
     puffin::profile_function!();
     ui.style_mut().visuals.widgets.inactive.rounding = Rounding::ZERO;
     ui.style_mut().visuals.widgets.active.rounding = Rounding::ZERO;
@@ -583,7 +594,12 @@ impl eframe::App for MaximaEguiApp {
                 }
             }
             if self.login_cache_waiting {
-                ui.heading("hey, hi, hold on a bit");
+                ui.with_layout(
+                    egui::Layout::centered_and_justified(egui::Direction::RightToLeft),
+                    |ui| {
+                        ui.heading("hey, hi, hold on a bit");
+                    },
+                );
             } else {
                 let app_rect = ui.available_rect_before_wrap().clone();
                 if !self.logged_in {
@@ -755,37 +771,25 @@ impl eframe::App for MaximaEguiApp {
                                                     ui,
                                                     &mut self.page_view,
                                                     PageType::Games,
-                                                    self.locale
-                                                        .localization
-                                                        .menubar
-                                                        .games
-                                                        .clone(),
+                                                    &self.locale.localization.menubar.games,
                                                 );
                                                 tab_button(
                                                     ui,
                                                     &mut self.page_view,
                                                     PageType::Store,
-                                                    self.locale
-                                                        .localization
-                                                        .menubar
-                                                        .store
-                                                        .clone(),
+                                                    &self.locale.localization.menubar.store,
                                                 );
                                                 tab_button(
                                                     ui,
                                                     &mut self.page_view,
                                                     PageType::Settings,
-                                                    self.locale
-                                                        .localization
-                                                        .menubar
-                                                        .settings
-                                                        .clone(),
+                                                    &self.locale.localization.menubar.settings,
                                                 );
                                                 tab_button(
                                                     ui,
                                                     &mut self.page_view,
                                                     PageType::Downloads,
-                                                    "Downloads".to_string(),
+                                                    &self.locale.localization.menubar.downloads,
                                                 );
                                                 #[cfg(debug_assertions)]
                                                 if self.debug {
@@ -793,7 +797,7 @@ impl eframe::App for MaximaEguiApp {
                                                         ui,
                                                         &mut self.page_view,
                                                         PageType::Debug,
-                                                        "Debug".to_owned(),
+                                                        "Debug",
                                                     );
                                                 }
                                                 //END TAB BUTTONS
@@ -808,50 +812,18 @@ impl eframe::App for MaximaEguiApp {
                                                 egui::Align::Center,
                                             ),
                                             |rtl| {
-                                                rtl.visuals_mut()
-                                                    .widgets
-                                                    .inactive
-                                                    .bg_stroke =
-                                                    Stroke::new(2.0, {
-                                                        if self.playing_game.is_some() {
-                                                            FRIEND_INGAME_COLOR
-                                                        } else {
-                                                            Color32::GREEN
-                                                        }
-                                                    });
-                                                rtl.menu_image_button(
-                                                    (self.user_pfp_renderable, vec2(36.0, 36.0)),
-                                                    |ui| {
-                                                        if ui
-                                                            .button(
-                                                                &self
-                                                                    .locale
-                                                                    .localization
-                                                                    .profile_menu
-                                                                    .view_profile,
-                                                            )
-                                                            .clicked()
-                                                        {
-                                                            ui.close_menu();
-                                                        }
-                                                        if ui
-                                                            .button(
-                                                                &self
-                                                                    .locale
-                                                                    .localization
-                                                                    .profile_menu
-                                                                    .view_wishlist,
-                                                            )
-                                                            .clicked()
-                                                        {
-                                                            ui.close_menu();
-                                                        }
-                                                    },
-                                                );
+                                                let img_response = rtl.image((self.user_pfp_renderable, vec2(36.0, 36.0)));
+                                                let stroke = Stroke::new(2.0, {
+                                                    if self.playing_game.is_some() {
+                                                        FRIEND_INGAME_COLOR
+                                                    } else {
+                                                        Color32::GREEN
+                                                    }
+                                                });
+                                                rtl.painter().rect(img_response.rect.expand(0.0), Rounding::same(4.0), Color32::TRANSPARENT, stroke);
+                                                
                                                 rtl.label(
-                                                    egui::RichText::new(
-                                                        self.user_name.clone(),
-                                                    )
+                                                    egui::RichText::new(self.user_name.clone())
                                                     .size(15.0)
                                                     .color(Color32::WHITE),
                                                 );
@@ -891,19 +863,20 @@ impl eframe::App for MaximaEguiApp {
                         });
                     });
                     let mut clear = false;
+                    let mut clear_with: Option<PopupModal> = None;
                     if let Some(modal) = &self.modal {
                         ui.allocate_ui_at_rect(app_rect, |contents| {
 
                         
                             egui::Frame::default()
                             .fill(Color32::from_black_alpha(200))
-                            .outer_margin(Margin::same(24.0))
+                            .outer_margin(Margin::symmetric((app_rect.width() - 600.0) / 2.0, (app_rect.height() - 400.0) / 2.0))
                             .inner_margin(Margin::same(12.0))
                             .stroke(Stroke::new(4.0, Color32::WHITE))
                             .show(contents, |ui| {
                                 match modal {
-                                    PopupModal::GameSettings(slug) => {
-                                        let game = if let Some(game) = self.games.get(slug) { game } else { return; };
+                                    PopupModal::GameSettings(slug) => 'outer: {
+                                        let game = if let Some(game) = self.games.get(slug) { game } else { break 'outer; };
                                         ui.horizontal(|header| {
                                             header.heading(format!("Game settings for {}", &game.name));
                                             header.with_layout(Layout::right_to_left(egui::Align::Center), |close_button| {
@@ -914,7 +887,6 @@ impl eframe::App for MaximaEguiApp {
                                         });
                                         ui.separator();
                                         if game.installed {
-
                                             ui.checkbox(&mut false, "Cloud Saves");
                                             ui.horizontal(|ui| {
                                                 ui.label("Launch Arguments");
@@ -925,15 +897,85 @@ impl eframe::App for MaximaEguiApp {
                                         } else {
                                             ui.label("Game is not installed");
                                         }
-                                        
-                                        ui.allocate_space(ui.available_size_before_wrap());
                                     },
+                                    PopupModal::GameInstall(slug) => 'outer: {
+                                        let game = if let Some(game) = self.games.get(slug) { game } else { break 'outer; };
+                                        ui.horizontal(|header| {
+                                            header.heading(format!("Install {}", &game.name));
+                                            header.with_layout(Layout::right_to_left(egui::Align::Center), |close_button| {
+                                                if close_button.add_enabled(!self.installer_state.locating, egui::Button::new("Close")).clicked() {
+                                                    clear = true
+                                                }
+                                            });
+                                        });
+
+                                        ui.separator();
+
+                                        if slug.eq("battlefield-3") {
+                                            ui.heading("Battlefield 3 is currently unsupported due to how battlelog does game launching. This is on our radar, but isn't a huge priority at the moment.");
+                                            break 'outer;
+                                        }
+
+                                        let button_size = vec2(100.0, 30.0);
+
+                                        ui.label("Locate an existing game install:");
+                                        if let Some(resp) = &self.installer_state.locate_response {
+                                            match resp {
+                                                InteractThreadLocateGameResponse::Success => {
+                                                    self.installer_state.should_close = true;
+                                                    if let Some(game) = self.games.get_mut(slug) {
+                                                        game.installed = true;
+                                                    }
+                                                },
+                                                InteractThreadLocateGameResponse::NotSupported |
+                                                InteractThreadLocateGameResponse::NotFound |
+                                                InteractThreadLocateGameResponse::ParseFailed |
+                                                InteractThreadLocateGameResponse::GenericFailure => {
+                                                    ui.add_sized(vec2(576.0, 30.0), egui::Label::new(egui::RichText::new("Locate Failed").color(Color32::RED)));
+                                                }
+                                            }
+                                        } else  if self.installer_state.locating {
+                                            ui.heading("Locating...");
+                                        } else {
+                                            ui.horizontal(|ui| {
+                                                let size = vec2(400.0 - (24.0 + ui.style().spacing.item_spacing.x*2.0), 30.0);
+                                                ui.add_sized(size, egui::TextEdit::singleline(&mut self.installer_state.locate_path));
+                                                ui.add_sized(button_size, egui::Button::new("BROWSE"));
+                                                if ui.add_sized(button_size, egui::Button::new("LOCATE")).clicked() {
+                                                    self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::LocateGameRequest(slug.clone(), self.installer_state.locate_path.clone())).unwrap();
+                                                    self.installer_state.locating = true;
+                                                }
+                                            });
+                                        }
+                                        ui.label("");
+                                        ui.label("Install a fresh copy:");
+                                        ui.add_enabled_ui(!self.installer_state.locating, |ui| {
+                                            if ui.add_sized(button_size, egui::Button::new("INSTALL")).clicked() {
+                                                //self.install_queue.push(QueuedDownload { slug: game.slug.clone(), downloaded_bytes: 0, total_bytes: 0 });
+                                                clear = true;
+                                            }
+                                        });
+
+                                        if self.installer_state.should_close { clear = true; }
+                                    }
                                 }
+                                ui.allocate_space(ui.available_size_before_wrap());
                             });
                         });
                     }
                     if clear {
+                        // reset it for the next time
+                        match &self.modal {
+                            Some(variant) => match variant {
+                                    PopupModal::GameSettings(_) => {},
+                                    PopupModal::GameInstall(_) => {
+                                        self.installer_state = InstallModalState::new();
+                                    },
+                                },
+                            None => {},
+                        }
                         self.modal = None;
+                        
                     }
                 }
             }
