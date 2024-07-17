@@ -8,6 +8,9 @@ use derive_getters::Getters;
 
 use crate::util::registry::{parse_partial_registry_path, parse_registry_path};
 
+#[cfg(unix)]
+use crate::unix::fs::case_insensitive_path;
+
 use super::{
     auth::storage::LockedAuthStorage,
     dip::{DiPManifest, DIP_RELATIVE_PATH},
@@ -32,6 +35,8 @@ impl OwnedOffer {
     pub async fn installed(&self) -> bool {
         let path =
             parse_registry_path(&self.offer.install_check_override().as_ref().unwrap()).await;
+        #[cfg(unix)]
+        let path = case_insensitive_path(path).await;
         path.exists()
     }
 
@@ -78,7 +83,10 @@ impl OwnedOffer {
             .unwrap()
             .contains("installerdata.xml")
         {
-            PathBuf::from(self.install_check_path().await)
+            let ic_path = PathBuf::from(self.install_check_path().await);
+            #[cfg(unix)]
+            let ic_path = case_insensitive_path(ic_path).await;
+            ic_path
         } else {
             let path = PathBuf::from(
                 parse_partial_registry_path(&self.offer.install_check_override().as_ref().unwrap())

@@ -32,6 +32,9 @@ use winreg::{
 #[cfg(unix)]
 use std::{collections::HashMap, fs};
 
+#[cfg(unix)]
+use crate::unix::fs::case_insensitive_path;
+
 use super::native::module_path;
 
 #[cfg(target_pointer_width = "64")]
@@ -142,7 +145,7 @@ pub async fn parse_registry_path(key: &str) -> PathBuf {
         .split(|c| c == '[' || c == ']')
         .filter(|s| !s.is_empty());
 
-    if let (Some(first), Some(second)) = (parts.next(), parts.next()) {
+    let path = if let (Some(first), Some(second)) = (parts.next(), parts.next()) {
         let path = read_reg_key(first).await;
         if path.is_none() {
             return PathBuf::from(key.to_owned());
@@ -154,8 +157,13 @@ pub async fn parse_registry_path(key: &str) -> PathBuf {
 
         return [path, second.to_owned()].iter().collect();
     }
+    else {
+        PathBuf::from(key.to_owned())
+    };
 
-    PathBuf::from(key.to_owned())
+    #[cfg(unix)]
+    let path = case_insensitive_path(path).await;
+    path
 }
 
 pub async fn parse_partial_registry_path(key: &str) -> PathBuf {
@@ -163,7 +171,7 @@ pub async fn parse_partial_registry_path(key: &str) -> PathBuf {
         .split(|c| c == '[' || c == ']')
         .filter(|s| !s.is_empty());
 
-    if let (Some(first), Some(_second)) = (parts.next(), parts.next()) {
+    let path = if let (Some(first), Some(_second)) = (parts.next(), parts.next()) {
         let path = read_reg_key(first).await;
         if path.is_none() {
             return PathBuf::from(key.to_owned());
@@ -172,8 +180,13 @@ pub async fn parse_partial_registry_path(key: &str) -> PathBuf {
         let path = path.unwrap().replace("\\", "/");
         return PathBuf::from(path.to_owned());
     }
+    else {
+        PathBuf::from(key.to_owned())
+    };
 
-    PathBuf::from(key.to_owned())
+    #[cfg(unix)]
+    let path = case_insensitive_path(path).await;
+    path
 }
 
 #[cfg(windows)]

@@ -14,6 +14,9 @@ use crate::{
     core::cloudsync::CloudSyncLockMode, ooa::{request_and_save_license, LicenseAuth}, util::{registry::bootstrap_path, simple_crypto}
 };
 
+#[cfg(unix)]
+use crate::unix::fs::case_insensitive_path;
+
 use serde::{Deserialize, Serialize};
 
 use super::{library::OwnedOffer, Maxima};
@@ -163,6 +166,8 @@ pub async fn start_game(
     };
 
     let dir = path.parent().unwrap().to_str().unwrap();
+    #[cfg(unix)]
+    let path = case_insensitive_path(path.clone()).await;
     let path = path.to_str().unwrap();
     info!("Game path: {}", path);
 
