@@ -2,9 +2,12 @@
 ## A free and open-source replacement for the EA Desktop Launcher
 ![Logo](images/1500x500.jpg)
 
+[!WARNING]
+Maxima is in beta. Parts of it may not be fully stable, and we're actively fixing bugs and adding features. Please create an issue if you notice strange behavior.
+
 Maxima is an open-source replacement for the EA Desktop/Origin game launcher, running natively on Linux and Windows, with MacOS support in progress.
 
-Maxima itself is a library (`maxima-lib`), with povided CLI (`maxima-cli`), TUI (`maxima-tui`), and GUI (`maxima-ui`) frontends. Other launchers compatible with Maxima's license may implement it as a backend. It's used by [KYBER](https://uplink.kyber.gg/news/features-overview).
+Maxima itself is a library (`maxima-lib`), with povided CLI (`maxima-cli`), TUI (`maxima-tui`), and GUI (`maxima-ui`) frontends. Other launchers compatible with Maxima's license may implement it as a backend. It's used by our sister project, [KYBER](https://uplink.kyber.gg/news/features-overview).
 
 ![UI](images/UI.png)
 
@@ -28,10 +31,11 @@ Maxima itself is a library (`maxima-lib`), with povided CLI (`maxima-cli`), TUI 
 
 **Planned:**
  - Library documentation/examples
- - Full EA Desktop interopability. Games installed with EA Desktop already appear on Maxima, and  For example, starting a download on EA Desktop and continuing it on Maxima.
+ - Full EA Desktop interopability. Games installed with EA Desktop already appear on Maxima, but to take it a step further we'd like the ability to, for example, start a download on EA Desktop and continuing it on Maxima.
  - Cleaner/Stabler downloader implementation
  - Progressive/Selective installs
    - Some games are able to start without being fully installed, and some games contain language-specific files.
+- Support for the store (buying games)
  
 **Unsupported:**
  - Battlefield 3 is currently unsupported due to how battlelog does game launching. This is on our radar, but isn't a huge priority at the moment.

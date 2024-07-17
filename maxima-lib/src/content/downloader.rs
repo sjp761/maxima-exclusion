@@ -11,13 +11,14 @@ use anyhow::{bail, Context, Result};
 use async_compression::tokio::write::DeflateDecoder;
 use async_trait::async_trait;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use derive_getters::Getters;
 use futures::{Stream, StreamExt, TryStreamExt};
 use log::{debug, error, info, warn};
 use reqwest::Client;
 use strum_macros::Display;
 use tokio::{
     fs::{create_dir, create_dir_all, File, OpenOptions},
-    io::{AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter}, runtime::Handle,
+    io::{AsyncSeekExt, AsyncWrite, BufReader, BufWriter}, runtime::Handle,
 };
 
 use tokio_util::compat::FuturesAsyncReadCompatExt;
@@ -47,7 +48,7 @@ fn zstate_path(id: &str, path: &str) -> PathBuf {
 }
 
 #[async_trait]
-trait DownloadDecoder {
+trait DownloadDecoder: Send {
     fn save_state(&mut self, buf: &mut BytesMut);
     fn restore_state(&mut self, buf: &mut Bytes);
 
@@ -74,13 +75,9 @@ impl ZLibDeflateDecoder {
 #[async_trait]
 impl DownloadDecoder for ZLibDeflateDecoder {
     fn save_state(&mut self, buf: &mut BytesMut) {
-        {
-            let mut decoder = self.decoder.lock().unwrap();
-            let zstream = decoder.inner_mut().decoder_mut().inner.decompress.get_raw();
-            write_zlib_state(buf, zstream);
-        }
-
-        //log::info!("Serialized zlib state");
+        let mut decoder = self.decoder.lock().unwrap();
+        let zstream = decoder.inner_mut().decoder_mut().inner.decompress.get_raw();
+        write_zlib_state(buf, zstream);
     }
 
     fn restore_state(&mut self, buf: &mut Bytes) {
@@ -89,7 +86,6 @@ impl DownloadDecoder for ZLibDeflateDecoder {
         decompress.reset(false);
         let zstream = decompress.get_raw();
         restore_zlib_state(buf, zstream);
-        log::info!("Reset and restored zlib state");
     }
 
     fn seek(&mut self, pos: SeekFrom) {
@@ -166,8 +162,8 @@ impl DownloadDecoder for NoopDecoder {
     }
 }
 
-trait AsyncWriteWrapper: AsyncWrite + Unpin {}
-impl<T: AsyncWrite + Unpin> AsyncWriteWrapper for T {}
+trait AsyncWriteWrapper: AsyncWrite + Unpin + Send {}
+impl<T: AsyncWrite + Unpin + Send> AsyncWriteWrapper for T {}
 
 struct AsyncWriterWrapper<'a> {
     id: String,
@@ -200,24 +196,17 @@ impl<'a> AsyncWrite for AsyncWriterWrapper<'a> {
         cx: &mut task::Context<'_>,
         buf: &[u8],
     ) -> task::Poll<prelude::v1::Result<usize, io::Error>> {
-        let mut bytes = BytesMut::new();
-        self.decoder.save_state(&mut bytes);
-
-        self.zlib_state_file.seek(SeekFrom::Start(0))?;
-        self.zlib_state_file.write(&bytes)?;
-
         let poll_result = {
             let mut binding = self.inner.lock().unwrap();
             let inner = Pin::new(&mut *binding);
             inner.poll_write(cx, buf)
         };
 
-        if let Poll::Ready(Ok(bytes_written)) = &poll_result {
-            //info!("Wrote {} bytes", bytes_written);
-            // Something
-        }
+        let mut bytes = BytesMut::new();
+        self.decoder.save_state(&mut bytes);
 
-        //info!("Wrote zlib state");
+        self.zlib_state_file.seek(SeekFrom::Start(0))?;
+        self.zlib_state_file.write(&bytes)?;
 
         poll_result
     }
@@ -397,6 +386,7 @@ impl<'a> EntryDownloadRequest<'a> {
     }
 }
 
+#[derive(Getters)]
 pub struct ZipDownloader {
     id: String,
     url: String,
@@ -424,10 +414,6 @@ impl ZipDownloader {
             client: Client::builder().build()?,
             manifest,
         })
-    }
-
-    pub fn manifest(&self) -> &ZipFile {
-        &self.manifest
     }
 
     pub async fn download_single_file(&self, entry: &ZipFileEntry) -> Result<usize> {

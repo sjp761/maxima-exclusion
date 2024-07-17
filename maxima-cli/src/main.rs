@@ -22,7 +22,11 @@ use maxima::{
 use maxima::core::launch::mx_linux_setup;
 
 use maxima::{
-    content::{downloader::ZipDownloader, ContentService},
+    content::{
+        downloader::ZipDownloader,
+        manager::{QueuedGame, QueuedGameBuilder},
+        ContentService,
+    },
     core::{
         auth::{
             context::AuthContext,
@@ -32,8 +36,7 @@ use maxima::{
         clients::JUNO_PC_CLIENT_ID,
         cloudsync::CloudSyncLockMode,
         dip::{DiPManifest, DIP_RELATIVE_PATH},
-        launch,
-        launch::LaunchMode,
+        launch::{self, LaunchMode},
         library::OwnedTitle,
         service_layer::{
             ServiceGetBasicPlayerRequestBuilder, ServiceGetLegacyCatalogDefsRequestBuilder,
@@ -385,12 +388,6 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
     let build = build.unwrap();
     info!("Installing game build {}", build.to_string());
 
-    let url = content_service
-        .download_url(&game.base_offer().offer_id(), Some(&build.build_id()))
-        .await?;
-
-    info!("URL: {}", url.url());
-
     let path = PathBuf::from(
         Text::new("Where would you like to install the game? (must be an absolute path)")
             .prompt()?,
@@ -400,29 +397,38 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
         return Ok(());
     }
 
-    let downloader = ZipDownloader::new(game.base_offer().slug(), &url.url(), &path).await?;
-
-    let num_of_entries = downloader.manifest().entries().len();
-    info!("Entries: {}", num_of_entries);
-
-    let mut handles = Vec::with_capacity(downloader.manifest().entries().len());
-    let downloader_arc = Arc::new(downloader);
+    let game = QueuedGameBuilder::default()
+        .offer_id(game.base_offer().offer_id().to_owned())
+        .build_id(build.build_id().to_owned())
+        .path(path.clone())
+        .build()?;
 
     let start_time = Instant::now();
-    for i in 0..num_of_entries {
-        let downloader = downloader_arc.clone();
+    maxima.content_manager().install_now(game).await?;
+    
+    drop(maxima);
+    
+    loop {
+        let mut maxima = maxima_arc.lock().await;
 
-        handles.push(async move {
-            let ele = &downloader.manifest().entries()[i];
-            info!("File: {}", ele.name());
-            downloader.download_single_file(ele).await.unwrap();
-        });
+        for event in maxima.consume_pending_events() {
+            match event {
+                MaximaEvent::ReceivedLSXRequest(_pid, _request) => (),
+                _ => {}
+            }
+        }
+
+        maxima.update().await;
+
+        if let Some(downloader) = maxima.content_manager().current() {
+            info!("Downloading: {}%/100%", downloader.percentage_done());
+        } else {
+            break;
+        }
+
+        drop(maxima);
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
-
-    let _results = futures::stream::iter(handles)
-        .buffer_unordered(16)
-        .collect::<Vec<_>>()
-        .await;
 
     let end_time = Instant::now();
     let elapsed_time = end_time - start_time;
@@ -432,14 +438,6 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
         elapsed_time.as_secs(),
         elapsed_time.subsec_millis()
     );
-
-    #[cfg(unix)]
-    mx_linux_setup().await?;
-
-    info!("Running touchup...");
-    let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await?;
-    manifest.run_touchup(path).await?;
-    info!("Installed!");
 
     Ok(())
 }
@@ -716,7 +714,7 @@ async fn locate_game(maxima_arc: LockedMaxima, path: &str) -> Result<()> {
 
     let path = PathBuf::from(path);
     let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await?;
-    manifest.run_touchup(path).await?;
+    manifest.run_touchup(&path).await?;
     info!("Installed!");
     Ok(())
 }
@@ -795,11 +793,11 @@ async fn start_game(
         for event in maxima.consume_pending_events() {
             match event {
                 MaximaEvent::ReceivedLSXRequest(_pid, _request) => (),
-                MaximaEvent::Unknown => todo!(),
+                _ => {}
             }
         }
 
-        maxima.update_playing_status().await;
+        maxima.update().await;
         if maxima.playing().is_none() {
             break;
         }
