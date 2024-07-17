@@ -31,15 +31,18 @@ Maxima itself is a library (`maxima-lib`), with povided CLI (`maxima-cli`), TUI 
 
 **Planned:**
  - Library documentation/examples
+ - Support for installing DLCs
  - Full EA Desktop interopability. Games installed with EA Desktop already appear on Maxima, but to take it a step further we'd like the ability to, for example, start a download on EA Desktop and continuing it on Maxima.
  - Cleaner/Stabler downloader implementation
  - Progressive/Selective installs
    - Some games are able to start without being fully installed, and some games contain language-specific files.
-- Support for the store (buying games)
+ - Support for the store (buying games)
+ - Friend Adding/Removing
  
 **Unsupported:**
- - Battlefield 3 is currently unsupported due to how battlelog does game launching. This is on our radar, but isn't a huge priority at the moment.
+ - Battlefield 3/4 are currently unsupported due to how battlelog does game launching. This is on our radar, but isn't a huge priority at the moment.
    - Please file an issue if you find more games that don't work
+ - Old games like Dead Space 2 and BFBC2 are unsupported due to being pre-"Download-In-Place" era games. They have a different manifest format that we need to make a parser for
 
 # CLI Usage
 `maxima-cli` standalone will launch an interactive CLI mode to install and launch games.
