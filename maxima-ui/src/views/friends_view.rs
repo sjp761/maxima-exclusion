@@ -127,7 +127,7 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
         ui.visuals_mut().widgets.open.rounding = Rounding::same(2.0);
 
         if friend_rect_hovered { //TODO : smooth transition
-          if ui.add_sized([ui.available_width(), 20.0], egui::TextEdit::hint_text(egui::text_edit::TextEdit::singleline(&mut app.friends_view_bar.search_buffer), "Search friends list")).has_focus() {
+          if ui.add_sized([ui.available_width(), 20.0], egui::TextEdit::hint_text(egui::text_edit::TextEdit::singleline(&mut app.friends_view_bar.search_buffer).vertical_align(egui::Align::Center), "Search friends list")).has_focus() {
             app.force_friends = true;
           }
           let combo_width = (ui.available_width() / 2.0) - ui.spacing().item_spacing.x; //a lot of accounting for shit when i'm just gonna make it a fixed width anyway
