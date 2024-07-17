@@ -189,6 +189,7 @@ ecommerce_type!(
 );
 
 ecommerce_enum!(EntitlementExternalType, {
+    Epic,
     Steam,
     Subscription,
     XgpVaultGame,
