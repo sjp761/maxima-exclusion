@@ -3,14 +3,11 @@ use egui::Context;
 use std::sync::mpsc::{Receiver, Sender};
 
 use log::info;
-use maxima::{
-    core::{
-        service_layer::{
-            ServiceFriends, ServiceGetMyFriendsRequestBuilder, SERVICE_REQUEST_GETMYFRIENDS,
-        },
-        LockedMaxima, Maxima, MaximaOptionsBuilder,
+use maxima::core::{
+    service_layer::{
+        ServiceFriends, ServiceGetMyFriendsRequestBuilder, SERVICE_REQUEST_GETMYFRIENDS,
     },
-    rtm::client::BasicPresence,
+    LockedMaxima,
 };
 
 pub struct EventThreadFriendStatusResponse {

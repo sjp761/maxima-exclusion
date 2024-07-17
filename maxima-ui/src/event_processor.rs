@@ -16,6 +16,7 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
                         friend.game = Some(res.presence.status().clone());
                     }
                 }
+                ctx.request_repaint();
             }
         }
     }

@@ -43,6 +43,8 @@
         "main" : {
             "play" : "▶ Play",
             "stop" : "⏹ Stop",
+            "pause" : "⏸ Pause",
+            "resume" : "➡ Resume",
             "install": "⮋ Install",
             "uninstall" : "⛼ Uninstall",
             "settings" : "⛭ Settings",
@@ -80,7 +82,7 @@
             "online" : "Online",
             "offline" : "Offline",
             "prepend" : false,
-            "playing" : "Playing"
+            "playing" : "In"
         }
     }
 }

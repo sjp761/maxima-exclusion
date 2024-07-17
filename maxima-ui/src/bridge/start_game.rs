@@ -1,7 +1,9 @@
 use log::{debug, error, info};
-use maxima::{core::{launch::{self, LaunchMode}, LockedMaxima}, rtm::client::BasicPresence};
+use maxima::core::{launch::{self, LaunchMode}, LockedMaxima};
 
-pub async fn start_game_request(maxima_arc: LockedMaxima, offer_id: String, hardcode_paths: bool) {
+use crate::GameInfo;
+
+pub async fn start_game_request(maxima_arc: LockedMaxima, game_info: GameInfo) {
     let maxima = maxima_arc.lock().await;
     let logged_in = maxima.auth_storage().lock().await.current().is_some();
     if !logged_in {
@@ -9,18 +11,23 @@ pub async fn start_game_request(maxima_arc: LockedMaxima, offer_id: String, hard
         return;
     }
 
-    debug!("got request to start game {:?}", offer_id);
+    debug!("got request to start game {:?}", game_info.offer);
 
-    let maybe_args: Vec<String> = if offer_id.eq("Origin.OFR.50.0001456") || offer_id.eq("Origin.OFR.50.0002304") {
-        vec!["-windowed".to_string(), "-novid".to_string(), "-northstar".to_string()]
-    } else if offer_id.eq("Origin.OFR.50.0000739") {
-        vec!["-windowed".to_string(), "-novid".to_string()]
+    let exe_override = if game_info.settings.exe_override.is_empty() {
+        None
     } else {
-        vec![]
+        Some(game_info.settings.exe_override)
     };
 
+    let arg_list = launch::parse_arguments(&game_info.settings.launch_args);
+
+    info!("args parsed from \"{}\": ", &game_info.settings.launch_args);
+    for arg in &arg_list {
+        info!("{}", arg);
+    }
+
     drop(maxima);
-    let result = launch::start_game(maxima_arc.clone(), LaunchMode::Online(offer_id), None, maybe_args).await;
+    let result = launch::start_game(maxima_arc.clone(), LaunchMode::Online(game_info.offer), exe_override, arg_list).await;
     if result.is_err() {
         error!("Failed to start game! Reason: {}", result.err().unwrap());
     }

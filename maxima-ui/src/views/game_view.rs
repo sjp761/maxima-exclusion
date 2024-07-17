@@ -1,7 +1,6 @@
 use egui::{pos2, vec2, Color32, Margin, Mesh, Pos2, Rect, RichText, Rounding, ScrollArea, Shape, Stroke, Ui};
-use egui_extras::Size;
-use log::{debug, info};
-use crate::{bridge_thread, views::downloads_view::QueuedDownload, widgets::enum_dropdown::enum_dropdown, GameDetails, GameDetailsWrapper, GameInfo, GameUIImages, GameUIImagesWrapper, MaximaEguiApp, PopupModal};
+use log::debug;
+use crate::{bridge_thread, widgets::enum_dropdown::enum_dropdown, GameDetails, GameDetailsWrapper, GameInfo, GameUIImages, GameUIImagesWrapper, MaximaEguiApp, PageType, PopupModal};
 
 use strum_macros::EnumIter;
 
@@ -235,7 +234,17 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
                         .min_size(vec2(50.0,40.0))
                       ).clicked() {
                         app.playing_game = Some(game.slug.clone());
-                        let _ = app.backend.backend_commander.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.offer.clone(), app.hardcode_game_paths));
+                        let _ = app.backend.backend_commander.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.clone()));
+                      }
+                    } else if app.install_queue.contains_key(&game.offer) || app.installing_now.as_ref().is_some_and(|n| n.offer.eq(&game.offer)) {
+                      let install_str = { "  ".to_string() + &app.locale.localization.games_view.main.resume.to_uppercase() + "  " };
+                      if buttons.add(egui::Button::new(egui::RichText::new(install_str)
+                        .size(20.0)
+                        .color(Color32::WHITE))
+                        .rounding(Rounding::same(2.0))
+                        .min_size(vec2(50.0,40.0))
+                      ).clicked() {
+                        app.page_view = PageType::Downloads;
                       }
                     } else {
                       let install_str = { "  ".to_string() + &app.locale.localization.games_view.main.install.to_uppercase() + "  " };
@@ -246,7 +255,6 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
                         .min_size(vec2(50.0,40.0))
                       ).clicked() {
                         app.modal = Some(PopupModal::GameInstall(game.slug.clone()));
-                        //TODO
                       }
                     }
                   }
@@ -367,7 +375,7 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
 fn game_list_button_context_menu(app : &MaximaEguiApp, game : &GameInfo, ui : &mut Ui) {
   ui.add_enabled_ui(app.playing_game.is_none(), |play_button| {
     if play_button.button("▶ Play").clicked() {
-      let _ = app.backend.backend_commander.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.offer.clone(), app.hardcode_game_paths));
+      let _ = app.backend.backend_commander.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.clone()));
       play_button.close_menu();
     }
   });

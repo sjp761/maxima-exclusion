@@ -1,15 +1,17 @@
 #![feature(slice_pattern)]
 use clap::{arg, command, Parser};
 
-use egui::{pos2, Layout, ViewportBuilder};
+use egui::{pos2, Layout, ViewportBuilder, Widget};
 use egui::style::{ScrollStyle, Spacing};
 use egui::Style;
 use log::{error, info, warn};
 use maxima::core::library::OwnedOffer;
 use views::downloads_view::{downloads_view, QueuedDownload};
 use views::undefinied_view::coming_soon_view;
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::default::Default;
+use std::path::PathBuf;
 use std::{ops::RangeInclusive, rc::Rc, sync::Arc};
 use ui_image::UIImage;
 use views::friends_view::UIFriend;
@@ -75,8 +77,6 @@ struct Args {
     profile: bool,
     #[arg(short, long)]
     no_login: bool,
-    #[arg(short, long)]
-    remove_hardcoded_game_paths: bool,
 }
 
 #[tokio::main]
@@ -184,6 +184,7 @@ pub enum GameInfoTab {
 /// TBD
 pub struct GameInstalledModsInfo {}
 
+#[derive(Clone)]
 pub struct GameUIImages {
     /// YOOOOO
     hero: Arc<UIImage>,
@@ -191,6 +192,7 @@ pub struct GameUIImages {
     logo: Option<Arc<UIImage>>,
 }
 
+#[derive(Clone)]
 pub enum GameUIImagesWrapper {
     Unloaded,
     Loading,
@@ -213,12 +215,20 @@ pub struct GameDetails {
     system_requirements_rec: String,
 }
 
+#[derive(Clone)]
 pub enum GameDetailsWrapper {
     Unloaded,
     Loading,
     Available(GameDetails),
 }
 
+#[derive(Clone)]
+pub struct GameSettings {
+    cloud_saves: Option<bool>,
+    launch_args: String,
+    exe_override: String,
+}
+#[derive(Clone)]
 pub struct GameInfo {
     /// Origin slug of the game
     slug: String,
@@ -232,11 +242,12 @@ pub struct GameInfo {
     details: GameDetailsWrapper,
     dlc: Vec<OwnedOffer>,
     installed: bool,
+    settings: GameSettings,
 }
 
-/// state for the game installer modal
 pub struct InstallModalState {
     locate_path: String,
+    install_folder: String,
     locating: bool,
     locate_response: Option<InteractThreadLocateGameResponse>,
     should_close: bool,
@@ -246,9 +257,24 @@ impl InstallModalState {
     pub fn new() -> Self {
         Self {
             locate_path: String::new(),
+            install_folder: String::new(),
             locating: false,
             locate_response: None,
             should_close: false,
+        }
+    }
+}
+
+pub struct SettingsModalState {
+    cloud_saves: bool,
+    launch_args: String,
+}
+
+impl SettingsModalState {
+    pub fn new() -> Self {
+        Self {
+            cloud_saves: true,
+            launch_args: String::new()
         }
     }
 }
@@ -305,13 +331,13 @@ pub struct MaximaEguiApp {
     /// Errors info etc for logging in with a username/password
     in_progress_credential_status: String,
     /// Currently waiting on the maxima thread to log us in with credentials
-    credential_login_in_progress: bool, 
-    /// Hardcodes game exe paths to stuff on my computer
-    hardcode_game_paths: bool,
+    credential_login_in_progress: bool,
     /// Slug of the game currently running, may not be fully accurate but it's good enough to let the user know the button was clicked
     playing_game: Option<String>,
-    /// Queue of game installs
-    install_queue: Vec<QueuedDownload>,
+    /// Currently downloading game
+    installing_now: Option<QueuedDownload>,
+    /// Queue of game installs, indexed by offer ID
+    install_queue: HashMap<String, QueuedDownload>,
     /// State for installer modal
     installer_state: InstallModalState,
 }
@@ -451,10 +477,10 @@ impl MaximaEguiApp {
             in_progress_password: String::new(),
             in_progress_credential_status: String::new(),
             credential_login_in_progress: false,
-            hardcode_game_paths: !args.remove_hardcoded_game_paths,
             playing_game: None,
-            install_queue: Vec::new(),
-            installer_state: InstallModalState::new()
+            installing_now: None,
+            install_queue: HashMap::new(),
+            installer_state: InstallModalState::new(),
         }
     }
 }
@@ -872,47 +898,69 @@ impl eframe::App for MaximaEguiApp {
                             .fill(Color32::from_black_alpha(200))
                             .outer_margin(Margin::symmetric((app_rect.width() - 600.0) / 2.0, (app_rect.height() - 400.0) / 2.0))
                             .inner_margin(Margin::same(12.0))
+                            .rounding(Rounding::same(8.0))
                             .stroke(Stroke::new(4.0, Color32::WHITE))
                             .show(contents, |ui| {
+                                ui.style_mut().spacing.interact_size = vec2(100.0, 30.0);
                                 match modal {
                                     PopupModal::GameSettings(slug) => 'outer: {
-                                        let game = if let Some(game) = self.games.get(slug) { game } else { break 'outer; };
+                                        let game = if let Some(game) = self.games.get_mut(slug) { game } else { break 'outer; };
+                                        //let game_settings = game.settings.borrow_mut();
                                         ui.horizontal(|header| {
                                             header.heading(format!("Game settings for {}", &game.name));
                                             header.with_layout(Layout::right_to_left(egui::Align::Center), |close_button| {
-                                                if close_button.button("Close").clicked() {
+                                                if close_button.add_sized(vec2(80.0, 30.0), egui::Button::new("Close")).clicked() {
                                                     clear = true
                                                 }
                                             });
                                         });
                                         ui.separator();
                                         if game.installed {
-                                            ui.checkbox(&mut false, "Cloud Saves");
-                                            ui.horizontal(|ui| {
-                                                ui.label("Launch Arguments");
-                                                ui.text_edit_singleline(&mut "");
-                                            });
+                                            if let Some(mut cloud_saves) = game.settings.cloud_saves {
+                                                ui.add_enabled(false, egui::Checkbox::new(&mut cloud_saves, "Cloud Saves"));
+                                            } else {
+                                                ui.add_enabled(false, egui::Checkbox::new(&mut false, "Cloud Saves"));
+                                            }
+                                            
+                                            ui.label("Launch Arguments:");
+                                            ui.add_sized(vec2(ui.available_width(), ui.style().spacing.interact_size.y), egui::TextEdit::singleline(&mut game.settings.launch_args));
+
                                             ui.separator();
+
+
+                                            let button_size = vec2(100.0, 30.0);
+
+                                            ui.label("Executable Override");
+                                            ui.horizontal(|ui| {
+                                                let size = vec2(500.0 - (24.0 + ui.style().spacing.item_spacing.x), 30.0);
+                                                ui.add_sized(size, egui::TextEdit::singleline(&mut game.settings.exe_override));
+                                                ui.add_sized(button_size, egui::Button::new("BROWSE"));
+                                            });
+
+                                            ui.separator();
+
                                             ui.button("Uninstall");
                                         } else {
                                             ui.label("Game is not installed");
                                         }
                                     },
                                     PopupModal::GameInstall(slug) => 'outer: {
-                                        let game = if let Some(game) = self.games.get(slug) { game } else { break 'outer; };
+                                        let game = if let Some(game) = self.games.get_mut(slug) { game } else { break 'outer; };
                                         ui.horizontal(|header| {
                                             header.heading(format!("Install {}", &game.name));
                                             header.with_layout(Layout::right_to_left(egui::Align::Center), |close_button| {
-                                                if close_button.add_enabled(!self.installer_state.locating, egui::Button::new("Close")).clicked() {
-                                                    clear = true
-                                                }
+                                                close_button.add_enabled_ui(!self.installer_state.locating, |close_button| {
+                                                    if close_button.add_sized(vec2(80.0, 30.0), egui::Button::new("Close")).clicked() {
+                                                        clear = true
+                                                    }
+                                                });
                                             });
                                         });
 
                                         ui.separator();
 
-                                        if slug.eq("battlefield-3") {
-                                            ui.heading("Battlefield 3 is currently unsupported due to how battlelog does game launching. This is on our radar, but isn't a huge priority at the moment.");
+                                        if slug.eq("battlefield-3") || slug.eq("battlefield-4") {
+                                            ui.heading("Battlefield 3 and 4 are currently unsupported due to how battlelog complicates game launching. This is on our radar, but isn't a huge priority at the moment.");
                                             break 'outer;
                                         }
 
@@ -923,18 +971,33 @@ impl eframe::App for MaximaEguiApp {
                                             match resp {
                                                 InteractThreadLocateGameResponse::Success => {
                                                     self.installer_state.should_close = true;
-                                                    if let Some(game) = self.games.get_mut(slug) {
-                                                        game.installed = true;
-                                                    }
+                                                    game.installed = true;
                                                 },
-                                                InteractThreadLocateGameResponse::NotSupported |
-                                                InteractThreadLocateGameResponse::NotFound |
-                                                InteractThreadLocateGameResponse::ParseFailed |
-                                                InteractThreadLocateGameResponse::GenericFailure => {
-                                                    ui.add_sized(vec2(576.0, 30.0), egui::Label::new(egui::RichText::new("Locate Failed").color(Color32::RED)));
+                                                InteractThreadLocateGameResponse::Error(err) => {
+                                                    ui.spacing_mut().item_spacing.x = 0.0;
+                                                    egui::Label::new(egui::RichText::new("Locate Failed.").color(Color32::RED)).ui(ui);
+                                                    ui.horizontal_wrapped(|ui| {
+                                                        ui.label("Please report this on ");
+                                                        ui.hyperlink_to("GitHub Issues", "https://github.com/ArmchairDevelopers/Maxima/issues/new");
+                                                        ui.label(".");
+                                                    });
+                                                    ui.label("Make sure to specify:");
+                                                    ui.horizontal_wrapped(|ui| {
+                                                        egui::Label::new("• You were locating ").selectable(false).ui(ui);
+                                                        egui::Label::new(egui::RichText::new(format!("{}", game.name)).color(Color32::WHITE)).ui(ui);
+                                                    });
+                                                    ui.horizontal_wrapped(|ui| {
+                                                        egui::Label::new("• ").selectable(false).ui(ui);
+                                                        egui::Label::new(egui::RichText::new(format!("{}", err.reason)).color(Color32::WHITE)).ui(ui);
+                                                    });
+                                                    ui.horizontal_wrapped(|ui| {
+                                                        egui::Label::new("And attach ").selectable(false).ui(ui);
+                                                        egui::Label::new(egui::RichText::new(&err.xml_path).color(Color32::WHITE)).ui(ui);
+                                                    });
+                                                    
                                                 }
                                             }
-                                        } else  if self.installer_state.locating {
+                                        } else if self.installer_state.locating {
                                             ui.heading("Locating...");
                                         } else {
                                             ui.horizontal(|ui| {
@@ -950,11 +1013,36 @@ impl eframe::App for MaximaEguiApp {
                                         ui.label("");
                                         ui.label("Install a fresh copy:");
                                         ui.add_enabled_ui(!self.installer_state.locating, |ui| {
-                                            if ui.add_sized(button_size, egui::Button::new("INSTALL")).clicked() {
-                                                //self.install_queue.push(QueuedDownload { slug: game.slug.clone(), downloaded_bytes: 0, total_bytes: 0 });
-                                                clear = true;
+                                            let size = vec2(500.0 - (24.0 + ui.style().spacing.item_spacing.x*2.0), 30.0);
+                                            ui.horizontal(|ui| {
+                                                ui.add_sized(size, egui::TextEdit::singleline(&mut self.installer_state.install_folder));
+                                            });
+                                            let path = PathBuf::from(self.installer_state.install_folder.clone());
+                                            let valid = path.exists();
+                                            ui.add_enabled_ui(valid, |ui| {
+                                                if ui.add_sized(button_size, egui::Button::new("INSTALL")).clicked() {
+                                                    if self.installing_now.is_none() {
+                                                        self.installing_now = Some(QueuedDownload { slug: game.slug.clone(), offer: game.offer.clone(), downloaded_bytes: 0, total_bytes: 0 });
+                                                    } else {
+                                                        self.install_queue.insert(game.offer.clone(),QueuedDownload { slug: game.slug.clone(), offer: game.offer.clone(), downloaded_bytes: 0, total_bytes: 0 });
+                                                    }
+                                                    self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::InstallGameRequest(game.offer.clone(), path.join(slug))).unwrap();
+
+                                                    clear = true;
+                                                }
+                                            });
+                                            if !self.installer_state.install_folder.is_empty() {
+                                                ui.horizontal_wrapped(|folder_hint| {
+                                                    egui::Label::new(egui::RichText::new("Game will be installed at: ")).selectable(false).ui(folder_hint);
+                                                    egui::Label::new(egui::RichText::new(format!("{}",
+                                                        path.join(slug).display())).color(Color32::WHITE)).selectable(false).ui(folder_hint);
+                                                });
+                                                if !valid {
+                                                    egui::Label::new(egui::RichText::new("Invalid Path").color(Color32::RED)).ui(ui);
+                                                }
                                             }
                                         });
+                                        
 
                                         if self.installer_state.should_close { clear = true; }
                                     }
@@ -967,7 +1055,7 @@ impl eframe::App for MaximaEguiApp {
                         // reset it for the next time
                         match &self.modal {
                             Some(variant) => match variant {
-                                    PopupModal::GameSettings(_) => {},
+                                    PopupModal::GameSettings(_) => { },
                                     PopupModal::GameInstall(_) => {
                                         self.installer_state = InstallModalState::new();
                                     },

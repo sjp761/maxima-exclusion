@@ -1,7 +1,7 @@
-use std::{cmp, sync::Arc};
+use std::sync::Arc;
 
-use egui::{pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Color32, FontId, Id, Margin, Rect, Rounding, Sense, Stroke, TextFormat, Ui};
-use maxima::rtm::{client::BasicPresence};
+use egui::{pos2, vec2, Align2, Color32, FontId, Id, Margin, Rect, Rounding, Stroke, Ui};
+use maxima::rtm::client::BasicPresence;
 
 use crate::{bridge_thread, ui_image::UIImage, widgets::enum_dropdown::enum_dropdown, MaximaEguiApp, FRIEND_INGAME_COLOR};
 

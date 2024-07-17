@@ -85,6 +85,8 @@ pub struct LocalizedGamesViewMain {
     pub stop: String,
     pub install: String,
     pub uninstall: String,
+    pub pause: String,
+    pub resume: String,
     pub settings: String,
     pub playtime: String,
     pub achievements: String,

@@ -1,6 +1,6 @@
 use anyhow::{Ok, Result, bail};
 use egui::Context;
-use log::{debug, info};
+use log::debug;
 use maxima::{core::LockedMaxima, rtm::client::BasicPresence};
 use std::sync::mpsc::Sender;
 

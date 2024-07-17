@@ -3,7 +3,7 @@ use eframe::glow::{BLEND, TEXTURE_2D};
 use egui::mutex::Mutex;
 use egui::{TextureId, Vec2};
 use egui_glow::glow;
-use log::{error, info};
+use log::error;
 use std::sync::Arc;
 
 /// FUCK
