@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 use derive_builder::Builder;
 use derive_getters::Getters;
 use futures::StreamExt;
-use log::{debug, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use tokio::{fs, sync::Notify};
 use tokio_util::sync::CancellationToken;
@@ -31,7 +31,7 @@ use super::{downloader::ZipDownloader, ContentService};
 
 const QUEUE_FILE: &str = "download_queue.json";
 
-#[derive(Default, Builder, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Builder, Getters, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QueuedGame {
     offer_id: String,
     build_id: String,
@@ -163,17 +163,17 @@ impl GameDownloader {
             let downloader = downloader_arc.clone();
             let cancel_token = cancel_token.clone();
             let completed_bytes = completed_bytes.clone();
-            let notify = notify.clone();
 
             handles.push(async move {
                 let ele = &downloader.manifest().entries()[i];
-                let size = *ele.uncompressed_size() as usize;
 
                 tokio::select! {
-                    result = downloader.download_single_file(ele) => {
-                        result.unwrap();
-                        completed_bytes.fetch_add(size, Ordering::SeqCst);
-                        notify.notify_one();
+                    result = downloader.download_single_file(ele, Some(Box::new(move |bytes| {
+                        completed_bytes.fetch_add(bytes, Ordering::SeqCst);
+                    }))) => {
+                        if let Err(err) = result {
+                            error!("File download failed: {}", err);
+                        }
                     },
                     _ = cancel_token.cancelled() => {
                         info!("Download of {} cancelled", ele.name());
@@ -201,6 +201,8 @@ impl GameDownloader {
         info!("Installation finished!");
 
         completed_bytes.fetch_add(1, Ordering::SeqCst);
+
+        notify.notify_one();
     }
 
     pub fn cancel(&self) {

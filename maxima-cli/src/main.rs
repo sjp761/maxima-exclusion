@@ -484,7 +484,7 @@ async fn download_specific_file(
     }
 
     let ele = entry.unwrap();
-    downloader.download_single_file(ele).await.unwrap();
+    downloader.download_single_file(ele, None).await.unwrap();
 
     info!(
         "Downloaded file {} from game build {}",

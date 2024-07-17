@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use log::info;
 
 use crate::{
-    core::launch::LaunchMode,
+    core::{auth::hardware::HardwareInfo, launch::LaunchMode},
     lsx::{
         connection::LockedConnectionState,
         types::{LSXRequestLicense, LSXRequestLicenseResponse, LSXResponseType},
@@ -34,9 +34,10 @@ pub async fn handle_license_request(
         }
     };
 
+    let hw_info = HardwareInfo::new()?;
     let license = request_license(
         &content_id,
-        "ca5f9ae34d7bcd895e037a17769de60338e6e84",
+        &hw_info.generate_mid()?,
         &auth,
         Some(request.attr_RequestTicket.as_str()),
         Some(request.attr_TicketEngine.as_str()),

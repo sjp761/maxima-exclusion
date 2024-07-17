@@ -31,6 +31,8 @@ pub async fn handle_game_info_request(
 
 // <GetAllGameInfoResponse FullGamePurchased="true" FullGameReleased="true" InstalledVersion="0" MaxGroupSize="16" Languages="ar_SA,de_DE,en_US,es_ES,es_MX,fr_FR,it_IT,ja_JP,ko_KR,pl_PL,pt_BR,ru_RU,zh_CN,zh_TW" Expiration="0000-00-00T00:00:00" UpToDate="true" HasExpiration="false" InstalledLanguage="" EntitlementSource="STEAM" FullGameReleaseDate="2020-10-22T09:00:00" AvailableVersion="1.0.64.43203" DisplayName="Battlefield V Definitive Edition" FreeTrial="false" SystemTime="2023-06-23T04:22:10"/>
 
+/// Just realized we're still telling every game that it's titanfall.
+/// Should fix that at some point!
 pub async fn handle_all_game_info_request(
     _: LockedConnectionState,
     _: LSXGetAllGameInfo,

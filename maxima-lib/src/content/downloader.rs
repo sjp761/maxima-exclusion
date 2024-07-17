@@ -4,7 +4,7 @@ use std::{
     pin::Pin,
     prelude,
     sync::{Arc, Mutex},
-    task::{self, Poll},
+    task,
 };
 
 use anyhow::{bail, Context, Result};
@@ -18,7 +18,8 @@ use reqwest::Client;
 use strum_macros::Display;
 use tokio::{
     fs::{create_dir, create_dir_all, File, OpenOptions},
-    io::{AsyncSeekExt, AsyncWrite, BufReader, BufWriter}, runtime::Handle,
+    io::{AsyncSeekExt, AsyncWrite, BufReader, BufWriter},
+    runtime::Handle,
 };
 
 use tokio_util::compat::FuturesAsyncReadCompatExt;
@@ -32,9 +33,6 @@ use crate::{
 };
 
 use super::zip::{ZipFile, ZipFileEntry};
-
-/// 50mb chunks
-const MAX_CHUNK_SIZE: i64 = 50_000_000;
 
 fn zstate_path(id: &str, path: &str) -> PathBuf {
     let mut path = maxima_dir()
@@ -202,11 +200,12 @@ impl<'a> AsyncWrite for AsyncWriterWrapper<'a> {
             inner.poll_write(cx, buf)
         };
 
-        let mut bytes = BytesMut::new();
-        self.decoder.save_state(&mut bytes);
+        // State serialization is disabled for now.
+        // let mut bytes = BytesMut::new();
+        // self.decoder.save_state(&mut bytes);
 
-        self.zlib_state_file.seek(SeekFrom::Start(0))?;
-        self.zlib_state_file.write(&bytes)?;
+        // self.zlib_state_file.seek(SeekFrom::Start(0))?;
+        // self.zlib_state_file.write(&bytes)?;
 
         poll_result
     }
@@ -224,11 +223,6 @@ impl<'a> AsyncWrite for AsyncWriterWrapper<'a> {
     ) -> task::Poll<prelude::v1::Result<(), io::Error>> {
         Pin::new(&mut *self.inner.lock().unwrap()).poll_shutdown(cx)
     }
-}
-
-struct DownloadChunk {
-    pub start: i64,
-    pub end: i64,
 }
 
 #[derive(Debug, Display)]
@@ -252,12 +246,15 @@ struct DownloadContext {
     path: PathBuf,
 }
 
+type BytesDownloadedCallback = Box<dyn Fn(usize) + Send + Sync>;
+
 struct EntryDownloadRequest<'a> {
     context: &'a DownloadContext,
     url: &'a str,
     entry: &'a ZipFileEntry,
     client: Client,
     decoder: Box<dyn DownloadDecoder>,
+    callback: Option<BytesDownloadedCallback>,
 }
 
 impl<'a> EntryDownloadRequest<'a> {
@@ -267,15 +264,15 @@ impl<'a> EntryDownloadRequest<'a> {
         entry: &'a ZipFileEntry,
         client: Client,
         decoder: Box<dyn DownloadDecoder>,
+        callback: Option<BytesDownloadedCallback>,
     ) -> Self {
-        //let state = self.state
-
         Self {
             context,
             url,
             entry,
             client,
             decoder,
+            callback,
         }
     }
 
@@ -303,7 +300,7 @@ impl<'a> EntryDownloadRequest<'a> {
                 return EntryDownloadState::Borked;
             }
 
-            return EntryDownloadState::Resumable;
+            return EntryDownloadState::Borked;
         }
 
         let hash = match hash_file_crc32(&path) {
@@ -317,18 +314,27 @@ impl<'a> EntryDownloadRequest<'a> {
         let hash_match = *entry.crc32() != hash;
         if !hash_match {
             warn!("Hash mismatch");
-            return EntryDownloadState::Resumable;
+            return EntryDownloadState::Borked;
         }
 
         EntryDownloadState::Complete
     }
 
     async fn download(&mut self) -> Result<(), DownloadError> {
-        
         let mut tries = 0;
         while tries < 5 {
-            let start = self.decoder.write_in_pos() as i64;
-            info!("Downloading {} from {} to {} ({})", self.entry.name(), start, self.entry.compressed_size(), self.entry.uncompressed_size());
+            // State serialization is disabled for now.
+            //let start = self.decoder.write_in_pos() as i64;
+
+            let start = 0;
+
+            debug!(
+                "Downloading {} from {} to {} ({})",
+                self.entry.name(),
+                start,
+                self.entry.compressed_size(),
+                self.entry.uncompressed_size()
+            );
             let end = *self.entry.compressed_size();
 
             let result = self.download_range(start, end).await;
@@ -338,7 +344,7 @@ impl<'a> EntryDownloadRequest<'a> {
 
             tries += 1;
         }
-        
+
         Ok(())
     }
 
@@ -362,19 +368,21 @@ impl<'a> EntryDownloadRequest<'a> {
         };
 
         let stream = data.bytes_stream();
-        let counting_stream = ByteCountingStream::new(stream);
+        let counting_stream = ByteCountingStream::new(stream, self.callback.as_ref());
         let stream = counting_stream.into_async_read();
         let mut stream_reader = BufReader::new(stream.compat());
 
-        let out_pos = self.decoder.write_out_pos();
-        self.decoder.seek(SeekFrom::Start(out_pos));
+        // State deserialization is disabled for now.
+        // let out_pos = self.decoder.write_out_pos();
+        // self.decoder.seek(SeekFrom::Start(out_pos));
 
         let mut wrapper = AsyncWriterWrapper::new(
             self.context.id.to_owned(),
             self.entry.name().to_owned(),
             &mut self.decoder,
-        ).await;
-        
+        )
+        .await;
+
         let result = tokio::io::copy(&mut stream_reader, &mut wrapper)
             .await
             .context(self.entry.name().to_owned());
@@ -416,7 +424,11 @@ impl ZipDownloader {
         })
     }
 
-    pub async fn download_single_file(&self, entry: &ZipFileEntry) -> Result<usize> {
+    pub async fn download_single_file(
+        &self,
+        entry: &ZipFileEntry,
+        callback: Option<BytesDownloadedCallback>,
+    ) -> Result<usize> {
         let file_path = self.path.join(entry.name());
 
         if !file_path.exists() {
@@ -455,10 +467,9 @@ impl ZipDownloader {
 
         let state = EntryDownloadRequest::state(&context, entry).await;
         if state == EntryDownloadState::Complete {
-            //warn!("Already done");
             return Ok(0);
         }
-        
+
         if state == EntryDownloadState::Borked {
             warn!("Found borked file {}", entry.name());
             file.set_len(*entry.uncompressed_size() as u64).await?;
@@ -481,27 +492,35 @@ impl ZipDownloader {
             }
         }
 
-        let mut request =
-            EntryDownloadRequest::new(&context, &self.url, entry, self.client.clone(), decoder);
-        request.download().await?;
+        let mut request = EntryDownloadRequest::new(
+            &context,
+            &self.url,
+            entry,
+            self.client.clone(),
+            decoder,
+            callback,
+        );
 
+        request.download().await?;
         Ok(0)
     }
 }
 
-struct ByteCountingStream<S> {
+struct ByteCountingStream<'a, S> {
     inner: S,
     byte_count: usize,
+    callback: Option<&'a BytesDownloadedCallback>,
 }
 
-impl<S> ByteCountingStream<S>
+impl<'a, S> ByteCountingStream<'a, S>
 where
     S: Stream<Item = Result<bytes::Bytes, reqwest::Error>>,
 {
-    fn new(inner: S) -> Self {
+    fn new(inner: S, callback: Option<&'a BytesDownloadedCallback>) -> Self {
         ByteCountingStream {
             inner,
             byte_count: 0,
+            callback,
         }
     }
 
@@ -510,7 +529,7 @@ where
     }
 }
 
-impl<S> Stream for ByteCountingStream<S>
+impl<'a, S> Stream for ByteCountingStream<'a, S>
 where
     S: Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Unpin,
 {
@@ -523,6 +542,11 @@ where
         match self.inner.poll_next_unpin(cx) {
             std::task::Poll::Ready(Some(Ok(chunk))) => {
                 self.byte_count += chunk.len();
+
+                if let Some(callback) = &self.callback {
+                    callback(chunk.len());
+                }
+
                 std::task::Poll::Ready(Some(Ok(chunk)))
             }
             std::task::Poll::Ready(Some(Err(err))) => {

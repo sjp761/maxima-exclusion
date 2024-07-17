@@ -16,7 +16,7 @@ use regex::Regex;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 
-use crate::core::endpoints::API_PROXY_NOVAFUSION_LICENSES;
+use crate::core::{auth::hardware::HardwareInfo, endpoints::API_PROXY_NOVAFUSION_LICENSES};
 
 pub const OOA_CRYPTO_KEY: [u8; 16] = [
     65, 50, 114, 45, 208, 130, 239, 176, 220, 100, 87, 197, 118, 104, 202, 9,
@@ -93,9 +93,10 @@ pub async fn request_and_save_license(
         return Ok(());
     }
 
+    let hw_info = HardwareInfo::new()?;
     let license = request_license(
         content_id,
-        "ca5f9ae34d7bcd895e037a17769de60338e6e84",
+        &hw_info.generate_mid()?,
         auth,
         None,
         None,
