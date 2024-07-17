@@ -465,7 +465,12 @@ impl CloudSyncClient {
                 let path = substitute_paths(include.value);
                 let paths = glob::glob(path.to_str().unwrap())?;
                 for path in paths {
-                    allowed_files.push(path?);
+                    let path = path?;
+                    if path.is_dir() {
+                        continue;
+                    }
+
+                    allowed_files.push(path);
                 }
             }
         } else {
