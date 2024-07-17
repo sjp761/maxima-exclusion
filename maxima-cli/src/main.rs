@@ -18,9 +18,6 @@ use maxima::{
     util::service::{is_service_running, is_service_valid, register_service_user, start_service},
 };
 
-#[cfg(unix)]
-use maxima::core::launch::mx_linux_setup;
-
 use maxima::{
     content::{
         downloader::ZipDownloader,
@@ -713,9 +710,6 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
 }
 
 async fn locate_game(maxima_arc: LockedMaxima, path: &str) -> Result<()> {
-    #[cfg(unix)]
-    mx_linux_setup().await?;
-
     let path = PathBuf::from(path);
     let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await?;
     manifest.run_touchup(&path).await?;

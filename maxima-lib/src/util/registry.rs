@@ -306,7 +306,7 @@ pub fn set_up_registry() -> Result<()> {
 
 #[cfg(target_os = "linux")]
 fn register_custom_protocol(protocol: &str, name: &str, executable: &str) -> Result<()> {
-    use std::env;
+    use crate::util::native::maxima_dir;
 
     let mut parts = HashMap::<&str, String>::new();
     parts.insert("Type", "Application".to_owned());
@@ -321,9 +321,10 @@ fn register_custom_protocol(protocol: &str, name: &str, executable: &str) -> Res
         desktop_file += &(part.0.to_owned() + "=" + &part.1 + "\n");
     }
 
-    let home = env::var("HOME")?;
+    let maxima_dir = maxima_dir()?;
+    let home = maxima_dir.parent().unwrap();
     let desktop_file_name = format!("maxima-{}.desktop", protocol);
-    let desktop_file_path = format!("{}/.local/share/applications/{}", home, desktop_file_name);
+    let desktop_file_path = format!("{}/.local/share/applications/{}", home.to_str().unwrap(), desktop_file_name);
     fs::write(desktop_file_path, desktop_file)?;
 
     set_mime_type(

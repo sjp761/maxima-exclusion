@@ -15,9 +15,6 @@ use serde::{Deserialize, Serialize};
 use tokio::{fs, sync::Notify};
 use tokio_util::sync::CancellationToken;
 
-#[cfg(unix)]
-use crate::core::launch::mx_linux_setup;
-
 use crate::{
     core::{
         auth::storage::LockedAuthStorage,
@@ -104,7 +101,7 @@ impl GameDownloader {
             .manifest()
             .entries()
             .iter()
-            .map(|x| *x.uncompressed_size() as usize)
+            .map(|x| *x.compressed_size() as usize)
             .sum();
 
         Ok(GameDownloader {
@@ -188,9 +185,6 @@ impl GameDownloader {
             .await;
 
         let path = downloader_arc.path();
-
-        #[cfg(unix)]
-        mx_linux_setup().await.unwrap();
 
         info!("Files downloaded, running touchup...");
         let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH))
