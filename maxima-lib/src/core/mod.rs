@@ -445,20 +445,22 @@ impl Maxima {
         info!("Game stopped");
 
         if let Some(offer) = playing.offer() {
-            let result = self
-                .cloud_sync
-                .obtain_lock(offer, CloudSyncLockMode::Write)
-                .await;
-            if let Err(err) = result {
-                error!("Failed to obtain CloudSync write lock: {}", err);
-            } else {
-                let lock = result.unwrap();
-                let result = lock.sync_files().await;
+            if offer.offer().has_cloud_save() {
+                let result = self
+                    .cloud_sync
+                    .obtain_lock(offer, CloudSyncLockMode::Write)
+                    .await;
                 if let Err(err) = result {
-                    error!("Failed to write to CloudSync: {}", err);
-                }
+                    error!("Failed to obtain CloudSync write lock: {}", err);
+                } else {
+                    let lock = result.unwrap();
+                    let result = lock.sync_files().await;
+                    if let Err(err) = result {
+                        error!("Failed to write to CloudSync: {}", err);
+                    }
 
-                lock.release().await.ok();
+                    lock.release().await.ok();
+                }
             }
         }
 

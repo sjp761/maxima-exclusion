@@ -584,6 +584,12 @@ service_layer_type!(LegacyOffer, {
     cloud_save_configuration_override: Option<String>,
 });
 
+impl ServiceLegacyOffer {
+    pub fn has_cloud_save(&self) -> bool {
+        !self.cloud_save_configuration_override.clone().unwrap_or_default().is_empty()
+    }
+}
+
 service_layer_type!(RecentGames, {
 
 });

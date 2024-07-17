@@ -175,17 +175,19 @@ pub async fn start_game(
             let auth = LicenseAuth::AccessToken(maxima.access_token().await?);
             request_and_save_license(&auth, &content_id, path.to_owned().into()).await?;
 
-            info!("Syncing with cloud save...");
-            let lock = maxima.cloud_sync().obtain_lock(offer.as_ref().unwrap(), CloudSyncLockMode::Read).await?;
-
-            let result = lock.sync_files().await;
-            if let Err(err) = result {
-                error!("Failed to sync cloud save: {}", err);
-            } else {
-                info!("Cloud save synced");
+            if offer.as_ref().unwrap().offer().has_cloud_save() {
+                info!("Syncing with cloud save...");
+                let lock = maxima.cloud_sync().obtain_lock(offer.as_ref().unwrap(), CloudSyncLockMode::Read).await?;
+    
+                let result = lock.sync_files().await;
+                if let Err(err) = result {
+                    error!("Failed to sync cloud save: {}", err);
+                } else {
+                    info!("Cloud save synced");
+                }
+    
+                lock.release().await?;
             }
-
-            lock.release().await?;
         }
         LaunchMode::OnlineOffline(_, ref persona, ref password) => {
             let auth = LicenseAuth::Direct(persona.to_owned(), password.to_owned());

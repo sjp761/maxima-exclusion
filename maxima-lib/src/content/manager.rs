@@ -159,7 +159,7 @@ impl GameDownloader {
     ) {
         let mut handles = Vec::with_capacity(total_count);
 
-        for i in 0..total_count {
+        for i in 0..total_count - 1 {
             let downloader = downloader_arc.clone();
             let cancel_token = cancel_token.clone();
             let completed_bytes = completed_bytes.clone();
@@ -199,6 +199,8 @@ impl GameDownloader {
 
         manifest.run_touchup(path).await.unwrap();
         info!("Installation finished!");
+
+        completed_bytes.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn cancel(&self) {
