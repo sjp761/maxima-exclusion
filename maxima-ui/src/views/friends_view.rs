@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use egui::{pos2, vec2, Align2, Color32, FontId, Id, Margin, Rect, Rounding, Stroke, Ui};
+use egui::{pos2, vec2, Align2, Color32, FontId, Id, Margin, Rect, Rounding, Stroke, Ui, UiStackInfo, Vec2};
 use maxima::rtm::client::BasicPresence;
 
 use crate::{bridge_thread, ui_image::UIImage, widgets::enum_dropdown::enum_dropdown, MaximaEguiApp, FRIEND_INGAME_COLOR};
@@ -65,10 +65,11 @@ const PFP_SIZE: f32 = 36.0;
 const PFP_CORNER_RADIUS: f32 = 2.0;
 const PFP_ELEMENT_SIZE: f32 = (PFP_SIZE + PFP_CORNER_RADIUS * 2.0);
 const FRIEND_HIGHLIGHT_ROUNDING: Rounding = Rounding { nw: 6.0, ne: 4.0, sw: 6.0, se: 4.0 }; // the status border is flawed somehow, this "fixes" it slightly more than if i didn't
-
+const ITEM_SPACING: Vec2 = vec2(5.0, 5.0);
 pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
   puffin::profile_function!();
-  ui.style_mut().spacing.item_spacing = vec2(5.0,0.0);
+  let max_width = ui.available_width(); // this gets expanded somehow, i don't know why, it's easier to do it this way
+  ui.style_mut().spacing.item_spacing = ITEM_SPACING;
   let context = ui.ctx().clone();
   // this is a fucking mistake.
   let sidebar_rect = ui.available_rect_before_wrap();
@@ -94,7 +95,6 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
   ;
   
   top_bar.show(ui, |ui| {
-    ui.style_mut().spacing.item_spacing = vec2(5.0,5.0);
     ui.vertical(|ui| {
       if friend_rect_hovered { //TODO : smooth transition
         ui.vertical(|ui| { //separating this out for styling reasons
@@ -141,8 +141,6 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
         });
       }
       
-      
-
       let mut friends : Vec<&mut UIFriend> = app.friends.iter_mut().filter(|obj| 
         match app.friends_view_bar.status_filter {
             FriendsViewBarStatusFilter::Name => obj.name.to_ascii_lowercase().contains(&app.friends_view_bar.search_buffer),
@@ -168,30 +166,29 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
             FriendsViewBarPage::Blocked => false,
         }
       ).collect();
-      friends.sort_by(|a,b| {a.name.cmp(&b.name)});                                     // Alphabetically sort
-      friends.sort_by(|a,b| {b.online.cmp(&a.online)}); // Put online ones first
-      friends.sort_by(|a, b| {b.game.is_some().cmp(&a.game.is_some())});                // Put online and in-game ones first
-      
-      
+      friends.sort_by(|a,b| {a.name.cmp(&b.name)});                      // Alphabetically sort
+      friends.sort_by(|a,b| {b.online.cmp(&a.online)});                  // Put online ones first
+      friends.sort_by(|a, b| {b.game.is_some().cmp(&a.game.is_some())}); // Put online and in-game ones first
+
       // scrollbar
       ui.style_mut().visuals.widgets.inactive.bg_fill = Color32::WHITE;
       ui.style_mut().visuals.widgets.inactive.rounding = Rounding::same(4.0);
       ui.style_mut().visuals.widgets.active.rounding = Rounding::same(4.0);
       ui.style_mut().visuals.widgets.hovered.rounding = Rounding::same(4.0);
-
-      let clip_rect = ui.available_rect_before_wrap();
+      ui.style_mut().spacing.scroll.floating = false;
+      let clip_rect = ui.available_rect_before_wrap().clone();
       egui::ScrollArea::new([false,friend_rect_hovered])
       .id_source("FriendsListFriendListScrollArea") //hmm yes, the friends list is made of friends list
       .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+      .auto_shrink([false, false])
+      .max_width(max_width)
       .show(ui, |ui| {
-        ui.set_clip_rect(clip_rect);
         puffin::profile_scope!("friends");
-        let mut marge = Margin::same(0.0);
-        marge.bottom = 4.5;
+        ui.set_clip_rect(clip_rect);
 
         let button_height = PFP_ELEMENT_SIZE * 0.6;
-        let button_gap = PFP_ELEMENT_SIZE * 0.2;
-        let width = ui.available_width() - if friend_rect_hovered { ui.style().spacing.scroll.bar_inner_margin + ui.style().spacing.scroll.bar_width } else { 0.0 };
+        let button_gap = ui.spacing().item_spacing.y;
+        let width = ui.available_width();
         for friend in friends {
           puffin::profile_scope!("friend");
           let buttons = app.friends_view_bar.friend_sel.eq(&friend.id) && friend_rect_hovered;
@@ -244,9 +241,9 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
             },
           };
 
-          let (f_res, f_painter) = ui.allocate_painter(vec2(width, 2.0 + PFP_ELEMENT_SIZE + ((button_height + button_gap) * how_buttons)), egui::Sense::click());
+          let (f_res, f_painter) = ui.allocate_painter(vec2(width, PFP_ELEMENT_SIZE + ((button_height + button_gap) * how_buttons)), egui::Sense::click());
           let mut highlight_rect = f_res.rect.clone();
-          highlight_rect.set_height(2.0 + PFP_ELEMENT_SIZE);
+          highlight_rect.set_height(PFP_ELEMENT_SIZE);
           if f_res.clicked() {
             if buttons {
               app.friends_view_bar.friend_sel = String::new();
@@ -273,13 +270,15 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
               max: pos2(rect_1.max.x + size.x + ui.spacing().item_spacing.x, rect_1.max.y)
             };
 
+            ui.spacing_mut().item_spacing.y = 0.0;
             ui.add_enabled_ui(false, |buttons| {
               if buttons.put(rect_0, egui::Button::new(app.locale.localization.friends_view.friend_actions.profile.to_ascii_uppercase())).clicked()
               || buttons.put(rect_1, egui::Button::new(app.locale.localization.friends_view.friend_actions.chat.to_ascii_uppercase())).clicked()
               || buttons.put(rect_2, egui::Button::new(app.locale.localization.friends_view.friend_actions.unfriend.to_ascii_uppercase())).clicked() {
                 app.friends_view_bar.friend_sel = String::new();
-            }
-          });
+              }
+            });
+            ui.spacing_mut().item_spacing.y = ITEM_SPACING.y;
           }
 
           if f_res.hovered() || buttons {
@@ -313,10 +312,8 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
           f_painter.text(pfp_rect.center() + vec2(PFP_SIZE/1.5,  2.0), Align2::LEFT_BOTTOM, &friend.name, FontId::proportional(15.0), text_col);
           f_painter.text(pfp_rect.center() + vec2(PFP_SIZE/1.5,  2.0), Align2::LEFT_TOP, friend_status, FontId::proportional(10.0), text_col);
         }
+        ui.allocate_space(ui.available_size());
       });
     });
   });
-  ui.allocate_space(vec2(0.0,8.0));
-
-  
 }
