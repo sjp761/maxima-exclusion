@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use egui::{pos2, vec2, Align2, Color32, FontId, Id, Margin, Rect, Rounding, Stroke, Ui, UiStackInfo, Vec2};
+use egui::{pos2, vec2, Align2, Color32, FontId, Id, Rect, Rounding, Stroke, Ui, Vec2};
 use maxima::rtm::client::BasicPresence;
 
 use crate::{bridge_thread, ui_image::UIImage, widgets::enum_dropdown::enum_dropdown, MaximaEguiApp, FRIEND_INGAME_COLOR};
@@ -63,7 +63,7 @@ const F9B233: Color32 = Color32::from_rgb(249, 178, 51);
 const DARK_GREY: Color32 = Color32::from_rgb(64, 64, 64);
 const PFP_SIZE: f32 = 36.0;
 const PFP_CORNER_RADIUS: f32 = 2.0;
-const PFP_ELEMENT_SIZE: f32 = (PFP_SIZE + PFP_CORNER_RADIUS * 2.0);
+const PFP_ELEMENT_SIZE: f32 = PFP_SIZE + PFP_CORNER_RADIUS * 2.0;
 const FRIEND_HIGHLIGHT_ROUNDING: Rounding = Rounding { nw: 6.0, ne: 4.0, sw: 6.0, se: 4.0 }; // the status border is flawed somehow, this "fixes" it slightly more than if i didn't
 const ITEM_SPACING: Vec2 = vec2(5.0, 5.0);
 pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
@@ -220,7 +220,7 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
             BasicPresence::Online => {
               
               if let Some(game) = &friend.game  {
-                if app.locale.localization.friends_view.status.prepend {
+                if app.locale.localization.friends_view.status.prepend { // Do any languages actually do this?      
                   if let Some(presence) = &friend.game_presence {
                     game_hack = format!("{} {}: {}", &game, &app.locale.localization.friends_view.status.playing, &presence);
                   } else {

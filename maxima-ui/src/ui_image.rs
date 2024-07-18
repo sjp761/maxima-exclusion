@@ -105,7 +105,7 @@ impl UIImage {
         }
 
         let png_cache = avatar_cache_folder.join(id.clone() + "_208x208.png");
-        let jpeg_cache = avatar_cache_folder.join(id.clone() + "_208x208.jpeg");
+        let jpeg_cache = avatar_cache_folder.join(id.clone() + "_208x208.jpg");
 
         if fs::metadata(&png_cache).is_err() && fs::metadata(&jpeg_cache).is_err() {
             download_image(

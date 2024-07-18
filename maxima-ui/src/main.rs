@@ -13,7 +13,7 @@ use std::default::Default;
 use std::path::PathBuf;
 use std::{ops::RangeInclusive, rc::Rc, sync::Arc};
 use ui_image::UIImage;
-use views::friends_view::UIFriend;
+use views::friends_view::{UIFriend, UIFriendImageWrapper};
 
 use eframe::egui_glow;
 use egui::{
@@ -287,10 +287,14 @@ pub struct MaximaEguiApp {
     friends_view_bar: FriendsViewBar,
     /// Logged in user's display name
     user_name: String,
-    /// temp icon for the user's profile picture
-    _user_pfp: Rc<RetainedImage>, 
+    /// Logged in user's ID
+    user_id: String,
+    /// CEO OF EPIC GAMES (TOTALLY NOT THE SINGLE BIGGEST DRAG ON THE GAMES INDUSTRY)
+    tim_sweeney: Rc<RetainedImage>,
     /// actual renderable for the user's profile picture //TODO
     user_pfp_renderable: TextureId,
+    /// Your profile picture
+    local_user_pfp: UIFriendImageWrapper,
     /// games
     games: HashMap<String, GameInfo>,
     /// selected game
@@ -322,15 +326,6 @@ pub struct MaximaEguiApp {
     /// if the login flow is in progress
     in_progress_login: bool,
     /// what type of login we're using
-    in_progress_login_type: InProgressLoginType,
-    /// Username buffer for logging in with a username/password
-    in_progress_username: String,
-    /// Password buffer for logging in with a username/password
-    in_progress_password: String,
-    /// Errors info etc for logging in with a username/password
-    in_progress_credential_status: String,
-    /// Currently waiting on the maxima thread to log us in with credentials
-    credential_login_in_progress: bool,
     /// Slug of the game currently running, may not be fully accurate but it's good enough to let the user know the button was clicked
     playing_game: Option<String>,
     /// Currently downloading game
@@ -454,7 +449,7 @@ impl MaximaEguiApp {
             eframe::get_value(storage, "settings").unwrap_or(FrontendSettings::new())
         } else { FrontendSettings::new() };
         
-        let _user_pfp =
+        let tim_sweeney =
             Rc::new(RetainedImage::from_image_bytes("Timothy Dean Sweeney", include_bytes!("../res/usericon_tmp.png")).expect("yeah"));
 
         Self {
@@ -472,9 +467,11 @@ impl MaximaEguiApp {
                 search_buffer: String::new(),
                 friend_sel : String::new(),
             },
-            user_pfp_renderable: (&_user_pfp).texture_id(&cc.egui_ctx),
-            _user_pfp,
+            user_pfp_renderable: (&tim_sweeney).texture_id(&cc.egui_ctx),
+            tim_sweeney,
+            local_user_pfp: UIFriendImageWrapper::Loading,
             user_name: "User".to_owned(),
+            user_id: String::new(),
             games: HashMap::new(),
             game_sel: String::new(),
             friends: Vec::new(),
@@ -492,11 +489,6 @@ impl MaximaEguiApp {
             logged_in: args.no_login, // largely deprecated but i'm going to keep it here
             login_cache_waiting: true,
             in_progress_login: false,
-            in_progress_login_type: InProgressLoginType::Oauth,
-            in_progress_username: String::new(),
-            in_progress_password: String::new(),
-            in_progress_credential_status: String::new(),
-            credential_login_in_progress: false,
             playing_game: None,
             installing_now: None,
             install_queue: HashMap::new(),
@@ -679,69 +671,10 @@ impl eframe::App for MaximaEguiApp {
                 let app_rect = ui.available_rect_before_wrap().clone();
                 if !self.logged_in {
                     if self.in_progress_login {
-                        match self.in_progress_login_type {
-                            InProgressLoginType::Oauth => {
-                                ui.vertical_centered(|ui| {
-                                    ui.add_sized([400.0, 400.0], egui::Spinner::new().size(400.0));
-                                    ui.heading("Logging in...");
-                                });
-                            }
-                            InProgressLoginType::UsernamePass => {
-                                ui.add_enabled_ui(!self.credential_login_in_progress, |ui| {
-                                    ui.vertical_centered(|ui| {
-                                        ui.add_sized(
-                                            [260., 30.],
-                                            egui::text_edit::TextEdit::hint_text(
-                                                egui::text_edit::TextEdit::singleline(
-                                                    &mut self.in_progress_username,
-                                                ).vertical_align(egui::Align::Center),
-                                                &self.locale.localization.login.username_box_hint,
-                                            ),
-                                        );
-                                        ui.add_sized(
-                                            [260., 30.],
-                                            egui::text_edit::TextEdit::hint_text(
-                                                egui::text_edit::TextEdit::singleline(
-                                                    &mut self.in_progress_password,
-                                                )
-                                                .password(true)
-                                                .vertical_align(egui::Align::Center),
-                                                &self.locale.localization.login.password_box_hint,
-                                            ),
-                                        );
-                                        ui.heading(
-                                            egui::RichText::new(&self.in_progress_credential_status)
-                                                .color(Color32::RED),
-                                        );
-                                        if ui
-                                            .add_sized(
-                                                [260., 30.],
-                                                egui::Button::new(
-                                                    egui::RichText::new(
-                                                        &self.locale.localization.login.credential_confirm,
-                                                    )
-                                                    .size(25.0),
-                                                ),
-                                            )
-                                            .clicked()
-                                        {
-                                            self.backend
-                                                .backend_commander
-                                                .send(
-                                                    bridge_thread::MaximaLibRequest::LoginRequestUserPass(
-                                                        self.in_progress_username.clone(),
-                                                        self.in_progress_password.clone(),
-                                                    ),
-                                                )
-                                                .unwrap();
-                                            self.credential_login_in_progress = true;
-                                            self.in_progress_credential_status =
-                                                self.locale.localization.login.credential_waiting.clone();
-                                        }
-                                    });
-                                });
-                            }
-                        }
+                        ui.vertical_centered(|ui| {
+                            ui.add_sized([400.0, 400.0], egui::Spinner::new().size(400.0));
+                            ui.heading("Logging in...");
+                        });
                     } else {
                         ui.allocate_exact_size(
                             vec2(0.0, (ui.available_size_before_wrap().y / 2.0) - 120.0),
@@ -769,25 +702,12 @@ impl eframe::App for MaximaEguiApp {
                                     )
                                     .clicked()
                                 {
-                                    self.in_progress_login_type = InProgressLoginType::Oauth;
                                     self.in_progress_login = true;
                                     self.backend
                                         .backend_commander
                                         .send(bridge_thread::MaximaLibRequest::LoginRequestOauth)
                                         .unwrap();
                                 }
-                                /*if ui
-                                    .add_sized(
-                                        [160.0, 60.0],
-                                        egui::Button::new(
-                                            &self.locale.localization.login.credentials_option,
-                                        ),
-                                    )
-                                    .clicked()
-                                {
-                                    self.in_progress_login_type = InProgressLoginType::UsernamePass;
-                                    self.in_progress_login = true;
-                                }*/
                             })
                         });
                     }
@@ -889,7 +809,19 @@ impl eframe::App for MaximaEguiApp {
                                                 rtl.style_mut().spacing.item_spacing.x = 0.0;
                                                 rtl.allocate_space(vec2(2.0, 2.0));
                                                 rtl.style_mut().spacing.item_spacing.x = APP_MARGIN.x;
-                                                let img_response = rtl.image((self.user_pfp_renderable, vec2(36.0, 36.0)));
+
+                                                let avatar: TextureId = match &self.local_user_pfp {
+                                                    UIFriendImageWrapper::DoNotLoad |
+                                                    UIFriendImageWrapper::Unloaded(_) |
+                                                    UIFriendImageWrapper::Loading => {
+                                                        self.user_pfp_renderable
+                                                    },
+                                                    UIFriendImageWrapper::Available(img) => {
+                                                        img.renderable
+                                                    },
+                                                };
+
+                                                let img_response = rtl.image((avatar, vec2(36.0, 36.0)));
                                                 let stroke = Stroke::new(2.0, {
                                                     if self.playing_game.is_some() {
                                                         FRIEND_INGAME_COLOR

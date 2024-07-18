@@ -9,20 +9,19 @@ use std::{
     }, time::{Duration, SystemTime}
 };
 
-use maxima::{content::manager::{ContentManager, QueuedGameBuilder}, core::{dip::{DiPManifest, DIP_RELATIVE_PATH}, LockedMaxima, Maxima, MaximaOptionsBuilder}};
+use maxima::{content::manager::{ContentManager, QueuedGameBuilder}, core::{dip::{DiPManifest, DIP_RELATIVE_PATH}, service_layer::ServicePlayer, LockedMaxima, Maxima, MaximaOptionsBuilder}};
 
 use crate::{
     bridge::{
         game_details::game_details_request,
         game_images::game_images_request, get_friends::get_friends_request,
         get_games::get_games_request, get_user_avatar::get_user_avatar_request,
-        login_creds::login_creds, login_oauth::login_oauth, start_game::start_game_request,
+        login_oauth::login_oauth, start_game::start_game_request,
     }, event_thread::{EventThread, MaximaEventRequest, MaximaEventResponse}, ui_image::UIImage, views::friends_view::UIFriend, GameDetails, GameInfo, GameSettings, GameUIImages
 };
 
 pub struct InteractThreadLoginResponse {
-    pub success: bool,
-    pub description: String,
+    pub you: ServicePlayer,
 }
 
 pub struct InteractThreadGameListResponse {
@@ -66,7 +65,6 @@ pub struct InteractThreadDownloadProgressResponse {
 
 pub enum MaximaLibRequest {
     LoginRequestOauth,
-    LoginRequestUserPass(String, String),
     GetGamesRequest,
     GetFriendsRequest,
     GetUserAvatarRequest(String, String),
@@ -79,7 +77,7 @@ pub enum MaximaLibRequest {
 }
 
 pub enum MaximaLibResponse {
-    LoginResponse(InteractThreadLoginResponse),
+    LoginResponse(Result<InteractThreadLoginResponse, anyhow::Error>),
     LoginCacheEmpty,
     GameInfoResponse(InteractThreadGameListResponse),
     FriendInfoResponse(InteractThreadFriendListResponse),
@@ -174,12 +172,16 @@ impl BridgeThread {
                 drop(auth_storage);
 
                 let user = maxima.local_user().await?;
-                let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
-                    success: true,
-                    description: user.player().as_ref().unwrap().display_name().to_owned(),
-                });
+                
+                let lmessage = MaximaLibResponse::LoginResponse(Ok(
+                    InteractThreadLoginResponse {
+                        you: user.player().as_ref().unwrap().to_owned()
+                    }
+                ));
+                
 
                 backend_responder.send(lmessage)?;
+                get_user_avatar_request(backend_responder.clone(), user.id().to_string(), user.player().as_ref().unwrap().avatar().as_ref().unwrap().medium().path().to_string(), &ctx).await?;
                 ctx.request_repaint();
             } else {
                 backend_responder.send(MaximaLibResponse::LoginCacheEmpty)?;
@@ -244,12 +246,6 @@ impl BridgeThread {
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
                     async move { login_oauth(maxima, channel, &context).await }.await?;
-                }
-                MaximaLibRequest::LoginRequestUserPass(user, pass) => {
-                    let channel = backend_responder.clone();
-                    let maxima = maxima_arc.clone();
-                    let context = ctx.clone();
-                    async move { login_creds(maxima, channel, &context, user, pass).await }.await?;
                 }
                 MaximaLibRequest::GetGamesRequest => {
                     let channel = backend_responder.clone();

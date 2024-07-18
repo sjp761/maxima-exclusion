@@ -11,15 +11,16 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
         match result {
             bridge_thread::MaximaLibResponse::LoginResponse(res) => {
                 info!("Got something");
-                if !res.success {
-                    warn!("Login failed.");
-                    app.in_progress_credential_status = res.description;
+                if let Err(error) = &res {
+                    warn!("Login failed. {}", error);
                     continue;
                 }
+                let res = res.unwrap();
 
                 app.logged_in = true;
-                info!("Logged in as {}!", &res.description);
-                app.user_name = res.description.clone();
+                info!("Logged in as {}!", &res.you.display_name());
+                app.user_name = res.you.display_name().clone();
+                app.user_id = res.you.id().clone();
                 app.login_cache_waiting = false;
                 app.backend
                     .backend_commander
@@ -35,7 +36,6 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
             }
             bridge_thread::MaximaLibResponse::GameInfoResponse(res) => {
                 app.games.insert(res.game.slug.clone(), res.game);
-                ctx.request_repaint(); // Run this loop once more, just to see if any games got lost
             }
             bridge_thread::MaximaLibResponse::GameDetailsResponse(res) => {
                 if res.response.is_err() {
@@ -58,12 +58,9 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
                         system_requirements_rec: response.system_requirements_rec.clone(),
                     });
                 }
-
-                ctx.request_repaint();
             }
             bridge_thread::MaximaLibResponse::FriendInfoResponse(res) => {
                 app.friends.push(res.friend);
-                ctx.request_repaint();
             }
             bridge_thread::MaximaLibResponse::GameUIImagesResponse(res) => {
                 debug!("Got UIImages back from the interact thread");
@@ -84,10 +81,9 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
                         logo: response.logo.to_owned(),
                     });
                 }
-                ctx.request_repaint(); // Run this loop once more, just to see if any games got lost
             }
             bridge_thread::MaximaLibResponse::UserAvatarResponse(res) => {
-                debug!("Got Avatar back from the interact thread");
+                
                 if res.response.is_err() {
                     error!("{}", res.response.err().expect("").to_string());
                     continue;
@@ -95,14 +91,19 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
 
                 let response = res.response.unwrap();
 
+                if app.user_id.eq(&res.id) {
+                    app.local_user_pfp = UIFriendImageWrapper::Available(response.clone());
+                    debug!("your own pfp");
+                    continue;
+                }
+
                 for user in &mut app.friends {
                     if !user.id.eq(&res.id) {
                         continue;
                     }
-
+                    debug!("Got {}'s Avatar back from the interact thread", &user.name);
                     user.avatar = UIFriendImageWrapper::Available(response.clone());
                 }
-                ctx.request_repaint(); // Run this loop once more, just to see if any games got lost
             }
             bridge_thread::MaximaLibResponse::InteractionThreadDiedResponse => {
                 error!("interact thread died");
@@ -175,5 +176,6 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
                 
             },
         }
+        ctx.request_repaint();
     }
 }
