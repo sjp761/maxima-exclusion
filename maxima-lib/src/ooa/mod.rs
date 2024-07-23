@@ -96,7 +96,7 @@ pub async fn request_and_save_license(
     let hw_info = HardwareInfo::new()?;
     let license = request_license(
         content_id,
-        "8f87c1d4c0e11d65c5aaa623c662788416c53", // TODO generate proper MID. `hw_info.generate_mid()?` generates the wrong format, which OOA doesn't accept
+        "8f87c1d4c0e11d65c5aaa623c662788416c582", // TODO generate proper MID. `hw_info.generate_mid()?` generates the wrong format, which OOA doesn't accept
         auth,
         None,
         None,
