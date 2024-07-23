@@ -11,6 +11,8 @@ use sha2_const::Sha256;
 use derive_builder::Builder;
 use derive_getters::Getters;
 
+use crate::core::endpoints::API_CONTENTFUL_PROXY;
+
 use super::{
     auth::storage::LockedAuthStorage, endpoints::API_SERVICE_AGGREGATION_LAYER, locale::Locale,
 };
@@ -37,15 +39,21 @@ struct FullServiceRequest<'a, T: Serialize> {
     query: &'static str,
 }
 
+pub enum ServiceLayerRequestType {
+    ServiceAggregationLayer,
+    ContentfulProxy,
+}
+
 pub struct ServiceLayerGraphQLRequest {
     query: &'static str,
     operation: &'static str,
     key: &'static str,
     hash: [u8; 32],
+    r#type: ServiceLayerRequestType
 }
 
 macro_rules! load_graphql_request {
-    ($operation:expr, $key:expr) => {{
+    ($type:ident, $operation:expr, $key:expr) => {{
         let content = include_str!(concat!("graphql/", $operation, ".gql"));
         let hash = Sha256::new().update(content.as_bytes()).finalize();
         ServiceLayerGraphQLRequest {
@@ -53,29 +61,30 @@ macro_rules! load_graphql_request {
             operation: $operation,
             key: $key,
             hash,
+            r#type: ServiceLayerRequestType::$type
         }
     }};
 }
 
 macro_rules! define_graphql_request {
-    ($operation:expr, $key:expr) => { paste::paste! {
-        pub const [<SERVICE_REQUEST_ $operation:upper>]: &ServiceLayerGraphQLRequest = &load_graphql_request!(stringify!($operation), stringify!($key));
+    ($type:ident, $operation:expr, $key:expr) => { paste::paste! {
+        pub const [<SERVICE_REQUEST_ $operation:upper>]: &ServiceLayerGraphQLRequest = &load_graphql_request!($type, stringify!($operation), stringify!($key));
     }}
 }
 
-define_graphql_request!(availableBuilds, availableBuilds); // Input: ServiceAvailableBuildsRequest, Output: ServiceAvailableBuild[]
-define_graphql_request!(downloadUrl, downloadUrl); // Input: ServiceDownloadUrlRequest, Output: ServiceDownloadUrlMetadata
-define_graphql_request!(GameImages, game); // Input: ServiceGameImagesRequest, Output: ServiceGame
-define_graphql_request!(GetBasicPlayer, playerByPd); // Input: ServiceGetBasicPlayerRequest, Output: ServicePlayer
-define_graphql_request!(getPreloadedOwnedGames, me); // Input: ServiceGetPreloadedOwnedGamesRequest, Output: ServiceUser (with owned_game_products field set)
-define_graphql_request!(GetUserPlayer, me); // Input: ServiceGetUserPlayerRequest, Output: ServiceUser
-define_graphql_request!(GameSystemRequirements, game); // Input: ServiceGameSystemRequirementsRequest, Output: ServiceGameSystemRequirements
-define_graphql_request!(GetMyFriends, me); // Input: ServiceGetMyFriendsRequest, Output: ServiceFriends
-define_graphql_request!(SearchPlayer, players); // Input: ServiceSearchPlayerRequest, Output: ServicePlayersPage
-define_graphql_request!(getLegacyCatalogDefs, legacyOffers); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyOffer>
-define_graphql_request!(getGameProducts, gameProducts); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
-define_graphql_request!(GetGamePlayTimes, me); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
-define_graphql_request!(GetHeroBackgroundImage, gameHubCollection); // Input: ServiceHeroBackgroundImageRequest, Output: ServiceGameHubCollection
+define_graphql_request!(ServiceAggregationLayer, availableBuilds, availableBuilds); // Input: ServiceAvailableBuildsRequest, Output: ServiceAvailableBuild[]
+define_graphql_request!(ServiceAggregationLayer, downloadUrl, downloadUrl); // Input: ServiceDownloadUrlRequest, Output: ServiceDownloadUrlMetadata
+define_graphql_request!(ServiceAggregationLayer, GameImages, game); // Input: ServiceGameImagesRequest, Output: ServiceGame
+define_graphql_request!(ServiceAggregationLayer, GetBasicPlayer, playerByPd); // Input: ServiceGetBasicPlayerRequest, Output: ServicePlayer
+define_graphql_request!(ServiceAggregationLayer, getPreloadedOwnedGames, me); // Input: ServiceGetPreloadedOwnedGamesRequest, Output: ServiceUser (with owned_game_products field set)
+define_graphql_request!(ServiceAggregationLayer, GetUserPlayer, me); // Input: ServiceGetUserPlayerRequest, Output: ServiceUser
+define_graphql_request!(ServiceAggregationLayer, GameSystemRequirements, game); // Input: ServiceGameSystemRequirementsRequest, Output: ServiceGameSystemRequirements
+define_graphql_request!(ServiceAggregationLayer, GetMyFriends, me); // Input: ServiceGetMyFriendsRequest, Output: ServiceFriends
+define_graphql_request!(ServiceAggregationLayer, SearchPlayer, players); // Input: ServiceSearchPlayerRequest, Output: ServicePlayersPage
+define_graphql_request!(ServiceAggregationLayer, getLegacyCatalogDefs, legacyOffers); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyOffer>
+define_graphql_request!(ServiceAggregationLayer, getGameProducts, gameProducts); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
+define_graphql_request!(ServiceAggregationLayer, GetGamePlayTimes, me); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
+define_graphql_request!(ContentfulProxy, GetHeroBackgroundImage, gameHubCollection); // Input: ServiceHeroBackgroundImageRequest, Output: ServiceGameHubCollection
 
 #[derive(Clone)]
 pub struct ServiceLayerClient {
@@ -127,10 +136,15 @@ impl ServiceLayerClient {
             },
         };
 
+        let host = match operation.r#type {
+            ServiceLayerRequestType::ServiceAggregationLayer => API_SERVICE_AGGREGATION_LAYER,
+            ServiceLayerRequestType::ContentfulProxy => API_CONTENTFUL_PROXY,
+        };
+
         let mut request = if full_query {
-            self.client.post(API_SERVICE_AGGREGATION_LAYER)
+            self.client.post(host)
         } else {
-            self.client.get(API_SERVICE_AGGREGATION_LAYER)
+            self.client.get(host)
         };
 
         let access_token = self.auth.lock().await.access_token().await?;
