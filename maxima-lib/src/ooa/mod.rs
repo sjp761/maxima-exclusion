@@ -96,7 +96,7 @@ pub async fn request_and_save_license(
     let hw_info = HardwareInfo::new()?;
     let license = request_license(
         content_id,
-        &hw_info.generate_mid()?,
+        "8f87c1d4c0e11d65c5aaa623c662788416c53", // TODO generate proper MID. `hw_info.generate_mid()?` generates the wrong format, which OOA doesn't accept
         auth,
         None,
         None,
@@ -164,8 +164,22 @@ pub fn decrypt_license(data: &[u8]) -> Result<License> {
 
     let decrypted_data = cipher.decrypt_padded_vec_mut::<Pkcs7>(data)?;
     let data_str = String::from_utf8(decrypted_data)?;
+    println!("Datastr: {}", data_str);
 
     Ok(quick_xml::de::from_str(&data_str)?)
+}
+
+#[test]
+fn decrypt_license_file() {
+    {
+        let data = include_bytes!("C:\\ProgramData\\Electronic Arts\\EA Services\\License\\1035052_new.dlf");
+        let license = decrypt_license(data).unwrap();
+    }
+
+    {
+        let data = include_bytes!("C:\\ProgramData\\Electronic Arts\\EA Services\\License\\1035052_old.dlf");
+        let license = decrypt_license(data).unwrap();
+    }
 }
 
 pub fn encrypt_license(data: &str) -> Result<Vec<u8>> {
@@ -179,6 +193,8 @@ pub fn encrypt_license(data: &str) -> Result<Vec<u8>> {
 pub fn save_license(license: &License, state: OOAState, path: PathBuf) -> Result<()> {
     let mut data = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>".to_string();
     data.push_str(quick_xml::se::to_string(license)?.as_str());
+
+    log::info!("Data: {}", data);
 
     if !data.contains("<GameToken>") {
         data.remove_matches("<GameToken/>");
