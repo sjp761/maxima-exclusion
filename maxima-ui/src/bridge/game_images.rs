@@ -31,6 +31,11 @@ async fn get_preferred_hero_image(images: &Option<ServiceGame>) -> Option<String
 
     let key_art = key_art.as_ref().unwrap();
 
+    debug!("{:?}", key_art);
+    if let Some(img) = key_art.aspect_10x3_image() {
+        return Some(img.path().clone());
+    }
+
     if let Some(img) = key_art.aspect_2x1_image() {
         return Some(img.path().clone());
     }

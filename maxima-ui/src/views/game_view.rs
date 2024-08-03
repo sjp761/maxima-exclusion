@@ -465,8 +465,8 @@ fn show_game_list_buttons(app : &mut MaximaEguiApp, ui : &mut Ui) {
           filter_chunk.add_sized([260.,20.], egui::text_edit::TextEdit::hint_text(egui::text_edit::TextEdit::singleline(&mut app.game_view_bar.search_buffer).vertical_align(egui::Align::Center), &app.locale.localization.games_view.toolbar.search_bar_hint));
           filter_chunk.horizontal(|filters| {
             let combo_width = 130.0 - filters.spacing().item_spacing.x;
-            enum_dropdown(filters, "GameTypeComboBox".to_owned(), &mut app.game_view_bar.genre_filter, combo_width, &app.locale);
-            enum_dropdown(filters, "PlatformComboBox".to_owned(), &mut app.game_view_bar.platform_filter, combo_width, &app.locale);
+            enum_dropdown(filters, "GameTypeComboBox".to_owned(), &mut app.game_view_bar.genre_filter, combo_width, "", &app.locale).response;
+            enum_dropdown(filters, "PlatformComboBox".to_owned(), &mut app.game_view_bar.platform_filter, combo_width, "", &app.locale).response;
           });
         }
       });

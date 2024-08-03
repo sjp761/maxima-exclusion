@@ -85,5 +85,41 @@
             "prepend" : false,
             "playing" : "In"
         }
+    },
+    "settings_view": {
+        "interface" : {
+            "header": "Interface",
+            "language": "Language"
+        },
+        "game_installation" : {
+            "header": "Game Installation",
+            "default_folder": "Default installation folder"
+        }
+    },
+    "locale" : {
+        "default": "System Default",
+        "en_us": "English"
+    },
+    "modals" : {
+        "close": "Close",
+        "game_install" : {
+            "header": "Install {game}",
+            "locate_installed": "Locate an existing game install",
+            "locate_action": "Locate",
+            "locate_in_progress": "Locating...",
+            "locate_failed": "Locate failed.",
+            "fresh_download": "Install a fresh copy",
+            "fresh_path_confirmation": "Game will be installed at:",
+            "fresh_path_invalid": "Invalid Path",
+            "fresh_action": "Install"
+        },
+        "game_settings" : { 
+            "header": "Game settings for {game}",
+            "not_installed": "Game is not installed",
+            "cloud_saves": "Cloud Saves",
+            "launch_arguments": "Launch Arguments",
+            "executable_override": "Executable Override",
+            "uninstall": "Uninstall"
+        }
     }
 }

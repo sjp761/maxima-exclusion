@@ -3,7 +3,7 @@ use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use egui::{pos2, vec2, Align2, Color32, FontId, Id, Rect, Rounding, Stroke, Ui, Vec2};
 use maxima::rtm::client::BasicPresence;
 
-use crate::{bridge_thread, ui_image::UIImage, widgets::enum_dropdown::enum_dropdown, MaximaEguiApp, FRIEND_INGAME_COLOR};
+use crate::{bridge_thread, main, ui_image::UIImage, widgets::enum_dropdown::enum_dropdown, MaximaEguiApp, FRIEND_INGAME_COLOR};
 
 use strum_macros::EnumIter;
 
@@ -133,9 +133,9 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
           }
           let combo_width = (ui.available_width() / 2.0) - ui.spacing().item_spacing.x; //a lot of accounting for shit when i'm just gonna make it a fixed width anyway
           ui.horizontal(|ui| {
-            let dropdown0 = enum_dropdown(ui, "FriendsListStatusFilterComboBox".to_owned(), &mut app.friends_view_bar.page, combo_width, &app.locale).inner.is_some();
-            let dropdown1 = enum_dropdown(ui, "FriendsListFilterTypeComboBox".to_owned(), &mut app.friends_view_bar.status_filter, combo_width, &app.locale).inner.is_some();
-            if dropdown0 || dropdown1 {
+            let dropdown0 = enum_dropdown(ui, "FriendsListStatusFilterComboBox".to_owned(), &mut app.friends_view_bar.page, combo_width, "", &app.locale);
+            let dropdown1 = enum_dropdown(ui, "FriendsListFilterTypeComboBox".to_owned(), &mut app.friends_view_bar.status_filter, combo_width, "", &app.locale);
+            if dropdown0.inner.is_some() || dropdown1.inner.is_some() {
               app.force_friends = true;
             }
           });
@@ -242,77 +242,74 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
             },
           };
 
-          let (f_res, f_painter) = ui.allocate_painter(vec2(width, PFP_ELEMENT_SIZE + ((button_height + button_gap) * how_buttons)), egui::Sense::click());
-          let mut highlight_rect = f_res.rect.clone();
-          highlight_rect.set_height(PFP_ELEMENT_SIZE);
-          if f_res.clicked() {
-            if buttons {
-              app.friends_view_bar.friend_sel = String::new();
-            } else {
-              app.friends_view_bar.friend_sel = friend.id.clone();
-            }
-          }
-
-          if how_buttons > 0.0 {
-            let size = vec2((width - (ui.style().spacing.item_spacing.x * 2.0)) / 3.0, PFP_ELEMENT_SIZE * 0.6);
-
-            let rect_0 = Rect {
-              min: pos2(f_res.rect.min.x, f_res.rect.max.y - size.y),
-              max: pos2(f_res.rect.min.x + size.x, f_res.rect.max.y)
-            };
-
-            let rect_1 = Rect {
-              min: pos2(rect_0.max.x + ui.spacing().item_spacing.x, rect_0.min.y),
-              max: pos2(rect_0.max.x + size.x + ui.spacing().item_spacing.x, rect_0.max.y)
-            };
-
-            let rect_2 = Rect {
-              min: pos2(rect_1.max.x + ui.spacing().item_spacing.x, rect_1.min.y),
-              max: pos2(rect_1.max.x + size.x + ui.spacing().item_spacing.x, rect_1.max.y)
-            };
-
+          ui.vertical(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
-            ui.add_enabled_ui(false, |buttons| {
-              if buttons.put(rect_0, egui::Button::new(app.locale.localization.friends_view.friend_actions.profile.to_ascii_uppercase())).clicked()
-              || buttons.put(rect_1, egui::Button::new(app.locale.localization.friends_view.friend_actions.chat.to_ascii_uppercase())).clicked()
-              || buttons.put(rect_2, egui::Button::new(app.locale.localization.friends_view.friend_actions.unfriend.to_ascii_uppercase())).clicked() {
-                app.friends_view_bar.friend_sel = String::new();
-              }
-            });
-            ui.spacing_mut().item_spacing.y = ITEM_SPACING.y;
-          }
+            let (main_res, main_painter) = ui.allocate_painter(vec2(width, PFP_ELEMENT_SIZE), egui::Sense::click());
+            if main_res.clicked() {
+              if buttons { app.friends_view_bar.friend_sel = String::new();     }
+              else       { app.friends_view_bar.friend_sel = friend.id.clone(); }
+            }
+            if main_res.is_pointer_button_down_on() || main_res.hovered() || buttons {
+              main_painter.rect_filled(main_res.rect, FRIEND_HIGHLIGHT_ROUNDING, Color32::WHITE);
+            }
+            
+            if how_buttons > 0.0 {
+              let (_, buttons_rect) = ui.allocate_space(vec2(width, (button_height + button_gap) * how_buttons));
+              let size = vec2((width - (ui.style().spacing.item_spacing.x * 2.0)) / 3.0, PFP_ELEMENT_SIZE * 0.6);
 
-          if f_res.hovered() || buttons {
-            f_painter.rect_filled(highlight_rect, FRIEND_HIGHLIGHT_ROUNDING, Color32::WHITE);
-          }
+              let rect_0 = Rect {
+                min: pos2(buttons_rect.min.x,          buttons_rect.max.y - size.y),
+                max: pos2(buttons_rect.min.x + size.x, buttons_rect.max.y         ),
+              };
 
-          let pfp_rect = Rect {
-            min: f_res.rect.min + vec2(2.0, 2.0),
-            max: f_res.rect.min + vec2(2.0, 2.0) + vec2(PFP_SIZE, PFP_SIZE)
-          };
+              let rect_1 = Rect {
+                min: pos2(rect_0.max.x +          ui.spacing().item_spacing.x, rect_0.min.y),
+                max: pos2(rect_0.max.x + size.x + ui.spacing().item_spacing.x, rect_0.max.y),
+              };
 
-          let outline_rect = Rect {
-            min: pfp_rect.min - vec2(1.0, 1.0),
-            max: pfp_rect.max + vec2(1.0, 1.0)
-          };
+              let rect_2 = Rect {
+                min: pos2(rect_1.max.x +          ui.spacing().item_spacing.x, rect_0.min.y),
+                max: pos2(rect_1.max.x + size.x + ui.spacing().item_spacing.x, rect_0.max.y),
+              };
 
-          if let Some(pfp) = avatar {
-            f_painter.image(pfp.renderable, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-          } else {
-            f_painter.image(app.user_pfp_renderable, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-          }
+              ui.add_enabled_ui(false, |buttons| {
+                buttons.set_clip_rect(buttons_rect);
+                if buttons.put(rect_0, egui::Button::new(app.locale.localization.friends_view.friend_actions.profile.to_ascii_uppercase()) ).clicked()
+                || buttons.put(rect_1, egui::Button::new(app.locale.localization.friends_view.friend_actions.chat.to_ascii_uppercase())    ).clicked()
+                || buttons.put(rect_2, egui::Button::new(app.locale.localization.friends_view.friend_actions.unfriend.to_ascii_uppercase())).clicked() {
+                  app.friends_view_bar.friend_sel = String::new();
+                }
+              });
+            }
+            
+            let pfp_rect = Rect {
+              min: main_res.rect.min + vec2(2.0, 2.0),
+              max: main_res.rect.min + vec2(2.0, 2.0) + vec2(PFP_SIZE, PFP_SIZE)
+            };
 
-          f_painter.rect(outline_rect, Rounding::same(4.0), Color32::TRANSPARENT, Stroke::new(2.0, friend_color));
+            let outline_rect = Rect {
+              min: pfp_rect.min - vec2(1.0, 1.0),
+              max: pfp_rect.max + vec2(1.0, 1.0)
+            };
 
-          let text_col = if f_res.hovered() || buttons {
-            Color32::BLACK
-          } else {
-            Color32::WHITE
-          };
+            if let Some(pfp) = avatar {
+              main_painter.image(pfp.renderable, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+            } else {
+              main_painter.image(app.user_pfp_renderable, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+            }
+  
+            main_painter.rect(outline_rect, Rounding::same(4.0), Color32::TRANSPARENT, Stroke::new(2.0, friend_color));
 
-          f_painter.text(pfp_rect.center() + vec2(PFP_SIZE/1.5,  2.0), Align2::LEFT_BOTTOM, &friend.name, FontId::proportional(15.0), text_col);
-          f_painter.text(pfp_rect.center() + vec2(PFP_SIZE/1.5,  2.0), Align2::LEFT_TOP, friend_status, FontId::proportional(10.0), text_col);
-        }
+            let text_col = if main_res.is_pointer_button_down_on() || main_res.hovered() || buttons {
+              Color32::BLACK
+            } else {
+              Color32::WHITE
+            };
+  
+            main_painter.text(pfp_rect.center() + vec2(PFP_SIZE/1.5,  2.0), Align2::LEFT_BOTTOM, &friend.name, FontId::proportional(15.0), text_col);
+            main_painter.text(pfp_rect.center() + vec2(PFP_SIZE/1.5,  2.0), Align2::LEFT_TOP, friend_status, FontId::proportional(10.0), text_col);
+          });
+        } // friend loop
         ui.allocate_space(ui.available_size());
       });
     });

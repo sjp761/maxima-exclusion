@@ -6,6 +6,8 @@ use serde_json;
 use std::fs;
 use sys_locale;
 
+use crate::FrontendLanguage;
+
 #[derive(Deserialize)]
 pub struct LocalizedStrings {
     pub errors: LocalizedGenericErrors,
@@ -14,6 +16,46 @@ pub struct LocalizedStrings {
     pub profile_menu: LocalizedProfileMenu,
     pub games_view: LocalizedGamesView,
     pub friends_view: LocalizedFriendsView,
+    pub settings_view: LocalizedSettingsView,
+    pub locale: LocalizedLocaleInfo,
+    pub modals: LocalizedModals,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedModals {
+    pub close: String,
+    pub game_install: LocalizedGameInstallModal,
+    pub game_settings: LocalizedGameSettingsModal,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedGameInstallModal {
+    pub header: String,
+    pub locate_installed: String,
+    pub locate_action: String,
+    pub locate_in_progress: String,
+    pub locate_failed: String,
+    pub fresh_download: String,
+    pub fresh_path_confirmation: String,
+    pub fresh_path_invalid: String,
+    pub fresh_action: String,
+    
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedGameSettingsModal {
+    pub header: String,
+    pub not_installed: String,
+    pub cloud_saves: String,
+    pub launch_arguments: String,
+    pub executable_override: String,
+    pub uninstall: String,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedLocaleInfo {
+    pub default: String,
+    pub en_us: String,
 }
 
 #[derive(Deserialize)]
@@ -54,6 +96,24 @@ pub struct LocalizedGamesView {
     pub toolbar: LocalizedGamesViewToolbar,
     pub main: LocalizedGamesViewMain,
     pub details: LocalizedGamesViewDetails,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedSettingsView {
+    pub interface: LocalizedInterfaceSettings,
+    pub game_installation: LocalizedGameInstallationSettings,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedInterfaceSettings {
+    pub header: String,
+    pub language: String,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedGameInstallationSettings {
+    pub header: String,
+    pub default_folder: String,
 }
 
 #[derive(Deserialize)]
@@ -142,11 +202,6 @@ pub struct LocalizedFriendsViewToolbarSearchFilterOptions {
     pub game: String,
 }
 
-#[derive(Deserialize)]
-pub struct Lang {
-    pub en_us: LocalizedStrings,
-}
-
 pub struct TranslationManager {
     pub localization: LocalizedStrings,
 }
@@ -165,19 +220,47 @@ macro_rules! language_include_matcher {
     };
 }
 
-impl TranslationManager {
-    pub fn set_locale(code: &str) {
+/// shorthand for .replace(), sean thinks it's cleaner and won't shut up about it
+macro_rules! positional_replace {
+    ($key:expr, $($name:expr, $value:expr),*) => {
+        {
+            let mut temp_string = $key.to_string();
+            $(
+                temp_string = temp_string.replace(concat!("{", $name, "}"), &$value.to_string());
+            )*
+            temp_string
+        }
+    };
+}
 
-    }
-    
-    pub fn new() -> Option<Self> {
-        let locale: Option<String> = sys_locale::get_locale();
+pub(crate) use positional_replace;
+
+impl TranslationManager {
+    /// Gets an instance of LocalizedStrings for the specified locale code
+    pub fn get_for_locale(code: &str) -> LocalizedStrings {
         let english = include_str!("../res/locale/en_us.json").to_owned();
-        let locale_json: String = language_include_matcher!(locale.unwrap(), english;
-            
+        let locale_json: &str = language_include_matcher!(code, &english;
+            "en-US" => "en_us",
+            //"de-bug" => "de_bug"
         );
 
-        let s: LocalizedStrings = serde_json::from_str(&locale_json).unwrap();
-        Some(Self { localization: s })
+        serde_json::from_str(locale_json).unwrap()
+    }
+    
+    pub fn new(lang: &FrontendLanguage) -> Self {
+        let locale = match lang {
+            FrontendLanguage::SystemDefault => {
+                let locale: Option<String> = sys_locale::get_locale();
+                if let Some(code) = locale { code } else { "en-US".to_owned() }
+            },
+            FrontendLanguage::EnUS => "en-US".to_owned(),
+        };
+        
+        let s = Self::get_for_locale(locale.as_str());
+        Self { localization: s }
+    }
+
+    pub fn new_with(code: &str) -> Self {
+        Self { localization: Self::get_for_locale(code) }
     }
 }

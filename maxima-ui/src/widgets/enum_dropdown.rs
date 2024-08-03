@@ -11,6 +11,7 @@ pub fn enum_dropdown<T>(
     id: String,
     val: &mut T,
     width: f32,
+    label: &str,
     enum_holder: &impl EnumToString<T>,
 ) -> egui::InnerResponse<Option<()>>
 where
@@ -44,7 +45,7 @@ where
     ui.visuals_mut().widgets.open.bg_stroke = Stroke::new(2.0, DARK_GREY);
     ui.visuals_mut().widgets.open.rounding = Rounding::same(2.0);
 
-    egui::ComboBox::new(id + "combo", "")
+    egui::ComboBox::new(id + "combo", label)
         .width(width)
         .selected_text(enum_holder.get_string(val))
         .show_ui(ui, |contents| {
