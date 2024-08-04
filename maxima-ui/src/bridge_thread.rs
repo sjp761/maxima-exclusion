@@ -3,17 +3,14 @@ use egui::Context;
 use log::{error, info, warn};
 
 use std::{
-    panic, path::PathBuf, sync::{
-        mpsc::{Receiver, Sender},
-        Arc,
-    }, time::{Duration, SystemTime}
+    panic, path::PathBuf, sync::mpsc::{Receiver, Sender}, time::{Duration, SystemTime}
 };
 
 use maxima::{content::manager::{ContentManager, QueuedGameBuilder}, core::{dip::{DiPManifest, DIP_RELATIVE_PATH}, service_layer::ServicePlayer, LockedMaxima, Maxima, MaximaOptionsBuilder}, util::registry::{check_registry_validity, set_up_registry}};
 use crate::{
     bridge::{
         game_details::game_details_request,
-        game_images::game_images_request, get_friends::get_friends_request,
+        get_friends::get_friends_request,
         get_games::get_games_request,
         login_oauth::login_oauth, start_game::start_game_request,
     }, event_thread::{EventThread, MaximaEventRequest, MaximaEventResponse}, ui_image::UIImageCacheLoaderCommand, views::friends_view::UIFriend, GameDetails, GameInfo, GameSettings
@@ -57,7 +54,6 @@ pub enum MaximaLibRequest {
     LoginRequestOauth,
     GetGamesRequest,
     GetFriendsRequest,
-    GetGameImagesRequest(String), // half-legacy, it'll do for now
     GetGameDetailsRequest(String),
     StartGameRequest(GameInfo, Option<GameSettings>),
     InstallGameRequest(String, PathBuf),
@@ -108,6 +104,7 @@ impl BridgeThread {
     }
 
     pub fn new(ctx: &Context, remote_provider_channel: Sender<UIImageCacheLoaderCommand>) -> Self {
+        puffin::profile_function!();
         let (backend_commander, backend_cmd_listener) = std::sync::mpsc::channel();
         let (backend_responder, backend_listener) = std::sync::mpsc::channel();
 
@@ -308,35 +305,28 @@ impl BridgeThread {
             }
 
             match request? {
-                MaximaLibRequest::LoginRequestOauth | MaximaLibRequest::StartService => { info!("bro tried to log in twice") }
+                MaximaLibRequest::LoginRequestOauth | MaximaLibRequest::StartService => { error!("bro tried to log in twice") }
                 MaximaLibRequest::GetGamesRequest => {
                     let channel = backend_responder.clone();
+                    let channel1 = remote_provider_channel.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
-                    async move { get_games_request(maxima, channel, &context).await }.await?;
+                    tokio::task::spawn(async move { get_games_request(maxima, channel, channel1, &context).await });
+                    tokio::task::yield_now().await;
                 }
                 MaximaLibRequest::GetFriendsRequest => {
                     let channel = backend_responder.clone();
                     let channel1 = remote_provider_channel.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
-                    async move { get_friends_request(maxima, channel, channel1, &context).await }.await?;
-                }
-                MaximaLibRequest::GetGameImagesRequest(slug) => {
-                    let channel = remote_provider_channel.clone();
-                    let maxima = maxima_arc.clone();
-                    let context = ctx.clone();
-                    async move { game_images_request(maxima, slug, channel, &context).await }
-                        .await?;
+                    tokio::task::spawn(async move { get_friends_request(maxima, channel, channel1, &context).await });
+                    tokio::task::yield_now().await;
                 }
                 MaximaLibRequest::GetGameDetailsRequest(slug) => {
                     let channel = backend_responder.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
-                    async move {
-                        game_details_request(maxima, slug.clone(), channel, &context).await
-                    }
-                    .await?;
+                    async move { game_details_request(maxima, slug.clone(), channel, &context).await }.await?;
                 }
                 MaximaLibRequest::LocateGameRequest(_, path) => {
                     #[cfg(unix)]
@@ -377,6 +367,7 @@ impl BridgeThread {
                 }
                 MaximaLibRequest::ShutdownRequest => break 'outer Ok(()), //TODO: kill the bridge thread
             }
+            puffin::GlobalProfiler::lock().new_frame();
         }
     }
 }

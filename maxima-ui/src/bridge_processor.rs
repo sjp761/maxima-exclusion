@@ -43,7 +43,6 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
                         app.backend_state = BackendStallState::Starting
                     }
                     bridge_thread::MaximaLibResponse::GameInfoResponse(res) => {
-                        app.backend.backend_commander.send(bridge_thread::MaximaLibRequest::GetGameImagesRequest(res.game.slug.clone())).unwrap();
                         app.games.insert(res.game.slug.clone(), res.game);
                     }
                     bridge_thread::MaximaLibResponse::GameDetailsResponse(res) => {
