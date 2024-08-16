@@ -129,11 +129,14 @@ pub fn get_os_pid(context: &ActiveGameContext) -> Result<u32> {
     let sys = System::new_all();
     for e in sys.processes() {
         let (p_pid, process) = e;
+        log::info!("Testing process {}", p_pid.clone().as_u32());
+
         if process.cmd().is_empty() {
             continue;
         }
 
         let mut cmd = process.cmd()[0].to_owned();
+        log::info!("Testing '{}' against '{}' (1)", cmd, context.game_path());
         
         // Wine path handling
         if cfg!(unix) {
@@ -144,7 +147,7 @@ pub fn get_os_pid(context: &ActiveGameContext) -> Result<u32> {
             cmd = cmd.replace("Z:", "").replace('\\', "/");
         }
 
-        log::info!("Testing '{}' against '{}'", cmd, context.game_path());
+        log::info!("Testing '{}' against '{}' (2)", cmd, context.game_path());
 
         if !cmd.starts_with(context.game_path()) {
             continue;
@@ -219,12 +222,12 @@ impl Connection {
     
                     pid = get_wine_pid(&context.launch_id(), &filename).await;
                 } else {
-                    warn!("Failed to find game process while looking for PID");
+                    warn!("Failed to find game process while looking for PID {}", os_pid);
                 }
             }
         }
 
-        if let Err(err) = &pid {
+        if let Err(ref err) = pid {
             warn!("Error while finding game PID: {}", err);
         } else if pid.as_ref().unwrap() == &0 {
             warn!("Failed to find PID through launch ID, things may not work!");
