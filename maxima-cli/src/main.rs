@@ -31,7 +31,7 @@ use maxima::{
         },
         clients::JUNO_PC_CLIENT_ID,
         cloudsync::CloudSyncLockMode,
-        dip::{DiPManifest, DIP_RELATIVE_PATH},
+        manifest::{self, MANIFEST_RELATIVE_PATH},
         launch::{self, LaunchMode},
         library::OwnedTitle,
         service_layer::{
@@ -763,7 +763,7 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
 
 async fn locate_game(maxima_arc: LockedMaxima, path: &str) -> Result<()> {
     let path = PathBuf::from(path);
-    let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await?;
+    let manifest = manifest::read(path.join(MANIFEST_RELATIVE_PATH)).await?;
     manifest.run_touchup(&path).await?;
     info!("Installed!");
     Ok(())

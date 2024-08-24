@@ -18,7 +18,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     core::{
         auth::storage::LockedAuthStorage,
-        dip::{DiPManifest, DIP_RELATIVE_PATH},
+        manifest::{self, MANIFEST_RELATIVE_PATH},
         MaximaEvent,
     },
     util::native::maxima_dir,
@@ -203,7 +203,7 @@ impl GameDownloader {
         let path = downloader_arc.path();
 
         info!("Files downloaded, running touchup...");
-        let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH))
+        let manifest = manifest::read(path.join(MANIFEST_RELATIVE_PATH))
             .await
             .unwrap();
 

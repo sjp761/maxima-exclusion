@@ -376,6 +376,40 @@ pub async fn setup_wine_registry() -> Result<()> {
             "add",
             "HKLM\\Software\\Origin",
             "/v",
+            "InstallSuccessful",
+            "/d",
+            "true",
+            "/f",
+            "/reg:64",
+        ]),
+        None,
+        false,
+        CommandType::Run,
+    ).await?;
+
+    run_wine_command(
+        "reg",
+        Some(vec![
+            "add",
+            "HKLM\\Software\\Origin",
+            "/v",
+            "InstallSuccessful",
+            "/d",
+            "true",
+            "/f",
+            "/reg:32",
+        ]),
+        None,
+        false,
+        CommandType::Run,
+    ).await?;
+
+    run_wine_command(
+        "reg",
+        Some(vec![
+            "add",
+            "HKLM\\Software\\Origin",
+            "/v",
             "ClientPath",
             "/d",
             "C:/Windows/System32/conhost.exe",
@@ -387,6 +421,23 @@ pub async fn setup_wine_registry() -> Result<()> {
         CommandType::Run,
     )
     .await?;
+
+    run_wine_command(
+        "reg",
+        Some(vec![
+            "add",
+            "HKLM\\Software\\Origin",
+            "/v",
+            "ClientPath",
+            "/d",
+            "C:/Windows/System32/conhost.exe",
+            "/f",
+            "/reg:64",
+        ]),
+        None,
+        false,
+        CommandType::Run,
+    ).await?;
 
     Ok(())
 }

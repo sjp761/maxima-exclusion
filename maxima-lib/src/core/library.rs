@@ -10,7 +10,7 @@ use crate::unix::fs::case_insensitive_path;
 
 use super::{
     auth::storage::LockedAuthStorage,
-    dip::{DiPManifest, DIP_RELATIVE_PATH},
+    manifest::{self, GameManifest, MANIFEST_RELATIVE_PATH},
     locale::Locale,
     service_layer::{
         ServiceGameProductType, ServiceGetLegacyCatalogDefsRequestBuilder,
@@ -76,7 +76,7 @@ impl OwnedOffer {
         Ok(parse_registry_path(&path).await)
     }
 
-    pub async fn local_manifest(&self) -> Option<DiPManifest> {
+    pub async fn local_manifest(&self) -> Option<Box<dyn GameManifest>> {
         let path = if self
             .offer
             .install_check_override()
@@ -97,10 +97,10 @@ impl OwnedOffer {
                     .to_owned(),
             );
 
-            path.join(DIP_RELATIVE_PATH)
+            path.join(MANIFEST_RELATIVE_PATH)
         };
 
-        Some(DiPManifest::read(&path).await.unwrap())
+        Some(manifest::read(path).await.unwrap())
     }
 
     pub fn offer_id(&self) -> &String {

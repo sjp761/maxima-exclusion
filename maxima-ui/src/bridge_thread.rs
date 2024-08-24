@@ -6,7 +6,7 @@ use std::{
     panic, path::PathBuf, sync::mpsc::{Receiver, Sender}, time::{Duration, SystemTime}
 };
 
-use maxima::{content::manager::{ContentManager, QueuedGameBuilder}, core::{dip::{DiPManifest, DIP_RELATIVE_PATH}, service_layer::ServicePlayer, LockedMaxima, Maxima, MaximaOptionsBuilder}, util::registry::{check_registry_validity, set_up_registry}};
+use maxima::{content::manager::{ContentManager, QueuedGameBuilder}, core::{manifest::{self, MANIFEST_RELATIVE_PATH}, service_layer::ServicePlayer, LockedMaxima, Maxima, MaximaOptionsBuilder}, util::registry::{check_registry_validity, set_up_registry}};
 use crate::{
     bridge::{
         game_details::game_details_request,
@@ -336,16 +336,16 @@ impl BridgeThread {
                         path.remove(path.len()-1);
                     }
                     let path = PathBuf::from(path);
-                    let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await;
+                    let manifest = manifest::read(path.join(MANIFEST_RELATIVE_PATH)).await;
                     if let std::result::Result::Ok(manifest) = manifest {
                         let guh = manifest.run_touchup(&path).await;
                         if guh.is_err() {
-                            backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: guh.unwrap_err(), xml_path: path.join(DIP_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
+                            backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: guh.unwrap_err(), xml_path: path.join(MANIFEST_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
                         } else {
                             backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Success)).unwrap();
                         }
                     } else {
-                        backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: manifest.unwrap_err(), xml_path: path.join(DIP_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
+                        backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: manifest.unwrap_err(), xml_path: path.join(MANIFEST_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
                     }
                     info!("finished locating");
                     ctx.request_repaint();

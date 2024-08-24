@@ -8,8 +8,6 @@ use serde::Deserialize;
 
 use crate::util::native::platform_path;
 
-pub const DIP_RELATIVE_PATH: &str = "__Installer/installerdata.xml";
-
 macro_rules! dip_type {
     (
         $(#[$message_attr:meta])*
