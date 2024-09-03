@@ -319,6 +319,9 @@ pub fn set_up_registry() -> Result<()> {
 
 #[cfg(target_os = "linux")]
 fn register_custom_protocol(protocol: &str, name: &str, executable: &str) -> Result<()> {
+    if std::env::var("MAXIMA_PACKAGED").is_ok_and(|var| var == "1") {
+        return Ok(());
+    }
     use crate::util::native::maxima_dir;
 
     let mut parts = HashMap::<&str, String>::new();
