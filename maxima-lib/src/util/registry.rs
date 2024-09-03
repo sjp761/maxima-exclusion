@@ -30,7 +30,7 @@ use winreg::{
 };
 
 #[cfg(unix)]
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, env};
 
 #[cfg(unix)]
 use crate::unix::fs::case_insensitive_path;
@@ -319,9 +319,10 @@ pub fn set_up_registry() -> Result<()> {
 
 #[cfg(target_os = "linux")]
 fn register_custom_protocol(protocol: &str, name: &str, executable: &str) -> Result<()> {
-    if std::env::var("MAXIMA_PACKAGED").is_ok_and(|var| var == "1") {
+    if env::var("MAXIMA_PACKAGED").is_ok_and(|var| var == "1") {
         return Ok(());
     }
+
     use crate::util::native::maxima_dir;
 
     let mut parts = HashMap::<&str, String>::new();
@@ -379,7 +380,7 @@ fn set_mime_type(mime_type: &str, desktop_file_path: &str) -> Result<()> {
 
 #[cfg(unix)]
 pub fn check_registry_validity() -> Result<()> {
-    if std::env::var("MAXIMA_DISABLE_QRC").is_ok() {
+    if env::var("MAXIMA_DISABLE_QRC").is_ok() {
         return Ok(());
     }
 

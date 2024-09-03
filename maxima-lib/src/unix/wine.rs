@@ -219,6 +219,7 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
         .arg(arg);
 
     if wine_path != "umu-run" {
+        // wsock32 is used as a proxy for Northstar (Titanfall 2). TODO: provide user-facing option for this!
         child = child.env("WINEDLLOVERRIDES", "CryptBase,wsock32,bcrypt,dxgi,d3d11,d3d12,d3d12core=n,b;winemenubuilder.exe=d");
     }
 
