@@ -22,6 +22,5 @@ message CommunicationV1 {
         HeartbeatV1 heartbeat = 20;
         LoginRequestV3 loginRequestV3 = 46;
         SessionCleanupV1 sessionCleanupV1 = 49;
-        PresenceSubscribeAllFriendsV1 presenceSubscribeAllFriends = 51;
     }
 }
