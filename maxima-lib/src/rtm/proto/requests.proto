@@ -38,3 +38,5 @@ message HeartbeatV1 {}
 message SessionCleanupV1 {
 	string sessionKey = 1;
 }
+
+message PresenceSubscribeAllFriendsV1 {}

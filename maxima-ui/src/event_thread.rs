@@ -67,15 +67,7 @@ impl EventThread {
         let rtm = maxima.rtm();
         rtm.login().await?;
 
-        let players: Vec<String> = friends
-            .friends()
-            .items()
-            .iter()
-            .map(|f| f.id().to_owned())
-            .collect();
-        info!("Subscribed to {} players", players.len());
-
-        rtm.subscribe(&players).await?;
+        rtm.subscribe().await?;
         drop(maxima);
 
         'outer: loop {
