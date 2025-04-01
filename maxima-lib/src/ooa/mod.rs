@@ -53,7 +53,7 @@ pub struct License {
     pub game_token: Option<String>,
     pub grant_time: String,
     pub start_time: String,
-    pub nonce: String
+    pub nonce: String,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -205,7 +205,10 @@ pub async fn request_license(
     let mut query = Vec::new();
     query.push(("contentId", content_id));
     query.push(("machineHash", machine_hash));
-    let nonce: String = rand::random_iter::<u8>().take(4).map(|byte| format!("{byte:02x}")).collect();
+    let nonce: String = rand::random_iter::<u8>()
+        .take(4)
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
     query.push(("nonce", &nonce));
     debug!("Using hash {}", machine_hash);
 

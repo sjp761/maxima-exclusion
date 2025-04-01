@@ -1,8 +1,8 @@
 use std::{io, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Result};
-use derive_builder::Builder;
 use core::future::Future;
+use derive_builder::Builder;
 use derive_getters::Getters;
 use log::{debug, info, warn};
 use moka::sync::Cache;

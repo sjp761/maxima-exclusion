@@ -153,7 +153,10 @@ impl DiPManifest {
     pub async fn run_touchup(&self, install_path: &PathBuf) -> Result<()> {
         use crate::{
             core::launch::mx_linux_setup,
-            unix::{fs::case_insensitive_path, wine::{invalidate_mx_wine_registry, run_wine_command, CommandType}},
+            unix::{
+                fs::case_insensitive_path,
+                wine::{invalidate_mx_wine_registry, run_wine_command, CommandType},
+            },
         };
 
         mx_linux_setup().await?;

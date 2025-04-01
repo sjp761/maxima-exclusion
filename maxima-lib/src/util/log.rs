@@ -1,6 +1,6 @@
 use std::env;
 
-use log::{Record, Level, Metadata, LevelFilter};
+use log::{Level, LevelFilter, Metadata, Record};
 
 pub struct SimpleLogger;
 pub static LOGGER: SimpleLogger = SimpleLogger;
@@ -27,16 +27,29 @@ impl log::Log for SimpleLogger {
             let level = record.level();
             let color: &str = match level {
                 Level::Error => "31", // red
-                Level::Warn => "33", // yellow
-                Level::Info => "32", // green
+                Level::Warn => "33",  // yellow
+                Level::Info => "32",  // green
                 Level::Debug => "36", // cyan
                 Level::Trace => "33", // yellow
             };
 
             if level == Level::Error {
-                println!("\u{001b}[{}m{}\u{001b}[37m - [{}:{}] - {}", color, level, record.file_static().unwrap(), record.line().unwrap(), record.args());
+                println!(
+                    "\u{001b}[{}m{}\u{001b}[37m - [{}:{}] - {}",
+                    color,
+                    level,
+                    record.file_static().unwrap(),
+                    record.line().unwrap(),
+                    record.args()
+                );
             } else {
-                println!("\u{001b}[{}m{}\u{001b}[37m - [{}] - {}", color, level, record.module_path().unwrap(), record.args());
+                println!(
+                    "\u{001b}[{}m{}\u{001b}[37m - [{}] - {}",
+                    color,
+                    level,
+                    record.module_path().unwrap(),
+                    record.args()
+                );
             }
         }
     }
@@ -49,5 +62,7 @@ pub fn init_logger() {
         println!("ANSI Colors are unsupported in your terminal, things might look a bit off!");
     }
 
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Trace)).ok();
+    log::set_logger(&LOGGER)
+        .map(|()| log::set_max_level(LevelFilter::Trace))
+        .ok();
 }

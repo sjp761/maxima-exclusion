@@ -1,15 +1,15 @@
 pub mod dip;
 pub mod pre_dip;
 
-use std::path::PathBuf;
 use anyhow::{bail, Result};
 use dip::DiPManifest;
 use pre_dip::PreDiPManifest;
+use std::path::PathBuf;
 
 pub const MANIFEST_RELATIVE_PATH: &str = "__Installer/installerdata.xml";
 
 #[async_trait::async_trait]
-pub trait GameManifest: Send + std::fmt::Debug{
+pub trait GameManifest: Send + std::fmt::Debug {
     async fn run_touchup(&self, install_path: &PathBuf) -> Result<()>;
     fn execute_path(&self, trial: bool) -> Option<String>;
 }
@@ -40,9 +40,13 @@ pub async fn read(path: PathBuf) -> Result<Box<dyn GameManifest>> {
     if let Ok(manifest) = dip_attempt {
         return Ok(Box::new(manifest));
     }
-    let predip_attempt = PreDiPManifest::read(&path).await; 
+    let predip_attempt = PreDiPManifest::read(&path).await;
     if let Ok(manifest) = predip_attempt {
         return Ok(Box::new(manifest));
     }
-    bail!(format!("Unsupported Manifest.\nDiP Attempt: {}\nPreDiP Attempt: {}", dip_attempt.unwrap_err(), predip_attempt.unwrap_err()));
+    bail!(format!(
+        "Unsupported Manifest.\nDiP Attempt: {}\nPreDiP Attempt: {}",
+        dip_attempt.unwrap_err(),
+        predip_attempt.unwrap_err()
+    ));
 }

@@ -134,7 +134,7 @@ pub fn get_os_pid(context: &ActiveGameContext) -> Result<u32> {
         }
 
         let mut cmd = process.cmd()[0].to_owned();
-        
+
         // Wine path handling
         if cfg!(unix) && cmd.starts_with("Z:") {
             cmd = cmd.replace("Z:", "").replace('\\', "/");
@@ -210,10 +210,13 @@ impl Connection {
                     .to_str()
                     .unwrap()
                     .to_owned();
-    
+
                     pid = get_wine_pid(&context.launch_id(), &filename).await;
                 } else {
-                    warn!("Failed to find game process while looking for PID {}", os_pid);
+                    warn!(
+                        "Failed to find game process while looking for PID {}",
+                        os_pid
+                    );
                 }
             }
         }

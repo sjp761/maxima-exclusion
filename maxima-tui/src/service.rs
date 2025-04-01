@@ -2,7 +2,12 @@ use std::sync::mpsc::{self, Receiver, Sender};
 
 use anyhow::{bail, Result};
 use log::info;
-use maxima::core::{auth::{context::AuthContext, login::begin_oauth_login_flow, nucleus_token_exchange, TokenResponse}, LockedMaxima, Maxima, MaximaOptionsBuilder};
+use maxima::core::{
+    auth::{
+        context::AuthContext, login::begin_oauth_login_flow, nucleus_token_exchange, TokenResponse,
+    },
+    LockedMaxima, Maxima, MaximaOptionsBuilder,
+};
 
 pub struct InteractThreadLoginResponse {
     pub success: bool,
@@ -58,16 +63,14 @@ impl BridgeThread {
         Self { rx: rx0, tx: tx0 }
     }
 
-    async fn run(
-        rx1: Receiver<MaximaLibRequest>,
-        tx1: Sender<MaximaLibResponse>,
-    ) -> Result<()> {
+    async fn run(rx1: Receiver<MaximaLibRequest>, tx1: Sender<MaximaLibResponse>) -> Result<()> {
         let maxima_arc: LockedMaxima = Maxima::new_with_options(
             MaximaOptionsBuilder::default()
                 .dummy_local_user(false)
                 .load_auth_storage(true)
                 .build()?,
-        ).await?;
+        )
+        .await?;
 
         {
             let maxima = maxima_arc.lock().await;
@@ -114,13 +117,25 @@ impl BridgeThread {
                             maxima.auth_storage().lock().await.add_account(&res);
                         };
 
-                        channel.send(MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
-                            success: true,
-                            name: maxima.local_user().await?.player().as_ref().unwrap().display_name().to_owned(),
-                        })).unwrap();
+                        channel
+                            .send(MaximaLibResponse::LoginResponse(
+                                InteractThreadLoginResponse {
+                                    success: true,
+                                    name: maxima
+                                        .local_user()
+                                        .await?
+                                        .player()
+                                        .as_ref()
+                                        .unwrap()
+                                        .display_name()
+                                        .to_owned(),
+                                },
+                            ))
+                            .unwrap();
 
                         Ok::<(), anyhow::Error>(())
-                    }.await?;
+                    }
+                    .await?;
                 }
                 MaximaLibRequest::GetGamesRequest => {
                     let channel = tx1.clone();

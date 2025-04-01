@@ -7,7 +7,11 @@ use log::{debug, error, info, warn};
 use regex::Regex;
 use service::{BridgeThread, MaximaLibRequest, MaximaLibResponse};
 
-use std::{io::stdout, sync::Arc, time::{Duration, Instant}};
+use std::{
+    io::stdout,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 #[cfg(windows)]
 use is_elevated::is_elevated;
@@ -82,7 +86,7 @@ struct App {
 enum AppState {
     #[default]
     Running,
-    Quitting
+    Quitting,
 }
 
 #[derive(Default, Clone, Copy, Display, FromRepr, EnumIter)]
@@ -464,7 +468,7 @@ async fn start_game(
         for event in maxima.consume_pending_events() {
             match event {
                 MaximaEvent::ReceivedLSXRequest(_pid, _request) => (),
-                _ => {},
+                _ => {}
             }
         }
 

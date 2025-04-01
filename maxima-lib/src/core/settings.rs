@@ -6,5 +6,5 @@ pub enum MaximaSetting {
     #[default]
     IsIgoEnabled,
     IsIgoAvailable,
-    Environment
+    Environment,
 }

@@ -31,9 +31,9 @@ use maxima::{
         },
         clients::JUNO_PC_CLIENT_ID,
         cloudsync::CloudSyncLockMode,
-        manifest::{self, MANIFEST_RELATIVE_PATH},
         launch::{self, LaunchMode},
         library::OwnedTitle,
+        manifest::{self, MANIFEST_RELATIVE_PATH},
         service_layer::{
             ServiceGetBasicPlayerRequestBuilder, ServiceGetLegacyCatalogDefsRequestBuilder,
             ServiceLegacyOffer, ServicePlayer, SERVICE_REQUEST_GETBASICPLAYER,
@@ -292,16 +292,16 @@ async fn startup() -> Result<()> {
             };
 
             start_game(&offer_id, game_path, game_args, login, maxima_arc.clone()).await
-        },
+        }
         Mode::ListGames => list_games(maxima_arc.clone()).await,
         Mode::LocateGame { path } => locate_game(maxima_arc.clone(), &path).await,
         Mode::CloudSync { game_slug, write } => {
             do_cloud_sync(maxima_arc.clone(), &game_slug, write).await
-        },
+        }
         Mode::AccountInfo => print_account_info(maxima_arc.clone()).await,
         Mode::CreateAuthCode { client_id } => {
             create_auth_code(maxima_arc.clone(), &client_id).await
-        },
+        }
         Mode::JunoTokenRefresh => juno_token_refresh(maxima_arc.clone()).await,
         Mode::ReadLicenseFile { content_id } => read_license_file(&content_id).await,
         Mode::ListFriends => list_friends(maxima_arc.clone()).await,
@@ -310,7 +310,7 @@ async fn startup() -> Result<()> {
         Mode::TestRTMConnection => test_rtm_connection(maxima_arc.clone()).await,
         Mode::GetLegacyCatalogDef { offer_id } => {
             get_legacy_catalog_def(maxima_arc.clone(), &offer_id).await
-        },
+        }
         Mode::DownloadSpecificFile {
             offer_id,
             build_id,

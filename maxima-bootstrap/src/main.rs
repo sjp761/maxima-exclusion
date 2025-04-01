@@ -109,7 +109,8 @@ async fn platform_launch(args: BootstrapLaunchArgs) -> Result<()> {
         None,
         false,
         CommandType::WaitForExitAndRun,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }

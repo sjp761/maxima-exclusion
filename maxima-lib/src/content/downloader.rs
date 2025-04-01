@@ -1,23 +1,13 @@
-use std::{cmp, io::{self, Seek, SeekFrom, Write}, path::{Path, PathBuf}, pin::Pin, prelude, sync::{Arc, Mutex}, task};
-
-use anyhow::{bail, Context, Result};
-use async_compression::tokio::write::DeflateDecoder;
-use async_trait::async_trait;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
-use derive_getters::Getters;
-use futures::{Stream, StreamExt, TryStreamExt};
-use log::{debug, error, info, warn};
-use reqwest::Client;
-use strum_macros::Display;
-use flate2::bufread::DeflateDecoder as BufreadDeflateDecoder;
-use std::io::{Cursor, Read};
-use tokio::{
-    fs::{create_dir, create_dir_all, File, OpenOptions},
-    io::{AsyncSeekExt, AsyncWrite, BufReader, BufWriter},
-    runtime::Handle,
+use std::{
+    cmp,
+    io::{self, Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+    pin::Pin,
+    prelude,
+    sync::{Arc, Mutex},
+    task,
 };
-use tokio::io::AsyncReadExt;
-use tokio_util::compat::FuturesAsyncReadCompatExt;
+
 use crate::{
     content::{
         zip::CompressionType,
@@ -25,6 +15,24 @@ use crate::{
     },
     util::{hash::hash_file_crc32, native::maxima_dir},
 };
+use anyhow::{bail, Context, Result};
+use async_compression::tokio::write::DeflateDecoder;
+use async_trait::async_trait;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use derive_getters::Getters;
+use flate2::bufread::DeflateDecoder as BufreadDeflateDecoder;
+use futures::{Stream, StreamExt, TryStreamExt};
+use log::{debug, error, info, warn};
+use reqwest::Client;
+use std::io::{Cursor, Read};
+use strum_macros::Display;
+use tokio::io::AsyncReadExt;
+use tokio::{
+    fs::{create_dir, create_dir_all, File, OpenOptions},
+    io::{AsyncSeekExt, AsyncWrite, BufReader, BufWriter},
+    runtime::Handle,
+};
+use tokio_util::compat::FuturesAsyncReadCompatExt;
 
 use super::zip::{ZipFile, ZipFileEntry};
 
@@ -376,7 +384,7 @@ impl<'a> EntryDownloadRequest<'a> {
             self.entry.name().to_owned(),
             &mut self.decoder,
         )
-            .await;
+        .await;
 
         let result = tokio::io::copy(&mut stream_reader, &mut wrapper)
             .await
@@ -419,19 +427,11 @@ impl ZipDownloader {
         })
     }
 
-    pub async fn read_zip_entry_bytes(
-        &self,
-        entry: &ZipFileEntry,
-        length: u64,
-    ) -> Result<Bytes> {
+    pub async fn read_zip_entry_bytes(&self, entry: &ZipFileEntry, length: u64) -> Result<Bytes> {
         let offset = entry.data_offset();
         let compressed_size = *entry.compressed_size();
 
-        let range_header = format!(
-            "bytes={}-{}",
-            offset,
-            offset + compressed_size - 1
-        );
+        let range_header = format!("bytes={}-{}", offset, offset + compressed_size - 1);
 
         let response = self
             .client
@@ -565,7 +565,7 @@ struct ByteCountingStream<'a, S> {
 
 impl<'a, S> ByteCountingStream<'a, S>
 where
-    S: Stream<Item=Result<bytes::Bytes, reqwest::Error>>,
+    S: Stream<Item = Result<bytes::Bytes, reqwest::Error>>,
 {
     fn new(inner: S, callback: Option<&'a BytesDownloadedCallback>) -> Self {
         ByteCountingStream {
@@ -582,7 +582,7 @@ where
 
 impl<'a, S> Stream for ByteCountingStream<'a, S>
 where
-    S: Stream<Item=Result<bytes::Bytes, reqwest::Error>> + Unpin,
+    S: Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Unpin,
 {
     type Item = Result<bytes::Bytes, tokio::io::Error>;
 

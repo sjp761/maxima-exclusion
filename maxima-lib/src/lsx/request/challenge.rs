@@ -27,7 +27,10 @@ pub async fn handle_challenge_response(
         _ => bail!("Unknown LSX encryption version!"),
     };
 
-    info!("Game Connected - Name: {}, Offer ID: {}, Multiplayer Id: {}", message.title, message.content_id, message.multiplayer_id);
+    info!(
+        "Game Connected - Name: {}, Offer ID: {}, Multiplayer Id: {}",
+        message.title, message.content_id, message.multiplayer_id
+    );
 
     let encryption_key = make_lsx_key(seed);
     state.write().await.enable_encryption(encryption_key);

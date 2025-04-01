@@ -44,7 +44,8 @@ pub async fn wine_get_pid(launch_id: &str, name: &str) -> Result<u32> {
         None,
         true,
         CommandType::RunInPrefix,
-    ).await?;
+    )
+    .await?;
 
     if output.contains("Failed to find PID") {
         bail!("Failed to find PID");
@@ -79,7 +80,8 @@ pub async fn request_library_injection(pid: u32, path: &str) -> Result<()> {
         None,
         false,
         CommandType::RunInPrefix,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }

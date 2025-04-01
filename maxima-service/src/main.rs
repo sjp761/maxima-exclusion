@@ -12,6 +12,4 @@ fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(not(windows))]
-fn main() {
-    
-}
+fn main() {}

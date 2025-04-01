@@ -25,7 +25,7 @@ pub fn fetch_github_releases(author: &str, repository: &str) -> Result<Vec<Githu
         "https://api.github.com/repos/{}/{}/releases",
         author, repository
     );
-    
+
     let res = ureq::get(&url)
         .set("User-Agent", "ArmchairDevelopers/Maxima")
         .call()?;

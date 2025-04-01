@@ -301,7 +301,10 @@ pub async fn start_game(
 
 #[cfg(unix)]
 pub async fn mx_linux_setup() -> Result<()> {
-    use crate::unix::wine::{check_runtime_validity, check_wine_validity, get_lutris_runtimes, install_runtime, install_wine, setup_wine_registry};
+    use crate::unix::wine::{
+        check_runtime_validity, check_wine_validity, get_lutris_runtimes, install_runtime,
+        install_wine, setup_wine_registry,
+    };
 
     info!("Verifying wine dependencies...");
 

@@ -49,7 +49,7 @@ pub struct ServiceLayerGraphQLRequest {
     operation: &'static str,
     key: &'static str,
     hash: [u8; 32],
-    r#type: ServiceLayerRequestType
+    r#type: ServiceLayerRequestType,
 }
 
 macro_rules! load_graphql_request {
@@ -61,7 +61,7 @@ macro_rules! load_graphql_request {
             operation: $operation,
             key: $key,
             hash,
-            r#type: ServiceLayerRequestType::$type
+            r#type: ServiceLayerRequestType::$type,
         }
     }};
 }
@@ -489,7 +489,9 @@ impl ServiceAvailableBuilds {
     }
 
     pub fn build(&self, id: &str) -> Option<&ServiceAvailableBuild> {
-        self.builds.iter().find(|b| b.game_version() == &Some(id.to_owned()))
+        self.builds
+            .iter()
+            .find(|b| b.game_version() == &Some(id.to_owned()))
     }
 }
 
@@ -624,13 +626,15 @@ service_layer_type!(LegacyOffer, {
 
 impl ServiceLegacyOffer {
     pub fn has_cloud_save(&self) -> bool {
-        !self.cloud_save_configuration_override.clone().unwrap_or_default().is_empty()
+        !self
+            .cloud_save_configuration_override
+            .clone()
+            .unwrap_or_default()
+            .is_empty()
     }
 }
 
-service_layer_type!(RecentGames, {
-
-});
+service_layer_type!(RecentGames, {});
 
 service_layer_type!(HeroBackgroundImageRequest, {
     game_slug: String,

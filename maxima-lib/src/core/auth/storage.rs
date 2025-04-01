@@ -61,7 +61,7 @@ impl AuthAccount {
             .context("Expected refresh token while storing login response")
             .unwrap()
             .to_owned();
-        
+
         self.expires_at = expires_at;
 
         if self.user_id.is_empty() {

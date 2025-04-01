@@ -10,8 +10,8 @@ use crate::unix::fs::case_insensitive_path;
 
 use super::{
     auth::storage::LockedAuthStorage,
-    manifest::{self, GameManifest, MANIFEST_RELATIVE_PATH},
     locale::Locale,
+    manifest::{self, GameManifest, MANIFEST_RELATIVE_PATH},
     service_layer::{
         ServiceGameProductType, ServiceGetLegacyCatalogDefsRequestBuilder,
         ServiceGetPreloadedOwnedGamesRequest, ServiceGetPreloadedOwnedGamesRequestBuilder,

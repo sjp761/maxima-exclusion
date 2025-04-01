@@ -30,7 +30,7 @@ use winreg::{
 };
 
 #[cfg(unix)]
-use std::{collections::HashMap, fs, env};
+use std::{collections::HashMap, env, fs};
 
 #[cfg(unix)]
 use crate::unix::fs::case_insensitive_path;
@@ -156,8 +156,7 @@ pub async fn parse_registry_path(key: &str) -> PathBuf {
         let second = second.strip_prefix("/").unwrap_or(&second);
 
         return [path, second.to_owned()].iter().collect();
-    }
-    else {
+    } else {
         PathBuf::from(key.to_owned())
     };
 
@@ -179,8 +178,7 @@ pub async fn parse_partial_registry_path(key: &str) -> PathBuf {
 
         let path = path.unwrap().replace("\\", "/");
         return PathBuf::from(path.to_owned());
-    }
-    else {
+    } else {
         PathBuf::from(key.to_owned())
     };
 
@@ -341,7 +339,11 @@ fn register_custom_protocol(protocol: &str, name: &str, executable: &str) -> Res
     let maxima_dir = maxima_dir()?;
     let home = maxima_dir.parent().unwrap();
     let desktop_file_name = format!("maxima-{}.desktop", protocol);
-    let desktop_file_path = format!("{}/applications/{}", home.to_str().unwrap(), desktop_file_name);
+    let desktop_file_path = format!(
+        "{}/applications/{}",
+        home.to_str().unwrap(),
+        desktop_file_name
+    );
     fs::write(desktop_file_path, desktop_file)?;
 
     set_mime_type(

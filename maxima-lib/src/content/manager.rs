@@ -97,7 +97,7 @@ impl GameDownloader {
         debug!("URL: {}", url.url());
 
         let downloader = ZipDownloader::new(&game.offer_id, &url.url(), &game.path).await?;
-        
+
         let mut entries = Vec::new();
         for ele in downloader.manifest().entries() {
             // TODO: Filtering
@@ -125,7 +125,8 @@ impl GameDownloader {
     }
 
     pub fn download(&self) {
-        let (downloader_arc, entries, cancel_token, completed_bytes, notify) = self.prepare_download_vars();
+        let (downloader_arc, entries, cancel_token, completed_bytes, notify) =
+            self.prepare_download_vars();
         let total_count = self.total_count;
         tokio::spawn(async move {
             GameDownloader::start_downloads(

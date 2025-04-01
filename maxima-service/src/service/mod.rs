@@ -9,6 +9,7 @@ use maxima::util::registry::set_up_registry;
 use maxima::util::service::SERVICE_NAME;
 use std::ffi::OsString;
 use std::path::Path;
+use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::Duration;
 use structured_logger::json::new_writer;
@@ -19,7 +20,6 @@ use windows_service::{
     service_control_handler::{self, ServiceControlHandlerResult},
     service_dispatcher,
 };
-use std::sync::mpsc::{self, Receiver};
 
 use maxima::core::background_service::{ServiceLibraryInjectionRequest, BACKGROUND_SERVICE_PORT};
 
@@ -39,7 +39,7 @@ fn service_main(arguments: Vec<OsString>) {
 
 fn bootstrap_service(_arguments: Vec<OsString>) -> windows_service::Result<()> {
     let (shutdown_tx, shutdown_rx) = mpsc::channel();
-    
+
     let event_handler = move |control_event| -> ServiceControlHandlerResult {
         match control_event {
             ServiceControl::Stop | ServiceControl::Interrogate => {
@@ -109,7 +109,9 @@ async fn req_inject_library(body: web::Bytes) -> Result<HttpResponse, ServiceErr
     // Ensure we're only injecting into STAR WARS Battlefront 2. Ideally we would check
     // the hash of the dll as well, but there isn't a great way to do that since there
     // are multiple release channels and dev builds.
-    if hex::encode(hash_result.unwrap()) != "7880e40d79e981b064baaf06f10785601222c6e227a656b70112c24b1f82e2ce" {
+    if hex::encode(hash_result.unwrap())
+        != "7880e40d79e981b064baaf06f10785601222c6e227a656b70112c24b1f82e2ce"
+    {
         warn!("Attempted to inject into invalid process!");
         return Err(ServiceError::InternalError);
     }
@@ -134,7 +136,7 @@ fn run_service(shutdown_rx: Receiver<()>) -> Result<()> {
     thread::spawn(|| {
         actix_web::rt::System::new().block_on(async {
             use actix_web::{App, HttpServer};
-    
+
             let _ = HttpServer::new(|| {
                 App::new()
                     .service(req_set_up_registry)

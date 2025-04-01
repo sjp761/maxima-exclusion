@@ -3,12 +3,12 @@ pub mod cache;
 pub mod clients;
 pub mod cloudsync;
 pub mod concurrency;
-pub mod manifest;
 pub mod ecommerce;
 pub mod endpoints;
 pub mod launch;
 pub mod library;
 pub mod locale;
+pub mod manifest;
 pub mod service_layer;
 pub mod settings;
 
@@ -29,10 +29,10 @@ pub mod background_service {
 use std::{
     env,
     fs::{create_dir_all, File},
+    io,
     os::raw::c_char,
     path::PathBuf,
     time::Duration,
-    io,
 };
 
 use anyhow::{bail, Result};
@@ -418,9 +418,7 @@ impl Maxima {
     }
 
     async fn update_playing_status(&mut self) {
-        if self.lsx_connections > 0
-            || self.playing.is_none()
-        {
+        if self.lsx_connections > 0 || self.playing.is_none() {
             return;
         }
 

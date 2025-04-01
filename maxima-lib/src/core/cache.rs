@@ -1,4 +1,4 @@
-use std::{any::Any, sync::Arc, time::Duration, hash::Hash, borrow::Borrow};
+use std::{any::Any, borrow::Borrow, hash::Hash, sync::Arc, time::Duration};
 
 use moka::sync::Cache;
 

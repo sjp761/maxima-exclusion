@@ -9,7 +9,10 @@ use anyhow::{bail, Error, Result};
 
 use maxima::{
     core::{
-        auth::{context::AuthContext, login, nucleus_auth_exchange}, clients::JUNO_PC_CLIENT_ID, launch::{self, LaunchMode}, Maxima, MaximaEvent
+        auth::{context::AuthContext, login, nucleus_auth_exchange},
+        clients::JUNO_PC_CLIENT_ID,
+        launch::{self, LaunchMode},
+        Maxima, MaximaEvent,
     },
     util::{
         log::init_logger,
@@ -223,7 +226,12 @@ pub extern "C" fn maxima_login(runtime: *mut *mut Runtime, token_out: *mut *mut 
 
 /// Log into an EA account with a persona (email/username) and password.
 #[no_mangle]
-pub extern "C" fn maxima_login_manual(runtime: *mut *mut Runtime, mx: *mut *mut c_void, persona: *const c_char, password: *const c_char) -> usize {
+pub extern "C" fn maxima_login_manual(
+    runtime: *mut *mut Runtime,
+    mx: *mut *mut c_void,
+    persona: *const c_char,
+    password: *const c_char,
+) -> usize {
     let rt = unsafe { Box::from_raw(*runtime) };
 
     let auth_context = AuthContext::new();
@@ -233,10 +241,10 @@ pub extern "C" fn maxima_login_manual(runtime: *mut *mut Runtime, mx: *mut *mut 
     }
 
     let result = rt.block_on(async {
-        let token = login::manual_login(
-            &unsafe { parse_raw_string(persona) },
-            &unsafe { parse_raw_string(password) }
-        ).await;
+        let token = login::manual_login(&unsafe { parse_raw_string(persona) }, &unsafe {
+            parse_raw_string(password)
+        })
+        .await;
         if token.is_err() {
             return Err(token.err().unwrap());
         }
@@ -279,7 +287,11 @@ pub extern "C" fn maxima_login_manual(runtime: *mut *mut Runtime, mx: *mut *mut 
 
 /// Retrieve the access token for the currently selected account. Can return [ERR_NOT_LOGGED_IN]
 #[no_mangle]
-pub unsafe extern "C" fn maxima_access_token(runtime: *mut *mut Runtime, mx: *mut *mut c_void, token_out: *mut *const c_char) -> usize {
+pub unsafe extern "C" fn maxima_access_token(
+    runtime: *mut *mut Runtime,
+    mx: *mut *mut c_void,
+    token_out: *mut *const c_char,
+) -> usize {
     let rt = Box::from_raw(*runtime);
 
     let result = rt.block_on(async {
@@ -316,7 +328,12 @@ pub unsafe extern "C" fn maxima_access_token(runtime: *mut *mut Runtime, mx: *mu
 
 /// Retrieve a nucleus auth code with the specified client id. Can return [ERR_NOT_LOGGED_IN]
 #[no_mangle]
-pub unsafe extern "C" fn maxima_auth_exchange(runtime: *mut *mut Runtime, mx: *mut *mut c_void, client_id: *const c_char, code_out: *mut *const c_char) -> usize {
+pub unsafe extern "C" fn maxima_auth_exchange(
+    runtime: *mut *mut Runtime,
+    mx: *mut *mut c_void,
+    client_id: *const c_char,
+    code_out: *mut *const c_char,
+) -> usize {
     let rt = Box::from_raw(*runtime);
 
     let result = rt.block_on(async {
@@ -535,7 +552,13 @@ pub extern "C" fn maxima_launch_game(
         let rt = Box::from_raw(*runtime);
         let result = rt.block_on(async {
             let offer_id = parse_raw_string(c_offer_id);
-            launch::start_game(maxima_arc.clone(), LaunchMode::Online(offer_id), None, vec![]).await
+            launch::start_game(
+                maxima_arc.clone(),
+                LaunchMode::Online(offer_id),
+                None,
+                vec![],
+            )
+            .await
         });
 
         *runtime = Box::into_raw(rt);
@@ -570,7 +593,11 @@ pub extern "C" fn maxima_find_owned_offer(
         let result = rt.block_on(async {
             let mut maxima = maxima_arc.lock().await;
             let game_slug = parse_raw_string(c_game_slug);
-            let game = maxima.mut_library().game_by_base_slug(&game_slug).await.unwrap();
+            let game = maxima
+                .mut_library()
+                .game_by_base_slug(&game_slug)
+                .await
+                .unwrap();
             return Ok(game.offer_id().to_owned());
         });
 

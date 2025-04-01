@@ -1,4 +1,5 @@
-pub const API_SERVICE_AGGREGATION_LAYER: &str = "https://service-aggregation-layer.juno.ea.com/graphql";
+pub const API_SERVICE_AGGREGATION_LAYER: &str =
+    "https://service-aggregation-layer.juno.ea.com/graphql";
 pub const API_CONTENTFUL_PROXY: &str = "https://contentful-proxy.juno.ea.com/graphql";
 pub const API_PROXY_NOVAFUSION_LICENSES: &str = "https://proxy.novafusion.ea.com/licenses";
 pub const API_ECOMMERCE: &str = "https://ecommerce2.dm.origin.com/ecommerce2";

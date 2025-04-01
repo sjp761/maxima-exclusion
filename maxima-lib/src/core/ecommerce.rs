@@ -39,9 +39,11 @@ pub async fn request_offer_data(
     offer: &str,
     locale: &str,
 ) -> Result<CommerceOffer> {
-    let res = Client::new().get(&format!("{}/public/{}/{}", API_ECOMMERCE, offer, locale))
+    let res = Client::new()
+        .get(&format!("{}/public/{}/{}", API_ECOMMERCE, offer, locale))
         .header("AuthToken", access_token)
-        .send().await?;
+        .send()
+        .await?;
     if res.status() != StatusCode::OK {
         bail!("Ecommerce request failed: {}", res.text().await?);
     }
@@ -150,7 +152,9 @@ ecommerce_type!(
 
 impl CommerceSoftwareList {
     pub fn software(&self, platform: CommercePlatform) -> Option<&CommerceSoftware> {
-        self.software.iter().find(|x| x.software_platform == platform)
+        self.software
+            .iter()
+            .find(|x| x.software_platform == platform)
     }
 }
 

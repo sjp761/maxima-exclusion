@@ -68,8 +68,12 @@ impl RtmConnectionManager {
         loop {
             match TcpStream::connect(RTM_TCP_HOST).await {
                 Ok(stream) => {
-                    if let Err(e) =
-                        RtmConnectionManager::handle_stream(stream, &mut request_rx, &mut update_presence_tx).await
+                    if let Err(e) = RtmConnectionManager::handle_stream(
+                        stream,
+                        &mut request_rx,
+                        &mut update_presence_tx,
+                    )
+                    .await
                     {
                         println!("Stream error: {}", e);
                         // Reconnection will be attempted after the delay
