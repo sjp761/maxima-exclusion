@@ -58,7 +58,7 @@ pub async fn handle_query_offers_request(
             attr_PlayableDate: offer.published_date().to_string(),
             attr_Name: offer.display_name().to_string(),
             attr_ImageId: String::new(),
-            attr_bIsDiscounted: offer.isDiscount().clone(),
+            attr_bIsDiscounted: offer.is_discount().clone(),
             attr_OfferId: offer.offer_id().clone(),
             attr_bIsOwned: offer.is_owned().clone(),
         })

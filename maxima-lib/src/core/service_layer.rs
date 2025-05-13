@@ -679,7 +679,7 @@ service_layer_type!(AddonOffer, {
         display_list_price: String,
         currency_type: String,
         currency: String,
-        isDiscount: bool,
+        is_discount: bool,
     }
 );
 
