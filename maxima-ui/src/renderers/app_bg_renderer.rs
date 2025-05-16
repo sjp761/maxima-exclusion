@@ -4,7 +4,6 @@ use egui::mutex::Mutex;
 use egui::{TextureId, Vec2};
 use egui_glow::glow;
 use log::error;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::FrontendPerformanceSettings;

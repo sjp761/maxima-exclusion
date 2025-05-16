@@ -25,11 +25,10 @@ pub async fn get_friends_request(
 
     let friends = maxima.friends(0).await?;
     for friend in friends {
-        remote_provider_channel
-            .send(UIImageCacheLoaderCommand::ProvideRemote(
-                crate::ui_image::UIImageType::Avatar(friend.id().to_string()),
-                friend.avatar().as_ref().unwrap().medium().path().to_string(),
-            ))?;
+        remote_provider_channel.send(UIImageCacheLoaderCommand::ProvideRemote(
+            crate::ui_image::UIImageType::Avatar(friend.id().to_string()),
+            friend.avatar().as_ref().unwrap().medium().path().to_string(),
+        ))?;
         let friend_info = UIFriend {
             name: friend.display_name().to_string(),
             id: friend.id().to_string(),

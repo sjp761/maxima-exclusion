@@ -1,9 +1,7 @@
 // Handles different languages for the UI
 
-use log::error;
 use serde::Deserialize;
 use serde_json;
-use std::fs;
 use sys_locale;
 
 use crate::FrontendLanguage;

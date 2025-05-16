@@ -14,7 +14,7 @@ pub fn check_desktop_icon() -> Result<()> {
         .join("applications")
         .join("io.github.ArmchairDevelopers.Maxima.desktop");
 
-    if let Err(err) = std::fs::metadata(&desktop_file_path) {
+    if let Err(_) = std::fs::metadata(&desktop_file_path) {
         info!("creating application shortcut");
 
         let xdg_desktop_check = Command::new("xdg-desktop-menu").arg("--version").output();

@@ -1,18 +1,14 @@
-use anyhow::Result;
-use log::debug;
 use crate::{
-    core::service_layer::{ServiceAddonSearchRequestBuilder, ServiceAddonSearchResult, ServiceAddonSearchResultRoot, SERVICE_REQUEST_ADDONSEARCH},
+    core::service_layer::{
+        ServiceAddonSearchRequestBuilder, ServiceAddonSearchResultRoot, SERVICE_REQUEST_ADDONSEARCH,
+    },
     lsx::{
         connection::LockedConnectionState,
-        types::{
-            LSXOffer,
-            LSXQueryOffers,
-            LSXQueryOffersResponse,
-            LSXResponseType,
-        },
+        types::{LSXOffer, LSXQueryOffers, LSXQueryOffersResponse, LSXResponseType},
     },
     make_lsx_handler_response,
 };
+use anyhow::Result;
 
 pub async fn handle_query_offers_request(
     conn: LockedConnectionState,
@@ -28,15 +24,18 @@ pub async fn handle_query_offers_request(
 
     let mut conn = conn.write().await;
     let maxima = conn.maxima().await;
-    let offers: ServiceAddonSearchResultRoot = maxima.service_layer().request(
-        SERVICE_REQUEST_ADDONSEARCH,
-        ServiceAddonSearchRequestBuilder::default()
-            .platform(String::new())
-            .category_id(category)
-            .master_title_id(String::new())
-            .offer_ids(Vec::new())
-            .build()?
-    ).await?;
+    let offers: ServiceAddonSearchResultRoot = maxima
+        .service_layer()
+        .request(
+            SERVICE_REQUEST_ADDONSEARCH,
+            ServiceAddonSearchRequestBuilder::default()
+                .platform(String::new())
+                .category_id(category)
+                .master_title_id(String::new())
+                .offer_ids(Vec::new())
+                .build()?,
+        )
+        .await?;
 
     for offer in offers.addonSearch().addonOffers() {
         rtn.push(LSXOffer {
@@ -63,7 +62,6 @@ pub async fn handle_query_offers_request(
             attr_bIsOwned: offer.is_owned().clone(),
         })
     }
-
 
     make_lsx_handler_response!(Response, QueryOffersResponse, { offer: rtn })
 }

@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    env,
     path::{Path, PathBuf},
 };
 
@@ -51,7 +50,7 @@ async fn acquire_auth(auth: &LockedAuthStorage) -> Result<(String, String)> {
 
 #[cfg(windows)]
 fn home_dir() -> PathBuf {
-    PathBuf::from(match env::var_os("USERPROFILE") {
+    PathBuf::from(match std::env::var_os("USERPROFILE") {
         Some(user_profile) => user_profile,
         None => "C:\\Users\\Public".into(),
     })

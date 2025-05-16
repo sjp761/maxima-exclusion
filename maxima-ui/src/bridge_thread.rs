@@ -70,7 +70,7 @@ pub enum MaximaLibRequest {
     GetGameDetailsRequest(String),
     StartGameRequest(GameInfo, Option<GameSettings>),
     InstallGameRequest(String, PathBuf),
-    LocateGameRequest(String, String),
+    LocateGameRequest(String),
     ShutdownRequest,
 }
 
@@ -388,7 +388,7 @@ impl BridgeThread {
                     let context = ctx.clone();
                     async move { game_details_request(maxima, slug.clone(), channel, &context).await }.await?;
                 }
-                MaximaLibRequest::LocateGameRequest(_, path) => {
+                MaximaLibRequest::LocateGameRequest(path) => {
                     #[cfg(unix)]
                     maxima::core::launch::mx_linux_setup().await?;
                     let mut path = path;

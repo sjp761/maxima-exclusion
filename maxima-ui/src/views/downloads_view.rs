@@ -1,7 +1,7 @@
 use egui::{pos2, vec2, Align2, Color32, FontId, Mesh, Rect, Rounding, Shape, Stroke, Ui, Widget};
 use humansize::DECIMAL;
 
-use crate::{bridge_thread, MaximaEguiApp, APP_MARGIN};
+use crate::{MaximaEguiApp, APP_MARGIN};
 
 #[derive(Clone)]
 pub struct QueuedDownload {

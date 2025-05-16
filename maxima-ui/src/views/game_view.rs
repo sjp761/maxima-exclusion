@@ -3,13 +3,11 @@ use crate::{
     widgets::enum_dropdown::enum_dropdown, GameDetails, GameDetailsWrapper, GameInfo,
     InstallModalState, MaximaEguiApp, PageType, PopupModal,
 };
-use eframe::glow::OBJECT_TYPE;
 use egui::{
     pos2, vec2, Color32, Margin, Mesh, Pos2, Rect, RichText, Rounding, ScrollArea, Shape, Stroke,
     Ui, Widget,
 };
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-use log::debug;
 
 use strum_macros::EnumIter;
 

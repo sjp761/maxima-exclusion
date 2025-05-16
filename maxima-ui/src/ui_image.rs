@@ -241,10 +241,6 @@ impl UIImageCache {
         info!("Shutting down image loader thread");
     }
 
-    pub fn provide_remote(&self, needle: UIImageType, target: String) {
-        self.commander.send(UIImageCacheLoaderCommand::ProvideRemote(needle, target)).unwrap();
-    }
-
     pub fn get(&self, needle: UIImageType) -> Option<TextureHandle> {
         // i'm hardly building this in a performant way but it's robust and solid unlike the previous mess
         let mut cache = self.cache.lock().unwrap();

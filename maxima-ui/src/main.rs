@@ -152,13 +152,6 @@ enum PopupModal {
     GameLaunchOOD(String),
 }
 
-#[derive(Debug, PartialEq)]
-enum InProgressLoginType {
-    Oauth,
-    /// Broken
-    UsernamePass,
-}
-
 /// Which tab is selected in the game list info panel
 #[derive(PartialEq, Default)]
 pub enum GameInfoTab {
@@ -521,7 +514,7 @@ fn custom_window_frame(
     enabled: bool, // disables the entire app, used for if the bg thread crashes
     crash_text: String,
     ctx: &egui::Context,
-    frame: &mut eframe::Frame,
+    _: &mut eframe::Frame,
     _title: &str,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
@@ -896,7 +889,7 @@ impl MaximaEguiApp {
                                         ui.add_enabled_ui(PathBuf::from(&self.installer_state.locate_path).exists(), |ui| {
 
                                             if ui.add_sized(button_size, egui::Button::new(&self.locale.localization.modals.game_install.locate_action.to_ascii_uppercase())).clicked() {
-                                                self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::LocateGameRequest(slug.clone(), self.installer_state.locate_path.clone())).unwrap();
+                                                self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::LocateGameRequest(self.installer_state.locate_path.clone())).unwrap();
                                                 self.installer_state.locating = true;
                                             }
                                         });

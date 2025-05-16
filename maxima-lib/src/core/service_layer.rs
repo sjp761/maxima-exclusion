@@ -735,32 +735,6 @@ service_layer_type!(GameHubCollection, {
     items: Vec<ServiceGameHub>,
 });
 
-impl ServiceImage {
-    fn large_avatar() -> Self {
-        ServiceImage {
-            height: Some(416),
-            width: Some(416),
-            path: LARGE_AVATAR_PATH.to_owned(),
-        }
-    }
-
-    fn medium_avatar() -> Self {
-        ServiceImage {
-            width: Some(208),
-            height: Some(208),
-            path: MEDIUM_AVATAR_PATH.to_owned(),
-        }
-    }
-
-    fn small_avatar() -> Self {
-        ServiceImage {
-            width: Some(40),
-            height: Some(40),
-            path: SMALL_AVATAR_PATH.to_owned(),
-        }
-    }
-}
-
 // Serde treats a field being null differently from the field not being there, so we need to do custom deserialization to handle this.
 impl ServiceImage {
     fn deserialize_large_avatar<'de, D>(deserializer: D) -> Result<ServiceImage, D::Error>

@@ -168,7 +168,7 @@ pub async fn handle_query_friends_request(
         if ele.relationship() != "FRIEND" {
             continue;
         }
-        
+
         let mut presence = presence_store.get(ele.id());
         if presence.is_none() {
             presence = Some(
@@ -222,7 +222,7 @@ pub async fn handle_query_friends_request(
 
 pub async fn handle_get_block_list_request(
     state: LockedConnectionState,
-    query: LSXGetBlockList,
+    _: LSXGetBlockList,
 ) -> Result<Option<LSXResponseType>> {
     let mut list: Vec<LSXBlockedUser> = Vec::new();
 
