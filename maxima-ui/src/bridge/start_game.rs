@@ -1,8 +1,7 @@
 use crate::{bridge_thread::BackendError, GameInfo, GameSettings};
 use log::{debug, error, info};
-use maxima::core::launch::LaunchError;
 use maxima::core::{
-    launch::{self, LaunchMode},
+    launch::{self, LaunchError, LaunchMode, LaunchOptions},
     LockedMaxima,
 };
 
@@ -21,7 +20,7 @@ pub async fn start_game_request(
     debug!("got request to start game {:?}", game_info.offer);
 
     // This is kind of gross, but it kind of makes sense to have?
-    let (exe_override, args) = if let Some(settings) = game_settings {
+    let (exe_override, args, cloud_saves) = if let Some(settings) = game_settings {
         (
             if settings.exe_override.is_empty() {
                 None
@@ -29,17 +28,21 @@ pub async fn start_game_request(
                 Some(settings.exe_override)
             },
             launch::parse_arguments(&settings.launch_args),
+            settings.cloud_saves,
         )
     } else {
-        (None, Vec::new())
+        (None, Vec::new(), true)
     };
 
     drop(maxima);
     launch::start_game(
         maxima_arc.clone(),
         LaunchMode::Online(game_info.offer),
-        exe_override,
-        args,
+        LaunchOptions {
+            path_override: exe_override,
+            arguments: args,
+            cloud_saves,
+        },
     )
     .await
 }

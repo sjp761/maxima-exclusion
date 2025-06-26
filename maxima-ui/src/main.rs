@@ -797,7 +797,7 @@ impl MaximaEguiApp {
                                 ui.separator();
                                 if game.installed {
                                     if let Some(settings) = self.settings.game_settings.get_mut(&game.slug) {
-                                        ui.add_enabled(/* game.has_cloud_saves */ false, egui::Checkbox::new(&mut settings.cloud_saves, &self.locale.localization.modals.game_settings.cloud_saves));
+                                        ui.add_enabled(game.has_cloud_saves, egui::Checkbox::new(&mut settings.cloud_saves, &self.locale.localization.modals.game_settings.cloud_saves));
 
                                         ui.label(&self.locale.localization.modals.game_settings.launch_arguments);
                                         ui.add_sized(vec2(ui.available_width(), ui.style().spacing.interact_size.y), egui::TextEdit::singleline(&mut settings.launch_args).vertical_align(egui::Align::Center));

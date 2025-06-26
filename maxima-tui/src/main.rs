@@ -47,7 +47,7 @@ use maxima::{
             login::{begin_oauth_login_flow, manual_login},
             nucleus_auth_exchange,
         },
-        launch,
+        launch::{self, LaunchOptions},
         service_layer::ServiceUserGameProduct,
         Maxima, MaximaEvent,
     },
@@ -441,12 +441,17 @@ async fn start_game(
         }
     }
 
+    let launch_options = LaunchOptions {
+        path_override: game_path_override,
+        arguments: game_args,
+        cloud_saves: true,
+    };
+
     if login.is_none() {
         launch::start_game(
             maxima_arc.clone(),
             LaunchMode::Online(offer_id.to_owned()),
-            game_path_override,
-            game_args,
+            launch_options,
         )
         .await?;
     } else if let Some(captures) = MANUAL_LOGIN_PATTERN.captures(&login.unwrap()) {
@@ -456,8 +461,7 @@ async fn start_game(
         launch::start_game(
             maxima_arc.clone(),
             LaunchMode::OnlineOffline(offer_id.to_owned(), persona.to_owned(), password.to_owned()),
-            game_path_override,
-            game_args,
+            launch_options,
         )
         .await?;
     }

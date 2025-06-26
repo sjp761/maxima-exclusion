@@ -12,6 +12,7 @@ use derive_getters::Getters;
 
 use super::{
     auth::storage::{LockedAuthStorage, TokenError},
+    ecommerce::CommerceEntitlementType,
     endpoints::API_CONTENTFUL_PROXY,
     endpoints::API_SERVICE_AGGREGATION_LAYER,
     locale::Locale,
@@ -125,6 +126,8 @@ define_graphql_request!(ServiceAggregationLayer, GameSystemRequirements, game); 
 define_graphql_request!(ServiceAggregationLayer, GetMyFriends, me); // Input: ServiceGetMyFriendsRequest, Output: ServiceFriends
 define_graphql_request!(ServiceAggregationLayer, SearchPlayer, players); // Input: ServiceSearchPlayerRequest, Output: ServicePlayersPage
 define_graphql_request!(ServiceAggregationLayer, getLegacyCatalogDefs, legacyOffers); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyOffer>
+define_graphql_request!(ServiceAggregationLayer, getLegacyEntitlements, me); // Input: ServiceGetLegacyEntitlementsRequest, Output: UserLegacyEntitlementsCursorPage
+define_graphql_request!(ServiceAggregationLayer, sdkEntitlements, me); // Input: ServiceSdkEntitlementsRequest, Output: SdkEntitlementsResult
 define_graphql_request!(ServiceAggregationLayer, getGameProducts, gameProducts); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
 define_graphql_request!(ServiceAggregationLayer, GetGamePlayTimes, me); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
 define_graphql_request!(ContentfulProxy, GetHeroBackgroundImage, gameHubCollection); // Input: ServiceHeroBackgroundImageRequest, Output: ServiceGameHubCollection
@@ -676,6 +679,21 @@ service_layer_type!(GetLegacyCatalogDefsRequest, {
     locale: Locale,
 });
 
+service_layer_type!(GetLegacyEntitlementsRequest, {
+    limit: u32,
+    next: String,
+    store_fronts: Vec<ServiceStorefront>,
+});
+
+service_layer_type!(SdkEntitlementsRequest, {
+    product_ids: Vec<String>,
+    include_child_groups: bool,
+    group_names: Vec<String>,
+    entitlement_tag: String,
+    page_size: u32,
+    page_number: u32,
+});
+
 service_layer_type!(LegacyDownloadMetadata, {
     igo_api_enabled: bool,
     download_type: String,
@@ -777,6 +795,52 @@ service_layer_type!(GameHub, {
 
 service_layer_type!(GameHubCollection, {
     items: Vec<ServiceGameHub>,
+});
+
+service_layer_type!(UserLegacyEntitlement, {
+    cd_key: String,
+    entitlement_tag: String,
+    entitlement_type: CommerceEntitlementType,
+    external_type: Option<String>,
+    grant_date: String,
+    group_name: String,
+    id: String,
+    is_subscription: bool,
+    is_subscription_expired: bool,
+    last_modified_date: String,
+    origin_permissions: String,
+    product_id: String,
+    status: String,
+    status_reason_code: String,
+    termination_date: Option<String>,
+    trial_time_remaining_seconds: Option<String>,
+    use_count: u32,
+    version: u16,
+});
+
+service_layer_type!(Entitlement, {
+    entitlement_tag: String,
+    entitlement_type: CommerceEntitlementType,
+    grant_date: String,
+    group_name: String,
+    id: String,
+    product_id: String,
+    termination_date: Option<String>,
+    use_count: u32,
+    version: u16,
+});
+
+service_layer_type!(UserLegacyEntitlementsCursorPage, {
+    next: Option<String>,
+    items: Vec<ServiceUserLegacyEntitlement>,
+});
+
+service_layer_type!(UserEntitlementsResult, {
+    entitlements: Vec<ServiceEntitlement>,
+});
+
+service_layer_type!(SdkEntitlementsResult, {
+    sdk_entitlements: ServiceUserEntitlementsResult,
 });
 
 // Serde treats a field being null differently from the field not being there, so we need to do custom deserialization to handle this.

@@ -29,6 +29,7 @@ hex = "0.4.3"
 lazy_static = "1.4.0"
 reqwest = { version = "0.11.18", features = ["stream", "rustls-tls", "gzip", "json"], default-features = false }
 base64 = "0.21.2"
+base62 = "2.2.0"
 log = "0.4.19"
 enable-ansi-support = "0.2.1"
 chrono = "0.4.26"

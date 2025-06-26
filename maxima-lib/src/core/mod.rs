@@ -467,7 +467,7 @@ impl Maxima {
         info!("Game stopped");
 
         if let Some(offer) = playing.offer() {
-            if offer.offer().has_cloud_save() {
+            if *playing.cloud_saves() && offer.offer().has_cloud_save() {
                 let result = self
                     .cloud_sync
                     .obtain_lock(offer, CloudSyncLockMode::Write)

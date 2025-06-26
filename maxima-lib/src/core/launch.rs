@@ -83,6 +83,12 @@ pub struct LibraryInjection {
     pub stage: StartupStage,
 }
 
+pub struct LaunchOptions {
+    pub path_override: Option<String>,
+    pub arguments: Vec<String>,
+    pub cloud_saves: bool,
+}
+
 pub enum LaunchMode {
     /// Completely offline, relies on cached license files and user IDs
     Offline(String), // Offer ID
@@ -111,6 +117,7 @@ pub struct ActiveGameContext {
     offer: Option<OwnedOffer>,
     mode: LaunchMode,
     injections: Vec<LibraryInjection>,
+    cloud_saves: bool,
     process: Child,
     started: bool,
 }
@@ -119,6 +126,7 @@ impl ActiveGameContext {
     pub fn new(
         launch_id: &str,
         game_path: &str,
+        cloud_saves: bool,
         content_id: &str,
         offer: Option<OwnedOffer>,
         mode: LaunchMode,
@@ -131,6 +139,7 @@ impl ActiveGameContext {
             offer,
             mode,
             injections: Vec::new(),
+            cloud_saves,
             process,
             started: false,
         }
@@ -164,14 +173,13 @@ impl Display for LaunchMode {
 pub async fn start_game(
     maxima_arc: Arc<Mutex<Maxima>>,
     mode: LaunchMode,
-    game_path_override: Option<String>,
-    mut game_args: Vec<String>,
+    options: LaunchOptions,
 ) -> Result<(), LaunchError> {
     let mut maxima = maxima_arc.lock().await;
     info!("Initiating game launch with {}...", mode);
 
     if let LaunchMode::OnlineOffline(ref content_id, _, _) = mode {
-        if game_path_override.is_none() {
+        if options.path_override.is_none() {
             return Err(LaunchError::GamePathOffline);
         }
 
@@ -207,7 +215,7 @@ pub async fn start_game(
         };
 
     // Need to move this into Maxima and have a "current game" system
-    let path = if let Some(game_path_override) = game_path_override {
+    let path = if let Some(game_path_override) = options.path_override {
         PathBuf::from(&game_path_override)
     } else if !online_offline {
         match offer {
@@ -244,7 +252,7 @@ pub async fn start_game(
                 info!("Existing game license is still valid, not updating");
             }
 
-            if offer.offer().has_cloud_save() {
+            if options.cloud_saves && offer.offer().has_cloud_save() {
                 info!("Syncing with cloud save...");
 
                 let result = maxima
@@ -272,6 +280,8 @@ pub async fn start_game(
             request_and_save_license(&auth, &content_id, path.to_owned().into()).await?;
         }
     }
+
+    let mut game_args = options.arguments.clone();
 
     // Append args from env
     if let Ok(args) = env::var("MAXIMA_LAUNCH_ARGS") {
@@ -353,6 +363,7 @@ pub async fn start_game(
     maxima.playing = Some(ActiveGameContext::new(
         &launch_id,
         dir,
+        options.cloud_saves,
         &content_id,
         offer,
         mode,

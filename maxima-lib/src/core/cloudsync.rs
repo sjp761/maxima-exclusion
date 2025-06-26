@@ -1,3 +1,19 @@
+/// Cloud sync is a process and a half. Here's a high-level overview of it:
+/// # Reading (pre-launch)
+/// - Call `/lock/read`, which gives us a link to an XML on S3:
+/// a manifest of all files in the cloud, along with their MD5 hash and last modified date
+/// - If you feel the need to update the local files:
+///   - Call `/lock/authorize` with a `Vec<CloudSyncRequest>` containing the corresponding `href` from the manifest
+///   - This will return an XML with S3 targets corresponding to the files. Download them (the response body is the file, verbatim) and write them.
+/// - Call `/lock/delete` to release the lock. **This is not optional**, however it will automatically release after 5-10 minutes.
+///
+/// # Writing (post-game)
+/// - Call `/lock/write` which has the same functionality to you, but locks *write* on the backend
+/// - If you feel the need to update cloud files:
+///   - Call `/lock/authorize` with a `Vec<CloudSyncRequest>`, creating details that match the file and keeping track of them for later
+///   - Push the files to the endpoints, along with a manifest outlining the files you uploaded and/or that are already there.
+/// - Call `/lock/delete`
+
 use super::{
     auth::storage::LockedAuthStorage, endpoints::API_CLOUDSYNC, launch::LaunchMode,
     library::OwnedOffer,
@@ -5,7 +21,7 @@ use super::{
 use crate::util::native::{NativeError, SafeParent, SafeStr};
 use derive_getters::Getters;
 use futures::StreamExt;
-use log::debug;
+use log::{debug, error};
 use reqwest::{Client, ClientBuilder};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -61,8 +77,8 @@ pub enum CloudSyncLockMode {
 impl Debug for CloudSyncLockMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CloudSyncLockMode::Read => write!(f, "readlock"),
-            CloudSyncLockMode::Write => write!(f, "writelock"),
+            CloudSyncLockMode::Read => write!(f, "lock/read"),
+            CloudSyncLockMode::Write => write!(f, "lock/write"),
         }
     }
 }
@@ -133,7 +149,12 @@ fn unsubstitute_paths<P: AsRef<Path>>(path: P) -> Result<String, NativeError> {
     }
 }
 
-async fn calc_file_md5(file: File) -> Result<String, CloudSyncError> {
+enum HashMode {
+    Hex,
+    Base62,
+}
+
+async fn calc_file_md5(file: File, mode: HashMode) -> Result<String, CloudSyncError> {
     let len = file.metadata().await?.len();
 
     let buf_len = len.min(1_000_000) as usize;
@@ -153,7 +174,19 @@ async fn calc_file_md5(file: File) -> Result<String, CloudSyncError> {
     }
 
     let digest = context.compute();
-    Ok(format!("{:x}", digest))
+
+    match mode {
+        HashMode::Hex => Ok(format!("{:x}", digest)),
+        HashMode::Base62 => {
+            let mut b = format!("{}", u128::from_le_bytes(digest.0));
+
+            while b.len() < 24 {
+                b = format!("{}=", b)
+            }
+
+            Ok(b)
+        }
+    }
 }
 
 #[derive(Getters)]
@@ -213,13 +246,14 @@ impl<'a> CloudSyncLock<'a> {
 
         let res = self
             .client
-            .put(format!("{}/lock/{}?status=commit", API_CLOUDSYNC, user_id))
+            .delete(format!("{}/lock/delete/{}", API_CLOUDSYNC, user_id))
             .header(AUTH_HEADER, token)
             .header(LOCK_HEADER, &self.lock)
+            .header("Content-Length", 0)
             .send()
             .await?;
 
-        res.text().await?;
+        res.error_for_status()?;
 
         debug!("Released CloudSync {:?} {}", self.mode, self.lock);
         Ok(())
@@ -244,19 +278,23 @@ impl<'a> CloudSyncLock<'a> {
 
             let file = OpenOptions::new().read(true).open(path.clone()).await;
 
-            if let Ok(file) = file {
-                let md5 = calc_file_md5(file).await?;
+            let md5 = if let Ok(file) = file {
+                let md5 = calc_file_md5(file, HashMode::Hex).await?;
                 if let Some(_) = self.manifest.file_by_md5(&md5) {
-                    debug!("Skipping CloudSync read {}", md5);
+                    debug!("Skipping CloudSync read {}", &path.display());
                     continue;
                 }
-            }
+                md5
+            } else {
+                continue;
+            };
 
             value.request.push(CloudSyncRequest {
                 attr_id: i.to_string(),
                 verb: "GET".to_owned(),
                 resource: self.manifest.file[i].attr_href.to_owned(),
                 content_type: None,
+                md5: None,
             });
 
             paths.insert(i.to_string(), path);
@@ -271,7 +309,7 @@ impl<'a> CloudSyncLock<'a> {
 
         let res = self
             .client
-            .put(format!("{}/authorize/{}", API_CLOUDSYNC, user_id))
+            .put(format!("{}/lock/authorize/{}", API_CLOUDSYNC, user_id))
             .header(AUTH_HEADER, token)
             .header(LOCK_HEADER, &self.lock)
             .header("Content-Type", "application/xml")
@@ -280,16 +318,24 @@ impl<'a> CloudSyncLock<'a> {
             .await?;
 
         let text = res.text().await?;
-        let authorizations: CloudSyncAuthorizedRequests = quick_xml::de::from_str(&text)?;
+        let authorizations: CloudSyncAuthorizationResponses = quick_xml::de::from_str(&text)?;
 
         for i in 0..authorizations.request.len() {
             let auth_req = &authorizations.request[i];
             let mut req = self.client.get(&auth_req.url);
-            for header in &auth_req.headers.header {
-                req = req.header(&header.attr_key, &header.attr_value);
+            let res = req.send().await?;
+            if !res.status().is_success() {
+                // If the request is invalid, S3 will return an error *and* include that error in the body.
+                // DO NOT save the body to disk if it's an error. It will corrupt your save data.
+                // Ask me how I know.
+                error!(
+                    "Failed to download CloudSync file: {:?}: {}",
+                    res.status(),
+                    res.text().await?
+                );
+                continue;
             }
 
-            let res = req.send().await?;
             let path = paths.get(&auth_req.attr_id).unwrap();
 
             debug!(
@@ -318,15 +364,23 @@ impl<'a> CloudSyncLock<'a> {
         let mut auth_reqs = CloudSyncRequests::default();
 
         enum WriteData {
-            File(String, File, String), // Name, File, B64 MD5
-            Text(String, String),       // Name, Text
+            File {
+                name: String,
+                file: File,
+                hex: String,
+                base62: String,
+            },
+            Text {
+                name: String,
+                text: String,
+            },
         }
 
         impl WriteData {
             pub async fn file_key(&self) -> Result<String, CloudSyncError> {
                 Ok(match self {
-                    WriteData::File(_name, file, hash) => {
-                        format!("{}-{}", file.metadata().await?.len(), hash)
+                    WriteData::File { file, hex, .. } => {
+                        format!("{}-{}", file.metadata().await?.len(), hex)
                     }
                     _ => String::new(),
                 })
@@ -338,6 +392,7 @@ impl<'a> CloudSyncLock<'a> {
             verb: "PUT".to_owned(),
             resource: "manifest.xml".to_owned(),
             content_type: Some("text/xml".to_owned()),
+            md5: None, // this is gonna bite me in the ass
         });
 
         let mut data = HashMap::new();
@@ -347,28 +402,42 @@ impl<'a> CloudSyncLock<'a> {
         for path in &self.allowed_files {
             let file = OpenOptions::new().read(true).open(path.clone()).await?;
 
-            let md5 = calc_file_md5(file.try_clone().await?).await?;
+            let md5 = calc_file_md5(file.try_clone().await?, HashMode::Hex).await?;
+            let base62 = calc_file_md5(file.try_clone().await?, HashMode::Base62).await?;
             if let Some(file) = self.manifest.file_by_md5(&md5) {
-                debug!("Skipping CloudSync write {}", md5);
+                debug!("Skipping CloudSync write {}", &path.display());
                 skipped.push(file);
                 continue;
             }
 
             let name = unsubstitute_paths(&path)?;
-            let write_data = WriteData::File(name, file, md5);
+            let write_data = WriteData::File {
+                name,
+                file,
+                hex: md5,
+                base62: base62.clone(),
+            };
+
+            // TODO(headassbtw): DELETE if already present
 
             auth_reqs.request.push(CloudSyncRequest {
                 attr_id: i.to_string(),
                 verb: "PUT".to_owned(),
                 resource: write_data.file_key().await?,
-                content_type: Some("binary/octet-stream".to_owned()),
+                content_type: None,
+                md5: Some(base62),
             });
 
             data.insert(i, write_data);
             i += 1;
         }
 
-        // Build manifest
+        // Don't bother uploading/updating the cloudsave data if there's no changes.
+        if data.is_empty() {
+            return Ok(());
+        }
+
+        // Create a manifest that tells the cloud what files it does and is going to have.
         {
             let mut manifest = self.manifest.clone();
             manifest.file.clear();
@@ -377,12 +446,15 @@ impl<'a> CloudSyncLock<'a> {
                 manifest.file.push(ele.clone());
             }
 
-            for ele in &data {
-                if let WriteData::File(name, file, hash) = ele.1 {
+            for (_, write_data) in &data {
+                if let WriteData::File {
+                    name, file, base62, ..
+                } = write_data
+                {
                     let file = CloudSyncFile {
-                        attr_href: ele.1.file_key().await?,
+                        attr_href: write_data.file_key().await?,
                         attr_size: file.metadata().await?.len().to_string(),
-                        attr_md5: Some(hash.to_owned()),
+                        attr_md5: Some(base62.to_owned()),
                         local_name: name.to_owned(),
                     };
 
@@ -392,7 +464,13 @@ impl<'a> CloudSyncLock<'a> {
 
             let manifest =
                 quick_xml::se::to_string(&manifest)?.replace("CloudSyncManifest", "manifest");
-            data.insert(0, WriteData::Text("manifest.xml".to_owned(), manifest));
+            data.insert(
+                0,
+                WriteData::Text {
+                    name: "manifest.xml".to_owned(),
+                    text: manifest,
+                },
+            );
         }
 
         let (token, user_id) = acquire_auth(self.auth).await?;
@@ -400,7 +478,7 @@ impl<'a> CloudSyncLock<'a> {
 
         let res = self
             .client
-            .put(format!("{}/authorize/{}", API_CLOUDSYNC, user_id))
+            .put(format!("{}/lock/authorize/{}", API_CLOUDSYNC, user_id))
             .header(AUTH_HEADER, token)
             .header(LOCK_HEADER, &self.lock)
             .header("Content-Type", "application/xml")
@@ -408,34 +486,44 @@ impl<'a> CloudSyncLock<'a> {
             .send()
             .await?;
 
-        let text = res.text().await?;
-        let authorizations: CloudSyncAuthorizedRequests = quick_xml::de::from_str(&text)?;
+        let text = res.error_for_status()?.text().await?;
+        let authorizations: CloudSyncAuthorizationResponses = quick_xml::de::from_str(&text)?;
 
         for i in 0..authorizations.request.len() {
             let auth_req = &authorizations.request[i];
             let mut req = self.client.put(&auth_req.url);
-            for header in &auth_req.headers.header {
+            for header in &auth_req.headers.header.clone().unwrap_or(Vec::new()) {
                 req = req.header(&header.attr_key, &header.attr_value);
             }
 
-            let (name, length) = match &data[&i] {
-                WriteData::File(name, file, _hash) => {
+            let length = match &data[&i] {
+                WriteData::File { file, .. } => {
                     let mut buffer = vec![0; file.metadata().await?.len() as usize];
                     file.try_clone().await?.read_to_end(&mut buffer).await?;
 
                     let len = buffer.len();
                     req = req.body(buffer);
 
-                    (name.to_owned(), len as u64)
+                    len as u64
                 }
-                WriteData::Text(name, text) => {
+                WriteData::Text {text, .. } => {
                     req = req.body(text.to_owned());
-                    (name.to_owned(), text.len() as u64)
+                    text.len() as u64
                 }
             };
 
             req = req.header("Content-Length", length);
-            req.send().await?.error_for_status()?;
+            let res = req.send().await?;
+
+            if !res.status().is_success() {
+                error!(
+                    "Failed to upload CloudSync file {}: {} {}",
+                    auth_reqs.request[i].resource,
+                    res.status(),
+                    res.text().await?
+                );
+                continue;
+            }
 
             debug!(
                 "Uploaded CloudSync file [{:?}, {} bytes]",
@@ -505,6 +593,7 @@ impl CloudSyncClient {
             .client
             .post(format!("{}/{:?}/{}/{}", API_CLOUDSYNC, mode, user_id, id))
             .header(AUTH_HEADER, token)
+            .header("Content-Length", 0)
             .send()
             .await?;
         let lock = match res.headers().get("x-origin-sync-lock") {
@@ -662,6 +751,8 @@ cloudsync_type!(
     Sync;
     attr {},
     data {
+        host: String,
+        root: String,
         manifest: String,
     }
 );
@@ -674,6 +765,7 @@ cloudsync_type!(
     data {
         verb: String,
         resource: String,
+        md5: Option<String>,
 
         #[serde(rename = "content-type")]
         content_type: Option<String>,
@@ -701,12 +793,12 @@ cloudsync_type!(
     HeaderWrapper;
     attr {},
     data {
-        header: Vec<CloudSyncHeader>,
+        header: Option<Vec<CloudSyncHeader>>,
     }
 );
 
 cloudsync_type!(
-    AuthorizedRequest;
+    AuthorizationResponse;
     attr {
         id: String,
     },
@@ -717,10 +809,10 @@ cloudsync_type!(
 );
 
 cloudsync_type!(
-    AuthorizedRequests;
+    AuthorizationResponses;
     attr {},
     data {
-        request: Vec<CloudSyncAuthorizedRequest>,
+        request: Vec<CloudSyncAuthorizationResponse>,
     }
 );
 

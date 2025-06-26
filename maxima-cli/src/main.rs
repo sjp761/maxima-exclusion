@@ -31,7 +31,7 @@ use maxima::{
         },
         clients::JUNO_PC_CLIENT_ID,
         cloudsync::CloudSyncLockMode,
-        launch::{self, LaunchMode},
+        launch::{self, LaunchMode, LaunchOptions},
         library::OwnedTitle,
         manifest::{self, MANIFEST_RELATIVE_PATH},
         service_layer::{
@@ -829,12 +829,17 @@ async fn start_game(
         }
     }
 
+    let launch_options = LaunchOptions {
+        path_override: game_path_override,
+        arguments: game_args,
+        cloud_saves: true,
+    };
+
     if login.is_none() {
         launch::start_game(
             maxima_arc.clone(),
             LaunchMode::Online(offer_id.to_owned()),
-            game_path_override,
-            game_args,
+            launch_options,
         )
         .await?;
     } else if let Some(captures) = MANUAL_LOGIN_PATTERN.captures(&login.unwrap()) {
@@ -844,8 +849,7 @@ async fn start_game(
         launch::start_game(
             maxima_arc.clone(),
             LaunchMode::OnlineOffline(offer_id.to_owned(), persona.to_owned(), password.to_owned()),
-            game_path_override,
-            game_args,
+            launch_options,
         )
         .await?;
     }
