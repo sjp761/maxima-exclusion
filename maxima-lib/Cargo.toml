@@ -42,7 +42,7 @@ sysinfo = "0.29.7"
 strum_macros = "0.25.2"
 sha2-const = "0.1.2"
 tar = "0.4"
-flate2 = { version = "1.0.28", default-features = false, features = ["zlib-default"] }
+flate2 = { version = "=1.0.28", default-features = false, features = ["zlib-default"] }
 xz2 = "0.1.7"
 zstd = "0.13.0"
 toml = "0.8.8"
