@@ -15,6 +15,7 @@ pub mod downloader;
 pub mod manager;
 pub mod zip;
 pub mod zlib;
+pub mod exclusion;
 
 pub struct ContentService {
     service_layer: ServiceLayerClient,

@@ -15,10 +15,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::{fs, sync::Notify};
 use tokio_util::sync::CancellationToken;
+use globset::GlobSet;
 
 use crate::{
     content::{
         downloader::{DownloadError, ZipDownloader},
+        exclusion::get_exclusion_list,
         zip::{self, CompressionType, ZipError, ZipFileEntry},
         ContentService,
     },
@@ -149,8 +151,17 @@ impl GameDownloader {
         let downloader = ZipDownloader::new(&game.offer_id, &url.url(), &game.path).await?;
 
         let mut entries = Vec::new();
-        for ele in downloader.manifest().entries() {
+
+        let exclusion_list = get_exclusion_list(game.offer_id.clone());
+
+        for ele in downloader.manifest().entries() 
+        {
             // TODO: Filtering
+            if exclusion_list.is_match(&ele.name())
+            {
+                info!("Excluding file from download: {}", ele.name());
+                continue;
+            }
             entries.push(ele.clone());
         }
 
