@@ -58,6 +58,12 @@ pub enum WineError {
     UnimplementedRuntime(String),
     #[error("couldn't find suitable wine release")]
     Fetch,
+    #[error("MAXIMA_SLR_PATH environment variable must be set when using SLR")]
+    MissingSLRPath,
+    #[error("MAXIMA_PROTON_PATH environment variable must be set when using SLR")]
+    MissingProtonPath,
+    #[error("Steam Linux Runtime entry point not found at: {0}")]
+    SLRNotFound(PathBuf),
 }
 pub trait SafeParent {
     fn safe_parent(&self) -> Result<&Path, NativeError>;

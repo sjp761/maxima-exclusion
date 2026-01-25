@@ -23,7 +23,7 @@ use tokio::{
 use xz2::read::XzDecoder;
 
 use crate::util::{
-    github::{fetch_github_release, fetch_github_releases, github_download_asset, GithubRelease},
+    github::{fetch_github_releases, github_download_asset, GithubRelease},
     native::{maxima_dir, DownloadError, NativeError, SafeParent, SafeStr, WineError},
     registry::RegistryError,
 };
@@ -72,10 +72,18 @@ struct Versions {
 
 /// Returns internal prtoton pfx path
 pub fn wine_prefix_dir() -> Result<PathBuf, NativeError> {
+    if let Ok(path) = env::var("MAXIMA_WINE_PREFIX") {
+        return Ok(PathBuf::from(path));
+    }
+
     Ok(maxima_dir()?.join("wine/prefix"))
 }
 
 pub fn proton_dir() -> Result<PathBuf, NativeError> {
+    if let Ok(path) = env::var("MAXIMA_PROTON_PATH") {
+        return Ok(PathBuf::from(path));
+    }
+
     Ok(maxima_dir()?.join("wine/proton"))
 }
 
@@ -108,6 +116,12 @@ fn set_versions(versions: Versions) -> Result<(), NativeError> {
 }
 
 pub(crate) async fn check_wine_validity() -> Result<bool, NativeError> {
+    // Skip check if using custom Proton path
+    if env::var("MAXIMA_PROTON_PATH").is_ok() {
+        info!("Using custom Proton path, skipping validity check");
+        return Ok(true);
+    }
+
     if !proton_dir()?.exists() {
         return Ok(false);
     }
@@ -234,7 +248,8 @@ fn get_wine_release() -> Result<GithubRelease, WineError> {
     release.ok_or(WineError::Fetch)
 }
 
-pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
+/// Run a wine command using UMU launcher
+async fn run_wine_command_umu<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     arg: T,
     args: Option<I>,
     cwd: Option<PathBuf>,
@@ -252,10 +267,10 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     // Create command with all necessary wine env variables
     let mut binding = Command::new(wine_path.clone());
     let mut child = binding
-        .env("WINEPREFIX", proton_prefix_path)
+        .env("WINEPREFIX", &proton_prefix_path)
         .env("GAMEID", "umu-0")
         .env("PROTON_VERB", &command_type.to_string())
-        .env("PROTONPATH", proton_path)
+        .env("PROTONPATH", &proton_path)
         .env("STORE", "ea")
         .env("PROTON_EAC_RUNTIME", eac_path)
         .env("UMU_ZENITY", "1")
@@ -304,7 +319,125 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     Ok(output_str.to_string())
 }
 
+/// Run a wine command using Steam Linux Runtime
+async fn run_wine_command_slr<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
+    arg: T,
+    args: Option<I>,
+    cwd: Option<PathBuf>,
+    want_output: bool,
+    command_type: CommandType,
+) -> Result<String, NativeError> {
+    let slr_path = env::var("MAXIMA_SLR_PATH")
+        .map_err(|_| NativeError::Wine(WineError::MissingSLRPath))?;
+    let proton_dir_path = env::var("MAXIMA_PROTON_PATH")
+        .map_err(|_| NativeError::Wine(WineError::MissingProtonPath))?;
+    let proton_exe = PathBuf::from(&proton_dir_path)
+        .join("proton")
+        .to_string_lossy()
+        .to_string();
+    let proton_prefix_path = wine_prefix_dir()?;
+    
+    // Get the Steam client install path, defaulting to common location
+    let steam_client_path = env::var("STEAM_COMPAT_CLIENT_INSTALL_PATH")
+        .unwrap_or_else(|_| {
+            env::var("HOME")
+                .map(|h| format!("{}/.steam/steam", h))
+                .unwrap_or_else(|_| "/home/user/.steam/steam".to_string())
+        });
+
+    // Build the SLR entry point path
+    let slr_entry_point = PathBuf::from(&slr_path).join("_v2-entry-point");
+    
+    if !slr_entry_point.exists() {
+        return Err(NativeError::Wine(WineError::SLRNotFound(slr_entry_point)));
+    }
+
+    // Build proton command with verb passed to _v2-entry-point
+    let mut proton_args = vec![proton_exe.clone(), "run".to_string()];
+    proton_args.push(arg.as_ref().to_string_lossy().to_string());
+    
+    if let Some(arguments) = args {
+        for a in arguments {
+            proton_args.push(a.as_ref().to_string_lossy().to_string());
+        }
+    }
+
+    let slr_verb = format!("--verb={}", command_type.to_string());
+
+    let mut binding = Command::new(slr_entry_point);
+    let mut child = binding
+        .env("WINEPREFIX", &proton_prefix_path)
+        .env("STEAM_COMPAT_DATA_PATH", &proton_prefix_path)
+        .env("STEAM_COMPAT_CLIENT_INSTALL_PATH", &steam_client_path)
+        .env("SteamAppId", "0")
+        .env("STEAM_COMPAT_APP_ID", "0")
+        .env("SteamGameId", "0")
+        .env("WINEDEBUG", "fixme-all")
+        .env("LD_PRELOAD", "")
+        .arg(&slr_verb)
+        .arg("--")
+        .args(proton_args);
+
+    // Hardcode compat install path until dynamic wiring is added; still honor cwd for working dir
+    child = child.env(
+        "STEAM_COMPAT_INSTALL_PATH",
+        "/mnt/games/Games/mass-effect-legendary-edition",
+    );
+
+    if let Some(ref dir) = cwd {
+        child = child.current_dir(dir);
+    }
+
+    let status: ExitStatus;
+    let mut output_str = String::new();
+
+    if want_output {
+        let output = child
+            .stdout(Stdio::piped())
+            .spawn()?
+            .wait_with_output()
+            .await?;
+        output_str = String::from_utf8_lossy(&output.stdout).to_string();
+        status = output.status;
+    } else {
+        status = child.spawn()?.wait().await?;
+    };
+
+    if !status.success() {
+        return Err(NativeError::Wine(WineError::Command {
+            output: output_str,
+            exit: status,
+        }));
+    }
+
+    Ok(output_str.to_string())
+}
+
+pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
+    arg: T,
+    args: Option<I>,
+    cwd: Option<PathBuf>,
+    want_output: bool,
+    command_type: CommandType,
+) -> Result<String, NativeError> {
+    // Check if using Steam Linux Runtime
+    let use_slr = env::var("MAXIMA_USE_SLR").is_ok();
+
+    if use_slr {
+        run_wine_command_slr(arg, args, cwd, want_output, command_type).await
+    } else {
+        run_wine_command_umu(arg, args, cwd, want_output, command_type).await
+    }
+}
+
 pub(crate) async fn install_wine() -> Result<(), NativeError> {
+    // Skip installation if using custom Proton path
+    if env::var("MAXIMA_PROTON_PATH").is_ok() {
+        info!("Using custom Proton path, skipping Proton-GE installation");
+        let _ = run_wine_command("", None::<[&str; 0]>, None, false, CommandType::Run).await;
+        return Ok(());
+    }
+
     let release = get_wine_release()?;
     let asset = match release
         .assets
@@ -476,7 +609,7 @@ async fn parse_wine_registry(file_path: &str) -> WineRegistry {
 }
 
 pub async fn parse_mx_wine_registry() -> Result<WineRegistry, NativeError> {
-    let path = wine_prefix_dir()?.join("system.reg");
+    let path = wine_prefix_dir()?.join("pfx").join("system.reg");
     if !path.exists() {
         return Ok(HashMap::new());
     }

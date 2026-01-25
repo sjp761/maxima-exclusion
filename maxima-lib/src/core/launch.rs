@@ -402,9 +402,10 @@ async fn request_opaque_ooa_token(access_token: &str) -> Result<String, AuthErro
 pub async fn mx_linux_setup() -> Result<(), NativeError> {
     use crate::unix::wine::{
         check_runtime_validity, check_wine_validity, get_lutris_runtimes, install_runtime,
-        install_wine, setup_wine_registry,
+        install_wine, setup_wine_registry, run_wine_command, wine_prefix_dir, CommandType,
     };
 
+    std::fs::create_dir_all(wine_prefix_dir()?)?;
     info!("Verifying wine dependencies...");
 
     let skip = std::env::var("MAXIMA_DISABLE_WINE_VERIFICATION").is_ok();
@@ -413,14 +414,17 @@ pub async fn mx_linux_setup() -> Result<(), NativeError> {
             install_wine().await?;
         }
         let runtimes = get_lutris_runtimes().await?;
-        if !check_runtime_validity("eac_runtime", &runtimes).await? {
+        if !check_runtime_validity("eac_runtime", &runtimes).await? && !std::env::var("MAXIMA_DISABLE_EAC").is_ok() {
             install_runtime("eac_runtime", &runtimes).await?;
         }
-        if !check_runtime_validity("umu", &runtimes).await? {
+        let use_slr = std::env::var("MAXIMA_USE_SLR").is_ok();
+        if !check_runtime_validity("umu", &runtimes).await? && !use_slr {
             install_runtime("umu", &runtimes).await?;
         }
     }
 
+    let _ = run_wine_command("wineboot", Some(vec!["--init"]), None, false, CommandType::Run).await;
+    info!("Setting up wine registry...");
     setup_wine_registry().await?;
 
     Ok(())
