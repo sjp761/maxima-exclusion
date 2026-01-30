@@ -74,6 +74,11 @@ pub fn get_game_settings(slug: &str) -> GameSettings
 
 pub fn save_game_settings(slug: &str, settings: &GameSettings) 
 {
+    if settings.installed == false 
+    {
+        info!("Skipping save for {} as game is not installed.", slug);
+        return;
+    }
     info!("Saving settings for {}...", slug);
     if let Ok(dir) = maxima_dir() 
     {
