@@ -155,12 +155,12 @@ impl GameDownloader {
 
         let mut entries = Vec::new();
 
-        let exclusion_list = get_exclusion_list(game.slug.clone());
+        let exclusion_list = get_exclusion_list(game.slug.as_str());
 
         for ele in downloader.manifest().entries() {
             // TODO: Filtering
             if exclusion_list.is_match(&ele.name()) {
-                info!("Excluding file from download: {}", ele.name());
+                // info!("Excluding file from download: {}", ele.name()); Spams if a lot of files are excluded
                 continue;
             }
             entries.push(ele.clone());

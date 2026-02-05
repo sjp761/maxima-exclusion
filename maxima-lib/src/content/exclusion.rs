@@ -4,7 +4,7 @@ use log::{error, info, warn};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-pub fn get_exclusion_list(slug: String) -> GlobSet {
+pub fn get_exclusion_list(slug: &str) -> GlobSet {
     let mut builder = GlobSetBuilder::new();
 
     if let Ok(dir) = maxima_dir()
