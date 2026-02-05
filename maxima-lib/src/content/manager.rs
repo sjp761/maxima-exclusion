@@ -200,7 +200,7 @@ impl GameDownloader {
                 cancel_token,
                 completed_bytes,
                 notify,
-                slug,
+                &slug,
             )
             .await;
             if let Err(err) = dl {
@@ -234,7 +234,7 @@ impl GameDownloader {
         cancel_token: CancellationToken,
         completed_bytes: Arc<AtomicUsize>,
         notify: Arc<Notify>,
-        slug: String,
+        slug: &str,
     ) -> Result<(), DownloaderError> {
         let mut handles = Vec::with_capacity(total_count);
 

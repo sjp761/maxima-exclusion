@@ -207,7 +207,7 @@ impl<'a> CloudSyncLock<'a> {
         lock: String,
         mode: CloudSyncLockMode,
         allowed_files: Vec<PathBuf>,
-        slug: String,
+        slug: &str,
     ) -> Result<Self, CloudSyncError> {
         let res = client.get(manifest_url).send().await?;
 
@@ -239,7 +239,7 @@ impl<'a> CloudSyncLock<'a> {
             manifest,
             mode,
             allowed_files,
-            slug,
+            slug: slug.to_owned(),
         })
     }
 
@@ -581,7 +581,7 @@ impl CloudSyncClient {
             return Err(CloudSyncError::NoConfig(offer.offer_id().clone()));
         }
 
-        Ok(self.obtain_lock_raw(&id, mode, allowed_files, slug).await?)
+        Ok(self.obtain_lock_raw(&id, mode, allowed_files, &slug).await?)
     }
 
     pub async fn obtain_lock_raw<'a>(
@@ -589,7 +589,7 @@ impl CloudSyncClient {
         id: &str,
         mode: CloudSyncLockMode,
         allowed_files: Vec<PathBuf>,
-        slug: String,
+        slug: &str,
     ) -> Result<CloudSyncLock, CloudSyncError> {
         let (token, user_id) = acquire_auth(&self.auth).await?;
 
