@@ -22,11 +22,16 @@ use tokio::{
 };
 use xz2::read::XzDecoder;
 
-use crate::{core::GamePrefixMap, util::{
-    github::{GithubRelease, fetch_github_release, fetch_github_releases, github_download_asset},
-    native::{DownloadError, NativeError, SafeParent, SafeStr, WineError, maxima_dir},
-    registry::RegistryError,
-}};
+use crate::{
+    core::GamePrefixMap,
+    util::{
+        github::{
+            fetch_github_release, fetch_github_releases, github_download_asset, GithubRelease,
+        },
+        native::{maxima_dir, DownloadError, NativeError, SafeParent, SafeStr, WineError},
+        registry::RegistryError,
+    },
+};
 
 lazy_static! {
     static ref PROTON_PATTERN: Regex = Regex::new(r"GE-Proton\d+-\d+\.tar\.gz").unwrap();

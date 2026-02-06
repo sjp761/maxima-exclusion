@@ -146,7 +146,8 @@ pub enum MaximaCreationError {
 pub type LockedMaxima = Arc<Mutex<Maxima>>;
 
 lazy_static! {
-    pub static ref GamePrefixMap: std::sync::Mutex<HashMap<String, String>> = std::sync::Mutex::new(HashMap::new());
+    pub static ref GamePrefixMap: std::sync::Mutex<HashMap<String, String>> =
+        std::sync::Mutex::new(HashMap::new());
 }
 
 impl Maxima {

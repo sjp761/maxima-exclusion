@@ -123,7 +123,8 @@ impl GameSettingsManager {
     pub async fn save(&mut self, slug: &str, settings: GameSettings) {
         save_game_settings(slug, &settings);
         self.settings.insert(slug.to_string(), settings.clone());
-        GamePrefixMap.lock()
+        GamePrefixMap
+            .lock()
             .unwrap()
             .insert(slug.to_string(), settings.wine_prefix().to_string().into());
     }

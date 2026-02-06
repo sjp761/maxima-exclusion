@@ -581,7 +581,9 @@ impl CloudSyncClient {
             return Err(CloudSyncError::NoConfig(offer.offer_id().clone()));
         }
 
-        Ok(self.obtain_lock_raw(&id, mode, allowed_files, &slug).await?)
+        Ok(self
+            .obtain_lock_raw(&id, mode, allowed_files, &slug)
+            .await?)
     }
 
     pub async fn obtain_lock_raw<'a>(
