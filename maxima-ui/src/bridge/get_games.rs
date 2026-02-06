@@ -19,8 +19,6 @@ use maxima::{
 };
 use std::{fs, sync::mpsc::Sender};
 
-use maxima::gamesettings::{GameSettings, GameSettingsManager};
-
 fn get_preferred_bg_hero(heroes: &Option<ServiceGameHubCollection>) -> Option<String> {
     let heroes = match heroes {
         Some(h) => h.items().get(0),

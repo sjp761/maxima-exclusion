@@ -426,7 +426,7 @@ async fn request_opaque_ooa_token(access_token: &str) -> Result<String, AuthErro
 pub async fn mx_linux_setup(slug: Option<&str>) -> Result<(), NativeError> {
     use crate::unix::wine::{
         check_runtime_validity, check_wine_validity, get_lutris_runtimes, install_runtime,
-        install_wine, run_wine_command, setup_wine_registry, wine_prefix_dir, CommandType,
+        install_wine, setup_wine_registry, wine_prefix_dir,
     };
 
     std::fs::create_dir_all(wine_prefix_dir(slug)?)?;

@@ -25,7 +25,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use derive_getters::Getters;
 use flate2::bufread::DeflateDecoder as BufreadDeflateDecoder;
 use futures::{Stream, StreamExt, TryStreamExt};
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use reqwest::Client;
 use strum_macros::Display;
 use thiserror::Error;

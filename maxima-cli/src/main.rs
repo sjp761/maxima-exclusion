@@ -667,8 +667,8 @@ async fn get_user_by_id(maxima_arc: LockedMaxima, user_id: &str) -> Result<()> {
     Ok(())
 }
 
-async fn get_game_by_slug(maxima_arc: LockedMaxima, slug: &str) -> Result<()> {
-    let maxima = maxima_arc.lock().await;
+async fn get_game_by_slug(maxima_arc: LockedMaxima, _slug: &str) -> Result<()> {
+    let _maxima = maxima_arc.lock().await;
 
     // match maxima.owned_game_by_slug(slug).await {
     //     Ok(game) => info!("Game: {}", game.id()),

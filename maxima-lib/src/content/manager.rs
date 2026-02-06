@@ -6,11 +6,9 @@ use std::{
     },
 };
 
-use crate::core::LockedMaxima;
 use derive_builder::Builder;
 use derive_getters::Getters;
 use futures::StreamExt;
-use globset::GlobSet;
 use log::{debug, error, info};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};

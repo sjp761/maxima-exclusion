@@ -13,14 +13,9 @@ use super::{
 };
 #[cfg(unix)]
 use crate::unix::fs::case_insensitive_path;
+use crate::util::native::{maxima_dir, NativeError, SafeStr};
 use crate::util::registry::{parse_partial_registry_path, parse_registry_path, RegistryError};
-use crate::{
-    core::settings,
-    gamesettings::GameSettingsManager,
-    util::native::{maxima_dir, NativeError, SafeStr},
-};
 use derive_getters::Getters;
-use log::info;
 use std::{collections::HashMap, path::PathBuf, time::SystemTimeError};
 use thiserror::Error;
 
