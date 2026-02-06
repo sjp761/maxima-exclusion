@@ -67,7 +67,13 @@ pub fn get_game_settings(slug: &str) -> GameSettings {
         Err(_) => return GameSettings::new_with_slug(slug),
     };
 
-    serde_json::from_str(&content).unwrap_or_else(|_| GameSettings::new_with_slug(slug))
+    let game_settings =
+        serde_json::from_str(&content).unwrap_or_else(|_| GameSettings::new_with_slug(slug));
+    GamePrefixMap
+        .lock()
+        .unwrap()
+        .insert(slug.to_string(), game_settings.wine_prefix().to_string());
+    game_settings
 }
 
 pub fn save_game_settings(slug: &str, settings: &GameSettings) {
@@ -120,12 +126,12 @@ impl GameSettingsManager {
             .unwrap_or_else(|| GameSettings::new_with_slug(slug))
     }
 
-    pub async fn save(&mut self, slug: &str, settings: GameSettings) {
+    pub fn save(&mut self, slug: &str, settings: GameSettings) {
         save_game_settings(slug, &settings);
         self.settings.insert(slug.to_string(), settings.clone());
         GamePrefixMap
             .lock()
             .unwrap()
-            .insert(slug.to_string(), settings.wine_prefix().to_string().into());
+            .insert(slug.to_string(), settings.wine_prefix().to_string());
     }
 }

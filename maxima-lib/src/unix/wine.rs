@@ -78,15 +78,29 @@ struct Versions {
 /// Returns internal prtoton pfx path
 pub fn wine_prefix_dir(slug: Option<&str>) -> Result<PathBuf, NativeError> {
     if let Some(slug) = slug {
+        // Check if prefix is already in the cache map
         if let Some(prefix) = GamePrefixMap.lock().unwrap().get(slug) {
             return Ok(prefix.clone().into());
         }
-    }
-    let base = maxima_dir()?.join("wine/prefix");
-    if let Some(slug) = slug {
-        Ok(base.join(slug))
+
+        // Load settings from disk to get the wine_prefix
+        use crate::gamesettings::get_game_settings;
+        let settings = get_game_settings(slug);
+        let prefix = settings.wine_prefix();
+
+        // If settings have a non-empty wine_prefix, cache it and return it
+        if !prefix.is_empty() {
+            GamePrefixMap
+                .lock()
+                .unwrap()
+                .insert(slug.to_string(), prefix.to_string());
+            return Ok(prefix.into());
+        }
+
+        // Fallback to default path
+        Ok(maxima_dir()?.join("wine/prefix").join(slug))
     } else {
-        Ok(base)
+        Ok(maxima_dir()?.join("wine/prefix"))
     }
 }
 
