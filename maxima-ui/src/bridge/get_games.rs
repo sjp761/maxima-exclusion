@@ -7,12 +7,9 @@ use egui::Context;
 use log::{debug, error, info};
 use maxima::{
     core::{
-        service_layer::{
-            ServiceGame, ServiceGameHub, ServiceGameHubCollection, ServiceGameImagesRequestBuilder,
-            ServiceHeroBackgroundImageRequestBuilder, ServiceLayerClient,
-            SERVICE_REQUEST_GAMEIMAGES, SERVICE_REQUEST_GETHEROBACKGROUNDIMAGE,
-        },
-        LockedMaxima,
+        GamePrefixMap, LockedMaxima, service_layer::{
+            SERVICE_REQUEST_GAMEIMAGES, SERVICE_REQUEST_GETHEROBACKGROUNDIMAGE, ServiceGame, ServiceGameHub, ServiceGameHubCollection, ServiceGameImagesRequestBuilder, ServiceHeroBackgroundImageRequestBuilder, ServiceLayerClient
+        }
     },
     gamesettings::get_game_settings,
     util::native::maxima_dir,
@@ -239,6 +236,10 @@ pub async fn get_games_request(
         // Grab persisted settings from Maxima's GameSettingsManager if available
         let core_settings = get_game_settings(&slug);
         game_settings.save(&slug, core_settings.clone());
+        GamePrefixMap
+            .lock()
+            .unwrap()
+            .insert(slug.clone(), core_settings.wine_prefix.clone());
         let settings = core_settings.clone();
         let res = MaximaLibResponse::GameInfoResponse(InteractThreadGameListResponse {
             game: game_info,

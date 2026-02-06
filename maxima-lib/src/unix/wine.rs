@@ -22,11 +22,11 @@ use tokio::{
 };
 use xz2::read::XzDecoder;
 
-use crate::util::{
-    github::{fetch_github_release, fetch_github_releases, github_download_asset, GithubRelease},
-    native::{maxima_dir, DownloadError, NativeError, SafeParent, SafeStr, WineError},
+use crate::{core::GamePrefixMap, util::{
+    github::{GithubRelease, fetch_github_release, fetch_github_releases, github_download_asset},
+    native::{DownloadError, NativeError, SafeParent, SafeStr, WineError, maxima_dir},
     registry::RegistryError,
-};
+}};
 
 lazy_static! {
     static ref PROTON_PATTERN: Regex = Regex::new(r"GE-Proton\d+-\d+\.tar\.gz").unwrap();
@@ -72,8 +72,12 @@ struct Versions {
 
 /// Returns internal prtoton pfx path
 pub fn wine_prefix_dir(slug: Option<&str>) -> Result<PathBuf, NativeError> {
+    if let Some(slug) = slug {
+        if let Some(prefix) = GamePrefixMap.lock().unwrap().get(slug) {
+            return Ok(prefix.clone().into());
+        }
+    }
     let base = maxima_dir()?.join("wine/prefix");
-
     if let Some(slug) = slug {
         Ok(base.join(slug))
     } else {
@@ -253,6 +257,7 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     let eac_path = eac_dir()?;
     let umu_bin = umu_bin()?;
 
+    info!("Wine Prefix: {:?}", proton_prefix_path);
     let wine_path =
         env::var("MAXIMA_WINE_COMMAND").unwrap_or_else(|_| umu_bin.to_string_lossy().to_string());
 

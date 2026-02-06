@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::util::native::maxima_dir;
+use crate::{core::GamePrefixMap, util::native::maxima_dir};
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -120,8 +120,11 @@ impl GameSettingsManager {
             .unwrap_or_else(|| GameSettings::new_with_slug(slug))
     }
 
-    pub fn save(&mut self, slug: &str, settings: GameSettings) {
+    pub async fn save(&mut self, slug: &str, settings: GameSettings) {
         save_game_settings(slug, &settings);
-        self.settings.insert(slug.to_string(), settings);
+        self.settings.insert(slug.to_string(), settings.clone());
+        GamePrefixMap.lock()
+            .unwrap()
+            .insert(slug.to_string(), settings.wine_prefix().to_string().into());
     }
 }
