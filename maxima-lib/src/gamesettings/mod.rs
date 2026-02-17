@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{core::GamePrefixMap, util::native::maxima_dir};
+use crate::util::native::maxima_dir;
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -11,7 +11,6 @@ pub struct GameSettings {
     pub installed: bool,
     pub launch_args: String,
     pub exe_override: String,
-    pub wine_prefix: String,
 }
 
 impl GameSettings {
@@ -21,14 +20,7 @@ impl GameSettings {
             installed: false,
             launch_args: String::new(),
             exe_override: String::new(),
-            wine_prefix: String::new(),
         }
-    }
-
-    pub fn new_with_slug(slug: &str) -> Self {
-        let mut settings = Self::new();
-        settings.wine_prefix = format!("/mnt/games/Games/{}/", slug);
-        settings
     }
 
     /// Public accessors for fields so consumers can read settings.
@@ -44,10 +36,6 @@ impl GameSettings {
         &self.exe_override
     }
 
-    pub fn wine_prefix(&self) -> &str {
-        &self.wine_prefix
-    }
-
     /// Update mutable fields from UI-provided values while preserving any internal-only fields like `wine_prefix`.
     pub fn update_from(&mut self, cloud_saves: bool, launch_args: String, exe_override: String) {
         self.cloud_saves = cloud_saves;
@@ -59,20 +47,15 @@ impl GameSettings {
 pub fn get_game_settings(slug: &str) -> GameSettings {
     let path = match maxima_dir() {
         Ok(dir) => dir.join("settings").join(format!("{}.json", slug)),
-        Err(_) => return GameSettings::new_with_slug(slug),
+        Err(_) => return GameSettings::new(),
     };
 
     let content = match std::fs::read_to_string(path) {
         Ok(content) => content,
-        Err(_) => return GameSettings::new_with_slug(slug),
+        Err(_) => return GameSettings::new(),
     };
 
-    let game_settings =
-        serde_json::from_str(&content).unwrap_or_else(|_| GameSettings::new_with_slug(slug));
-    GamePrefixMap
-        .lock()
-        .unwrap()
-        .insert(slug.to_string(), game_settings.wine_prefix().to_string());
+    let game_settings = serde_json::from_str(&content).unwrap_or_else(|_| GameSettings::new());
     game_settings
 }
 
@@ -123,15 +106,11 @@ impl GameSettingsManager {
         self.settings
             .get(slug)
             .cloned()
-            .unwrap_or_else(|| GameSettings::new_with_slug(slug))
+            .unwrap_or_else(|| GameSettings::new())
     }
 
     pub fn save(&mut self, slug: &str, settings: GameSettings) {
         save_game_settings(slug, &settings);
         self.settings.insert(slug.to_string(), settings.clone());
-        GamePrefixMap
-            .lock()
-            .unwrap()
-            .insert(slug.to_string(), settings.wine_prefix().to_string());
     }
 }

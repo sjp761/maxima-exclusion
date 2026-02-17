@@ -23,7 +23,7 @@ use tokio::{
 use xz2::read::XzDecoder;
 
 use crate::{
-    core::GamePrefixMap,
+    gameversion::load_game_version_from_json,
     util::{
         github::{
             fetch_github_release, fetch_github_releases, github_download_asset, GithubRelease,
@@ -75,33 +75,20 @@ struct Versions {
     umu: String,
 }
 
-/// Returns internal prtoton pfx path
+/// Returns internal proton pfx path
 pub fn wine_prefix_dir(slug: Option<&str>) -> Result<PathBuf, NativeError> {
-    if let Some(slug) = slug {
-        // Check if prefix is already in the cache map
-        if let Some(prefix) = GamePrefixMap.lock().unwrap().get(slug) {
-            return Ok(prefix.clone().into());
-        }
+    let mut game_install_info = load_game_version_from_json(slug.unwrap()).unwrap();
+    let mut prefix_path = game_install_info.wine_prefix_pathbuf();
 
-        // Load settings from disk to get the wine_prefix
-        use crate::gamesettings::get_game_settings;
-        let settings = get_game_settings(slug);
-        let prefix = settings.wine_prefix();
-
-        // If settings have a non-empty wine_prefix, cache it and return it
-        if !prefix.is_empty() {
-            GamePrefixMap
-                .lock()
-                .unwrap()
-                .insert(slug.to_string(), prefix.to_string());
-            return Ok(prefix.into());
-        }
-
-        // Fallback to default path
-        Ok(maxima_dir()?.join("wine/prefix").join(slug))
-    } else {
-        Ok(maxima_dir()?.join("wine/prefix"))
+    if prefix_path.to_str().unwrap().is_empty() {
+        prefix_path = maxima_dir()?
+            .join("wine/prefixes/")
+            .join(slug.unwrap_or("default"));
+        game_install_info.wine_prefix = prefix_path.to_string_lossy().to_string();
+        game_install_info.save_to_json(slug.unwrap_or("default"));
     }
+
+    Ok(prefix_path)
 }
 
 pub fn proton_dir() -> Result<PathBuf, NativeError> {

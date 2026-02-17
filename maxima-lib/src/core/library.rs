@@ -11,10 +11,11 @@ use super::{
         SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
     },
 };
-#[cfg(unix)]
-use crate::unix::fs::case_insensitive_path;
-use crate::util::native::{maxima_dir, NativeError, SafeStr};
-use crate::util::registry::{parse_partial_registry_path, parse_registry_path, RegistryError};
+use crate::util::registry::{parse_registry_path, RegistryError};
+use crate::{
+    gameversion::load_game_version_from_json,
+    util::native::{maxima_dir, NativeError, SafeStr},
+};
 use derive_getters::Getters;
 use std::{collections::HashMap, path::PathBuf, time::SystemTimeError};
 use thiserror::Error;
@@ -128,35 +129,17 @@ impl OwnedOffer {
     }
 
     pub async fn local_manifest(&self) -> Result<Option<Box<dyn GameManifest>>, ManifestError> {
-        let path = if self
-            .offer
-            .install_check_override()
-            .as_ref()
-            .ok_or(ManifestError::NoInstallPath(self.slug.clone()))?
-            .contains("installerdata.xml")
-        {
-            let ic_path = PathBuf::from(self.install_check_path().await?);
-            #[cfg(unix)]
-            let ic_path = case_insensitive_path(ic_path);
-            ic_path
-        } else {
-            let path = PathBuf::from(
-                parse_partial_registry_path(
-                    &self
-                        .offer
-                        .install_check_override()
-                        .as_ref()
-                        .ok_or(ManifestError::NoInstallPath(self.slug.clone()))?,
-                    Some(&self.slug),
-                )
-                .await?
-                .safe_str()?
-                .to_owned(),
-            );
-
-            path.join(MANIFEST_RELATIVE_PATH)
+        let game_install_info = match load_game_version_from_json(&self.slug) {
+            Ok(info) => info,
+            Err(_) => return Ok(None), // No info file yet, placeholder for now
         };
 
+        let path = game_install_info
+            .install_path_pathbuf()
+            .join(MANIFEST_RELATIVE_PATH);
+        if !path.exists() {
+            return Ok(None);
+        }
         Ok(Some(manifest::read(path).await?))
     }
 

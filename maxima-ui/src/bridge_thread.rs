@@ -26,6 +26,7 @@ use maxima::{
         },
         LockedMaxima, Maxima, MaximaCreationError, MaximaOptionsBuilder, MaximaOptionsBuilderError,
     },
+    gameversion::GameInstallInfo,
     lsx::service::LSXServerError,
     rtm::RtmError,
     util::{
@@ -516,6 +517,9 @@ impl BridgeThread {
                         .path(path.to_owned())
                         .slug(slug.to_owned())
                         .build()?;
+                    let game_install_info =
+                        GameInstallInfo::new(path.to_owned().to_string_lossy().to_string());
+                    game_install_info.save_to_json(&slug);
                     Ok(maxima.content_manager().add_install(game).await?)
                 }
                 MaximaLibRequest::StartGameRequest(info, settings) => {
