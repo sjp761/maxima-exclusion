@@ -56,26 +56,13 @@ pub struct OwnedOffer {
 
 impl OwnedOffer {
     pub async fn is_installed(&self) -> bool {
-        let maxima_dir = maxima_dir().unwrap();
-        let manifest_path = maxima_dir
-            .join("settings")
-            .join(format!("{}.json", self.slug));
-        if !manifest_path.exists() {
-            return false;
-        }
-
-        let contents = match std::fs::read_to_string(&manifest_path) {
-            Ok(s) => s,
+        let maxima_dir = match maxima_dir() {
+            Ok(dir) => dir,
             Err(_) => return false,
         };
-
-        match serde_json::from_str::<serde_json::Value>(&contents) {
-            Ok(json) => json
-                .get("installed")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
-            Err(_) => false,
-        }
+        
+        let game_info_path = maxima_dir.join("gameinfo").join(format!("{}.json", &self.slug));
+        game_info_path.exists()
     }
 
     pub async fn install_check_path(&self) -> Result<String, ManifestError> {

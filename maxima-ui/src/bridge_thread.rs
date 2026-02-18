@@ -404,18 +404,8 @@ impl BridgeThread {
                     match ev {
                         maxima::core::MaximaEvent::ReceivedLSXRequest(_, _) => {}
                         maxima::core::MaximaEvent::InstallFinished(offer_id) => {
-                            // Easy access to mutably update game settings
-                            if let Ok(Some(title)) =
-                                maxima.mut_library().title_by_base_offer(&offer_id).await
-                            {
-                                let slug = title.base_offer().slug().clone();
-                                let manager = maxima.mut_game_settings();
-                                manager.update_with(&slug, |settings| {
-                                    settings.installed = true;
-                                });
-                            }
                             backend_responder
-                                .send(MaximaLibResponse::DownloadFinished(offer_id))?; // UI can handle updating settings, can easily access UI Frontend structures in DownloadFinished
+                                .send(MaximaLibResponse::DownloadFinished(offer_id))?;
                             Self::update_queue(maxima.content_manager(), backend_responder.clone());
                         }
                     }

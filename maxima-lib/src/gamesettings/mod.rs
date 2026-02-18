@@ -8,7 +8,6 @@ use serde_json;
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct GameSettings {
     pub cloud_saves: bool,
-    pub installed: bool,
     pub launch_args: String,
     pub exe_override: String,
 }
@@ -17,7 +16,6 @@ impl GameSettings {
     pub fn new() -> Self {
         Self {
             cloud_saves: true,
-            installed: false,
             launch_args: String::new(),
             exe_override: String::new(),
         }
@@ -53,10 +51,6 @@ pub fn get_game_settings(slug: &str) -> GameSettings {
 }
 
 pub fn save_game_settings(slug: &str, settings: &GameSettings) {
-    if settings.installed == false {
-        info!("Skipping save for {} as game is not installed.", slug);
-        return;
-    }
     info!("Saving settings for {}...", slug);
     if let Ok(dir) = maxima_dir() {
         let settings_dir = dir.join("settings");

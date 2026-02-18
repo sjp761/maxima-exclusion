@@ -85,36 +85,8 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
                             }
                         }
                     }
-                    DownloadFinished(offer_id) => {
-                        let mut slug = String::new();
-                        for (s, game) in &app.games {
-                            if game.offer == offer_id {
-                                slug = s.clone();
-                                break;
-                            }
-                        }
-                        if slug.is_empty() {
-                            continue;
-                        }
-
-                        // update frontend settings
-                        if let Some(mut settings) = app.settings.game_settings.remove(&slug) {
-                            settings.installed = true;
-                            app.settings.game_settings.insert(slug.clone(), settings.clone());
-
-                            // update game info displayed
-                            if let Some(game) = app.games.get_mut(&slug) {
-                                game.installed = true;
-                            }
-
-                            // persist to core
-                            let _ = app.backend.backend_commander.send(
-                                bridge_thread::MaximaLibRequest::SaveGameSettings(
-                                    slug.clone(),
-                                    settings.clone(),
-                                ),
-                            );
-                        }
+                    DownloadFinished(_) => {
+                       
                     }
                     DownloadQueueUpdate(current, queue) => {
                         if let Some(current) = current {
