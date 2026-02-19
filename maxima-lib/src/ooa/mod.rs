@@ -367,7 +367,7 @@ pub async fn save_licenses(
 }
 
 #[cfg(windows)]
-pub fn get_license_dir() -> Result<PathBuf, NativeError> {
+pub fn get_license_dir(_slug: Option<&str>) -> Result<PathBuf, NativeError> {
     let path = format!("C:/{}", LICENSE_PATH.to_string());
     create_dir_all(&path)?;
     Ok(PathBuf::from(path))

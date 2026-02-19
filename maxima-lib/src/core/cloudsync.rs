@@ -98,7 +98,7 @@ async fn acquire_auth(auth: &LockedAuthStorage) -> Result<(String, String), Clou
 }
 
 #[cfg(windows)]
-fn home_dir() -> Result<PathBuf, NativeError> {
+fn home_dir(_slug: Option<&str>) -> Result<PathBuf, NativeError> {
     Ok(PathBuf::from(
         std::env::var_os("USERPROFILE").unwrap_or_else(|| "C:\\Users\\Public".into()),
     ))

@@ -53,7 +53,7 @@ pub enum HardwareHashError {
 
 impl HardwareInfo {
     #[cfg(windows)]
-    pub fn new(version: u32) -> Self {
+    pub fn new(version: u32, _slug: Option<&str>) -> Self {
         use std::collections::HashMap;
 
         use log::warn;
