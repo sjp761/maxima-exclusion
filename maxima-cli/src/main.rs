@@ -296,10 +296,10 @@ async fn startup() -> Result<()> {
                     }
                 }
             } else {
-                slug
+                slug.clone()
             };
 
-            start_game(&offer_id, game_path, game_args, login, maxima_arc.clone()).await
+            start_game(&offer_id, &slug, game_path, game_args, login, maxima_arc.clone()).await
         }
         Mode::ListGames => list_games(maxima_arc.clone()).await,
         Mode::LocateGame { path, slug } => locate_game(maxima_arc.clone(), &path, &slug).await,
@@ -356,10 +356,10 @@ async fn run_interactive(maxima_arc: LockedMaxima) -> Result<()> {
 }
 
 async fn interactive_start_game(maxima_arc: LockedMaxima) -> Result<()> {
-    let offer_id = {
-        let mut maxima = maxima_arc.lock().await;
+    let mut maxima = maxima_arc.lock().await;
+    let mut owned_games = Vec::new();
+    let owned_games_strs = {
 
-        let mut owned_games = Vec::new();
         for game in maxima.mut_library().games().await? {
             if !game.base_offer().is_installed().await {
                 continue;
@@ -368,17 +368,18 @@ async fn interactive_start_game(maxima_arc: LockedMaxima) -> Result<()> {
             owned_games.push(game);
         }
 
-        let owned_games_strs = owned_games
+        owned_games
             .iter()
             .map(|g| g.name())
-            .collect::<Vec<String>>();
-
-        let name = Select::new("What game would you like to play?", owned_games_strs).prompt()?;
-        let game: &OwnedTitle = owned_games.iter().find(|g| g.name() == name).unwrap();
-        game.base_offer().offer_id().to_owned()
+            .collect::<Vec<String>>()
     };
 
-    start_game(&offer_id, None, Vec::new(), None, maxima_arc.clone()).await?;
+    let name = Select::new("What game would you like to play?", owned_games_strs).prompt()?;
+    let game = owned_games.iter().find(|g| g.name() == name).unwrap();
+    
+    let offer_id = game.base_offer().offer_id().to_owned().clone();
+    let slug = game.base_offer().slug().to_owned().clone();
+    start_game(&offer_id, &slug, None, Vec::new(), None, maxima_arc.clone()).await?;
 
     Ok(())
 }
@@ -810,6 +811,7 @@ async fn do_cloud_sync(maxima_arc: LockedMaxima, game_slug: &str, write: bool) -
 
 async fn start_game(
     offer_id: &str,
+    slug: &str,
     game_path_override: Option<String>,
     game_args: Vec<String>,
     login: Option<String>,
