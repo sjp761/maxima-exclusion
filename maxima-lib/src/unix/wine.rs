@@ -528,6 +528,7 @@ fn normalize_key(key: &str) -> String {
     }
 }
 
+#[cfg(false)] // Unused method for now, but may be useful in the future
 pub async fn get_mx_wine_registry_value(
     query_key: &str,
     slug: Option<&str>,

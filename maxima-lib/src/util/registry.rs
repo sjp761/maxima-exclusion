@@ -176,7 +176,7 @@ async fn read_reg_key(path: &str, _slug: Option<&str>) -> Result<Option<String>,
     Ok(None)
 }
 
-#[cfg(unix)]
+#[cfg(false)]  // Unused method for
 async fn read_reg_key(path: &str, slug: Option<&str>) -> Result<Option<String>, RegistryError> {
     use crate::unix::wine::get_mx_wine_registry_value;
     Ok(get_mx_wine_registry_value(path, slug).await?)
@@ -195,6 +195,7 @@ pub async fn parse_registry_path(key: &str, slug: Option<&str>) -> Result<PathBu
     Ok(path)
 }
 
+#[cfg(false)] // Block out unused method
 pub async fn parse_partial_registry_path(
     key: &str,
     slug: Option<&str>,
