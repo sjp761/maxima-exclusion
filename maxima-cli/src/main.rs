@@ -456,8 +456,6 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
     #[cfg(not(unix))]
     let wine_prefix = PathBuf::new();
 
-    let game_install_info = GameInstallInfo::new(path.clone(), Some(wine_prefix.clone()));
-    game_install_info.save_to_json(&slug);
     if !path.is_absolute() {
         error!("Path {:?} is not absolute.", path);
         return Ok(());
