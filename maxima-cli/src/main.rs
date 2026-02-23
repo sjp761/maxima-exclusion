@@ -44,7 +44,6 @@ use maxima::{
     gameinfo::GameInstallInfo,
     ooa,
     rtm::client::BasicPresence,
-    unix::wine,
     util::{
         log::init_logger,
         native::{maxima_dir, take_foreground_focus},

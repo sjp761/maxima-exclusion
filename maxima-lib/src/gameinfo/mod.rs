@@ -38,11 +38,24 @@ where
     }
 }
 
+fn optional_path_to_string<S>(value: &Option<PathBuf>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match value {
+        None => serializer.serialize_str(""),
+        Some(path) => serializer.serialize_str(path.to_string_lossy().as_ref()),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInstallInfo {
     #[serde(deserialize_with = "path_from_string")]
     pub path: PathBuf,
-    #[serde(deserialize_with = "optional_path_from_string")]
+    #[serde(
+        deserialize_with = "optional_path_from_string",
+        serialize_with = "optional_path_to_string"
+    )]
     pub wine_prefix: Option<PathBuf>,
 }
 

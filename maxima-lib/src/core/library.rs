@@ -17,6 +17,7 @@ use crate::{
     util::native::{maxima_dir, NativeError, SafeStr},
 };
 use derive_getters::Getters;
+use log::info;
 use std::{collections::HashMap, path::PathBuf, time::SystemTimeError};
 use thiserror::Error;
 
@@ -118,12 +119,14 @@ impl OwnedOffer {
     }
 
     pub async fn local_manifest(&self) -> Result<Option<Box<dyn GameManifest>>, ManifestError> {
+        info!("Checking local manifest for `{}`", self.slug);
         let game_install_info = match load_game_version_from_json(&self.slug) {
             Ok(info) => info,
             Err(_) => return Ok(None), // No info file yet, placeholder for now
         };
 
         let path = game_install_info.path().join(MANIFEST_RELATIVE_PATH);
+        info!("Checking for manifest at `{}`", path.display());
         if !path.exists() {
             return Ok(None);
         }

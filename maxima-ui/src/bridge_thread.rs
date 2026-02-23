@@ -1,7 +1,5 @@
 use egui::Context;
 use log::{error, info, warn};
-#[cfg(unix)]
-use maxima::gameinfo::GameInstallInfo;
 
 use crate::{
     bridge::{
@@ -28,6 +26,7 @@ use maxima::{
         },
         LockedMaxima, Maxima, MaximaCreationError, MaximaOptionsBuilder, MaximaOptionsBuilderError,
     },
+    gameinfo::GameInstallInfo,
     lsx::service::LSXServerError,
     rtm::RtmError,
     util::{
@@ -443,10 +442,10 @@ impl BridgeThread {
                     async move { game_details_request(maxima, slug.clone(), channel, &context).await }.await
                 }
                 MaximaLibRequest::LocateGameRequest(slug, path, wine_prefix) => {
-                    #[cfg(unix)]
                     let game_install_info =
                         GameInstallInfo::new(PathBuf::from(path.clone()), wine_prefix); // Bit of a hack here, the wine_prefix path is pulled from a json so we create it here
                     game_install_info.save_to_json(&slug);
+                    #[cfg(unix)]
                     maxima::core::launch::mx_linux_setup(Some(&slug)).await?;
                     let mut path = path;
                     if path.ends_with("/") || path.ends_with("\\") {
