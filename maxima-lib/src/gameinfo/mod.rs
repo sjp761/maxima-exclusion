@@ -18,15 +18,9 @@ pub enum GameVersionError {
     NotFound(String),
 }
 
-fn path_from_string<'de, D>(deserializer: D) -> Result<PathBuf, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    Ok(PathBuf::from(s))
-}
+// The serializers are for making sure that None goes to and from an empty string
 
-fn optional_path_from_string<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+fn prefix_from_string<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -38,7 +32,7 @@ where
     }
 }
 
-fn optional_path_to_string<S>(value: &Option<PathBuf>, serializer: S) -> Result<S::Ok, S::Error>
+fn prefix_to_string<S>(value: &Option<PathBuf>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -50,11 +44,10 @@ where
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInstallInfo {
-    #[serde(deserialize_with = "path_from_string")]
     pub path: PathBuf,
     #[serde(
-        deserialize_with = "optional_path_from_string",
-        serialize_with = "optional_path_to_string"
+        deserialize_with = "prefix_from_string",
+        serialize_with = "prefix_to_string"
     )]
     pub wine_prefix: Option<PathBuf>,
 }
