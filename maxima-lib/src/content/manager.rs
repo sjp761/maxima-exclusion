@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::{fs, sync::Notify};
 use tokio_util::sync::CancellationToken;
+use winapi::um::winnt::SUBLANG_FULAH_SENEGAL;
 
 use crate::{
     content::{
@@ -194,6 +195,9 @@ impl GameDownloader {
         let (downloader_arc, entries, cancel_token, completed_bytes, notify) =
             self.prepare_download_vars();
         let total_count = self.total_count;
+        let slug = self.slug.clone();
+        let game_install_info =
+                    GameInstallInfo::new(self.path.clone(), self.wine_prefix.clone());
         tokio::spawn(async move {
             let dl = GameDownloader::start_downloads(
                 total_count,
@@ -202,6 +206,8 @@ impl GameDownloader {
                 cancel_token,
                 completed_bytes,
                 notify,
+                slug,
+                game_install_info,
             )
             .await;
             if let Err(err) = dl {
@@ -229,12 +235,15 @@ impl GameDownloader {
     }
 
     async fn start_downloads(
+
         total_count: usize,
         downloader_arc: Arc<ZipDownloader>,
         entries: Vec<ZipFileEntry>,
         cancel_token: CancellationToken,
         completed_bytes: Arc<AtomicUsize>,
         notify: Arc<Notify>,
+        slug: String,
+        game_install_info: GameInstallInfo,
     ) -> Result<(), DownloaderError> {
         let mut handles = Vec::with_capacity(total_count);
 
@@ -272,10 +281,11 @@ impl GameDownloader {
 
         let path = downloader_arc.path();
 
+        game_install_info.save_to_json(&slug);
         info!("Files downloaded, running touchup...");
 
-        // let manifest = manifest::read(path.join(MANIFEST_RELATIVE_PATH)).await?;
-        // manifest.run_touchup(path, &slug).await?;
+        let manifest = manifest::read(path.join(MANIFEST_RELATIVE_PATH)).await?;
+        manifest.run_touchup(path, &slug).await?;
 
         info!("Installation finished!");
 
@@ -382,9 +392,6 @@ impl ContentManager {
         if let Some(current) = &self.current {
             if current.is_done() {
                 event = Some(MaximaEvent::InstallFinished(current.offer_id.to_owned()));
-                let game_install_info =
-                    GameInstallInfo::new(current.path.clone(), current.wine_prefix.clone());
-                game_install_info.save_to_json(&current.slug);
                 self.current = None;
                 self.queue.current = None;
 
