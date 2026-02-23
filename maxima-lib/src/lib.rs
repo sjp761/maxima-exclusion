@@ -6,7 +6,6 @@
 
 pub mod content;
 pub mod core;
-pub mod gamesettings;
 pub mod gameversion;
 pub mod lsx;
 pub mod ooa;

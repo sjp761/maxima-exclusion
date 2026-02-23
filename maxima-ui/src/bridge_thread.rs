@@ -84,8 +84,6 @@ pub enum MaximaLibRequest {
     StartGameRequest(GameInfo, Option<GameSettings>),
     InstallGameRequest(String, String, PathBuf),
     LocateGameRequest(String, String),
-    /// Persist UI-side game settings into the core GameSettingsManager
-    SaveGameSettings(String, GameSettings),
     ShutdownRequest,
 }
 
@@ -513,15 +511,6 @@ impl BridgeThread {
                 }
                 MaximaLibRequest::StartGameRequest(info, settings) => {
                     Ok(start_game_request(maxima_arc.clone(), info, settings).await?)
-                }
-                MaximaLibRequest::SaveGameSettings(slug, settings) => {
-                    // Persist the UI settings into the core GameSettingsManager
-                    let mut maxima = maxima_arc.lock().await;
-                    let manager = maxima.mut_game_settings();
-                    manager.update_with(&slug, |stored| {
-                        *stored = settings;
-                    });
-                    Ok(())
                 }
                 MaximaLibRequest::ShutdownRequest => break 'outer Ok(()), //TODO: kill the bridge thread
             };

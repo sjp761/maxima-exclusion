@@ -31,7 +31,6 @@ use egui_glow::glow;
 use app_bg_renderer::AppBgRenderer;
 use bridge_thread::{BackendError, BridgeThread, InteractThreadLocateGameResponse};
 use game_view_bg_renderer::GameViewBgRenderer;
-use maxima::gamesettings::GameSettings;
 use renderers::{app_bg_renderer, game_view_bg_renderer};
 use translation_manager::{positional_replace, TranslationManager};
 
@@ -185,6 +184,23 @@ pub enum GameDetailsWrapper {
     Unloaded,
     Loading,
     Available(GameDetails),
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct GameSettings {
+    cloud_saves: bool,
+    launch_args: String,
+    exe_override: String,
+}
+
+impl GameSettings {
+    pub fn new() -> Self {
+        Self {
+            cloud_saves: true,
+            launch_args: String::new(),
+            exe_override: String::new(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -583,6 +599,31 @@ fn tab_button(ui: &mut Ui, edit_var: &mut PageType, page: PageType, label: &str)
 
 // god-awful macro to do something incredibly simple because apparently wrapping it in a function has rustc fucking implode
 // say what you want about C++ footguns but rust is the polar fucking opposite, shooting you in the head for doing literally anything
+macro_rules! set_app_modal {
+    ($arg1:expr, $arg2:expr) => {
+        if let Some(modal) = $arg2 {
+            match modal {
+                PopupModal::GameSettings(slug) => {
+                    if $arg1.settings.game_settings.get(&slug).is_none() {
+                        $arg1
+                            .settings
+                            .game_settings
+                            .insert(slug.clone(), crate::GameSettings::new());
+                    }
+                }
+                PopupModal::GameInstall(_) => {
+                    $arg1.installer_state = InstallModalState::new(&$arg1.settings);
+                }
+                PopupModal::GameLaunchOOD(_) => {}
+            }
+            $arg1.modal = $arg2;
+        } else {
+            $arg1.modal = None;
+        }
+    };
+}
+
+pub(crate) use set_app_modal;
 
 impl MaximaEguiApp {
     fn tab_bar(&mut self, header: &mut Ui) {
@@ -943,17 +984,6 @@ impl MaximaEguiApp {
                 });
         }
         if clear {
-            if let Some(PopupModal::GameSettings(slug)) = &self.modal {
-                if let Some(settings) = self.settings.game_settings.get(slug) {
-                    // Send the updated settings to the backend to persist them
-                    let _ = self.backend.backend_commander.send(
-                        bridge_thread::MaximaLibRequest::SaveGameSettings(
-                            slug.clone(),
-                            settings.clone(),
-                        ),
-                    );
-                }
-            }
             self.modal = None;
         }
     }

@@ -1,7 +1,7 @@
 use crate::{
     bridge_thread::{BackendError, InteractThreadGameListResponse, MaximaLibResponse},
     ui_image::UIImageCacheLoaderCommand,
-    GameDetailsWrapper, GameInfo, GameVersionInfo,
+    GameDetailsWrapper, GameInfo, GameSettings, GameVersionInfo,
 };
 use egui::Context;
 use log::{debug, info};
@@ -200,7 +200,6 @@ pub async fn get_games_request(
     }
 
     let owned_games = maxima.mut_library().games().await?.clone();
-    let settings_manager = maxima.mut_game_settings();
 
     for game in owned_games {
         let slug = game.base_offer().slug().clone();
@@ -233,7 +232,11 @@ pub async fn get_games_request(
             has_cloud_saves: game.base_offer().offer().has_cloud_save(),
         };
         let slug = game_info.slug.clone();
-        let settings = settings_manager.get_or_load(&slug);
+        let settings = GameSettings {
+            exe_override: String::new(),
+            launch_args: String::new(),
+            cloud_saves: true,
+        };
         let res = MaximaLibResponse::GameInfoResponse(InteractThreadGameListResponse {
             game: game_info,
             settings,
