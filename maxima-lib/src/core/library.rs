@@ -123,9 +123,7 @@ impl OwnedOffer {
             Err(_) => return Ok(None), // No info file yet, placeholder for now
         };
 
-        let path = game_install_info
-            .install_path_pathbuf()
-            .join(MANIFEST_RELATIVE_PATH);
+        let path = game_install_info.path().join(MANIFEST_RELATIVE_PATH);
         if !path.exists() {
             return Ok(None);
         }

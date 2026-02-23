@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
@@ -18,34 +18,45 @@ pub enum GameVersionError {
     NotFound(String),
 }
 
+fn path_from_string<'de, D>(deserializer: D) -> Result<PathBuf, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(PathBuf::from(s))
+}
+
+fn optional_path_from_string<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(PathBuf::from(s)))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInstallInfo {
-    pub path: String,
-    pub wine_prefix: String,
+    #[serde(deserialize_with = "path_from_string")]
+    pub path: PathBuf,
+    #[serde(deserialize_with = "optional_path_from_string")]
+    pub wine_prefix: Option<PathBuf>,
 }
 
 impl GameInstallInfo {
-    pub fn new(path: String) -> Self {
-        Self {
-            path,
-            wine_prefix: String::new(),
-        }
+    pub fn new(path: PathBuf, wine_prefix: Option<PathBuf>) -> Self {
+        Self { path, wine_prefix }
     }
 
-    pub fn path(&self) -> &str {
-        &self.path
+    pub fn path(&self) -> PathBuf {
+        self.path.clone()
     }
 
-    pub fn wine_prefix(&self) -> &str {
-        &self.wine_prefix
-    }
-
-    pub fn install_path_pathbuf(&self) -> PathBuf {
-        PathBuf::from(&self.path)
-    }
-
-    pub fn wine_prefix_pathbuf(&self) -> PathBuf {
-        PathBuf::from(&self.wine_prefix)
+    pub fn wine_prefix(&self) -> Option<PathBuf> {
+        self.wine_prefix.clone()
     }
 
     // TODO: Maybe we can just query the slug by the filename of the path? Look into this later

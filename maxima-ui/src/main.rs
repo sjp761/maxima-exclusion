@@ -31,6 +31,7 @@ use egui_glow::glow;
 use app_bg_renderer::AppBgRenderer;
 use bridge_thread::{BackendError, BridgeThread, InteractThreadLocateGameResponse};
 use game_view_bg_renderer::GameViewBgRenderer;
+use maxima::util::native::maxima_dir;
 use renderers::{app_bg_renderer, game_view_bg_renderer};
 use translation_manager::{positional_replace, TranslationManager};
 
@@ -895,7 +896,16 @@ impl MaximaEguiApp {
                                         ui.add_enabled_ui(PathBuf::from(&self.installer_state.locate_path).exists(), |ui| {
 
                                             if ui.add_sized(button_size, egui::Button::new(&self.locale.localization.modals.game_install.locate_action.to_ascii_uppercase())).clicked() {
-                                                self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::LocateGameRequest(slug.clone(), self.installer_state.locate_path.clone())).unwrap();
+                                                #[cfg(unix)]
+                                                let wine_prefix = if self.installer_state.wine_prefix.is_empty() {
+                                                    Some(maxima_dir().unwrap().join("wine/prefixes").join(slug))
+                                                } else {
+                                                    Some(PathBuf::from(&self.installer_state.wine_prefix))
+                                                };
+                                                #[cfg(not(unix))]
+                                                let wine_prefix: Option<PathBuf> = None;
+
+                                                self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::LocateGameRequest(slug.clone(), self.installer_state.locate_path.clone(), wine_prefix)).unwrap();
                                                 self.installer_state.locating = true;
                                             }
                                         });
@@ -927,7 +937,8 @@ impl MaximaEguiApp {
                                         if ui.add_sized(button_size, egui::Button::new(&self.locale.localization.modals.game_install.fresh_action)).clicked() {
                                             #[cfg(unix)]
                                             let wine_prefix = if self.installer_state.wine_prefix.is_empty() {
-                                                None
+
+                                                Some(maxima_dir().unwrap().join("wine/prefixes").join(slug))
                                             } else {
                                                 Some(PathBuf::from(&self.installer_state.wine_prefix))
                                             };

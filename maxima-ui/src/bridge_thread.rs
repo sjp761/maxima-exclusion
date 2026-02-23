@@ -1,5 +1,7 @@
 use egui::Context;
 use log::{error, info, warn};
+#[cfg(unix)]
+use maxima::gameinfo::GameInstallInfo;
 
 use crate::{
     bridge::{
@@ -16,16 +18,21 @@ use maxima::{
         ContentManager, ContentManagerError, QueuedGameBuilder, QueuedGameBuilderError,
     },
     core::{
-        LockedMaxima, Maxima, MaximaCreationError, MaximaOptionsBuilder, MaximaOptionsBuilderError, auth::storage::{AuthError, TokenError}, launch::LaunchError, library::LibraryError, manifest::{self, MANIFEST_RELATIVE_PATH, ManifestError}, service_layer::{
+        auth::storage::{AuthError, TokenError},
+        launch::LaunchError,
+        library::LibraryError,
+        manifest::{self, ManifestError, MANIFEST_RELATIVE_PATH},
+        service_layer::{
             ServiceGameImagesRequestBuilderError, ServiceHeroBackgroundImageRequestBuilderError,
             ServiceLayerError, ServicePlayer,
-        }
+        },
+        LockedMaxima, Maxima, MaximaCreationError, MaximaOptionsBuilder, MaximaOptionsBuilderError,
     },
     lsx::service::LSXServerError,
     rtm::RtmError,
     util::{
-        native::{NativeError, maxima_dir},
-        registry::{RegistryError, check_registry_validity, set_up_registry},
+        native::{maxima_dir, NativeError},
+        registry::{check_registry_validity, set_up_registry, RegistryError},
     },
 };
 use std::sync::mpsc::{SendError, TryRecvError};
@@ -77,7 +84,7 @@ pub enum MaximaLibRequest {
     GetGameDetailsRequest(String),
     StartGameRequest(GameInfo, Option<GameSettings>),
     InstallGameRequest(String, String, PathBuf, Option<PathBuf>), // offer, slug, path, wine prefix (unix only)
-    LocateGameRequest(String, String),
+    LocateGameRequest(String, String, Option<PathBuf>), // slug, path, wine prefix (unix only)
     ShutdownRequest,
 }
 
@@ -435,8 +442,11 @@ impl BridgeThread {
                     let context = ctx.clone();
                     async move { game_details_request(maxima, slug.clone(), channel, &context).await }.await
                 }
-                MaximaLibRequest::LocateGameRequest(slug, path) => {
+                MaximaLibRequest::LocateGameRequest(slug, path, wine_prefix) => {
                     #[cfg(unix)]
+                    let game_install_info =
+                        GameInstallInfo::new(PathBuf::from(path.clone()), wine_prefix); // Bit of a hack here, the wine_prefix path is pulled from a json so we create it here
+                    game_install_info.save_to_json(&slug);
                     maxima::core::launch::mx_linux_setup(Some(&slug)).await?;
                     let mut path = path;
                     if path.ends_with("/") || path.ends_with("\\") {
@@ -465,6 +475,10 @@ impl BridgeThread {
                             ));
                         }
                     } else {
+                        std::fs::remove_file(
+                            maxima_dir().unwrap().join("gameinfo").join(format!("{}.json", slug)),
+                        )
+                        .ok();
                         let _ = backend_responder.send(MaximaLibResponse::LocateGameResponse(
                             InteractThreadLocateGameResponse::Error(
                                 InteractThreadLocateGameFailure {
@@ -491,10 +505,9 @@ impl BridgeThread {
                     } else {
                         continue;
                     };
-                    
+
                     #[cfg(unix)]
-                    let wine_prefix = wine_prefix
-                        .or_else(|| Some(maxima_dir().unwrap().join("wine/prefixes").join(&slug)));
+                    let wine_prefix = wine_prefix; // We handle empty cases in the UI, so we can just pass it through here
 
                     #[cfg(windows)]
                     let wine_prefix = None;

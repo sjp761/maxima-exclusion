@@ -189,7 +189,7 @@ pub async fn parse_registry_path(key: &str, slug: Option<&str>) -> Result<PathBu
     // Extract everything after the last ] and append it to the install path
     // TODO: Maybe normalize path to OS?
     let after_bracket = &key[(idx.unwrap() + 1)..];
-    let path = game_install_info.install_path_pathbuf().join(after_bracket);
+    let path = game_install_info.path().join(after_bracket);
     #[cfg(unix)]
     let path = case_insensitive_path(path);
     Ok(path)

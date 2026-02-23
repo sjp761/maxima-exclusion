@@ -78,7 +78,7 @@ struct Versions {
 /// Returns internal proton pfx path
 pub fn wine_prefix_dir(slug: Option<&str>) -> Result<PathBuf, NativeError> {
     let game_install_info = load_game_version_from_json(slug.unwrap()).unwrap();
-    let prefix_path = game_install_info.wine_prefix_pathbuf();
+    let prefix_path = game_install_info.wine_prefix().unwrap();
 
     if !prefix_path.exists() {}
     if let Err(err) = create_dir_all(&prefix_path) {

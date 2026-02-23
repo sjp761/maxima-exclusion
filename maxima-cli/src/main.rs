@@ -44,6 +44,7 @@ use maxima::{
     gameinfo::GameInstallInfo,
     ooa,
     rtm::client::BasicPresence,
+    unix::wine,
     util::{
         log::init_logger,
         native::{maxima_dir, take_foreground_focus},
@@ -444,14 +445,17 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
         Text::new("Where would you like to install the game? (must be an absolute path)")
             .prompt()?,
     );
-    let mut game_install_info = GameInstallInfo::new(path.to_str().unwrap().to_string());
-    game_install_info.wine_prefix = maxima_dir()
-        .unwrap()
-        .join("wine/prefixes")
-        .join(&slug)
-        .to_str()
-        .unwrap()
-        .to_string();
+
+    #[cfg(unix)]
+    let wine_prefix = {
+        let input = Text::new("If this game uses Wine, please enter the Wine prefix path (leave blank if not applicable)").prompt()?;
+        PathBuf::from(input)
+    };
+
+    #[cfg(not(unix))]
+    let wine_prefix = PathBuf::new();
+
+    let game_install_info = GameInstallInfo::new(path.clone(), Some(wine_prefix.clone()));
     game_install_info.save_to_json(&slug);
     if !path.is_absolute() {
         error!("Path {:?} is not absolute.", path);
@@ -463,6 +467,7 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
         .build_id(build.build_id().to_owned())
         .path(path.clone())
         .slug(slug) // Needs the slug here for the manifest touchup after installation, which needs to know the wine prefix path
+        .wine_prefix(Some(wine_prefix))
         .build()?;
 
     let start_time = Instant::now();

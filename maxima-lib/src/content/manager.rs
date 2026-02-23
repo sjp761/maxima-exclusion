@@ -18,10 +18,19 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     content::{
-        ContentService, downloader::{DownloadError, ZipDownloader}, exclusion::get_exclusion_list, zip::{self, CompressionType, ZipError, ZipFileEntry}
-    }, core::{
-        MaximaEvent, auth::storage::LockedAuthStorage, manifest::{self, MANIFEST_RELATIVE_PATH, ManifestError}, service_layer::ServiceLayerError
-    }, gameinfo::GameInstallInfo, util::native::{NativeError, maxima_dir}
+        downloader::{DownloadError, ZipDownloader},
+        exclusion::get_exclusion_list,
+        zip::{self, CompressionType, ZipError, ZipFileEntry},
+        ContentService,
+    },
+    core::{
+        auth::storage::LockedAuthStorage,
+        manifest::{self, ManifestError, MANIFEST_RELATIVE_PATH},
+        service_layer::ServiceLayerError,
+        MaximaEvent,
+    },
+    gameinfo::GameInstallInfo,
+    util::native::{maxima_dir, NativeError},
 };
 
 const QUEUE_FILE: &str = "download_queue.json";
@@ -373,9 +382,8 @@ impl ContentManager {
         if let Some(current) = &self.current {
             if current.is_done() {
                 event = Some(MaximaEvent::InstallFinished(current.offer_id.to_owned()));
-                let mut game_install_info =
-                        GameInstallInfo::new(current.path.to_str().unwrap().to_string());
-                game_install_info.wine_prefix = current.wine_prefix.clone().unwrap().to_str().unwrap().to_string();
+                let game_install_info =
+                    GameInstallInfo::new(current.path.clone(), current.wine_prefix.clone());
                 game_install_info.save_to_json(&current.slug);
                 self.current = None;
                 self.queue.current = None;
