@@ -246,8 +246,11 @@ pub async fn start_game(
         None
     };
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     mx_linux_setup(slug.as_deref()).await?;
+
+    #[cfg(target_os = "macos")]
+    mx_macos_setup(slug.as_deref()).await?;
 
     match mode {
         LaunchMode::Offline(_) => {}
@@ -426,7 +429,7 @@ async fn request_opaque_ooa_token(access_token: &str) -> Result<String, AuthErro
     nucleus_auth_exchange(&context, JUNO_PC_CLIENT_ID, "token").await
 }
 
-#[cfg(unix)]
+#[cfg(linux)]
 pub async fn mx_linux_setup(slug: Option<&str>) -> Result<(), NativeError> {
     use crate::unix::wine::{
         check_runtime_validity, check_wine_validity, get_lutris_runtimes, install_runtime,
@@ -458,6 +461,20 @@ pub async fn mx_linux_setup(slug: Option<&str>) -> Result<(), NativeError> {
 
     let _result = manifest.run_touchup(&install_path, slug.unwrap()).await;
 
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+pub async fn mx_macos_setup(slug: Option<&str>) -> Result<(), NativeError> {
+    use crate::unix::wine::{setup_wine_registry, wine_prefix_dir};
+
+    setup_wine_registry(slug).await?;
+    let install_path = load_game_info_from_json(slug.unwrap()).unwrap().path;
+    let manifest = manifest::read(install_path.join(MANIFEST_RELATIVE_PATH))
+        .await
+        .unwrap();
+
+    let _result = manifest.run_touchup(&install_path, slug.unwrap()).await;
     Ok(())
 }
 

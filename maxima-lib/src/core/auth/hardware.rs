@@ -249,52 +249,43 @@ impl HardwareInfo {
     pub fn new(version: u32, slug: Option<&str>) -> Self {
         use std::process::Command;
 
-        use smbioslib::{
-            table_load_from_device, SMBiosBaseboardInformation, SMBiosSystemInformation,
-        };
-
         use crate::util::system_profiler_utils::SPDisplaysDataType;
 
-        let smbios_data = table_load_from_device().unwrap();
-        let bios_data = smbios_data.first::<SMBiosSystemInformation>();
-        let board_data = smbios_data.first::<SMBiosBaseboardInformation>();
-
-        let mut board_manufacturer = String::from("Apple Inc.");
-        let mut board_sn = String::from("None");
-        if let Some(board) = board_data {
-            board_manufacturer = board.manufacturer().to_string();
-            board_sn = board.serial_number().to_string();
-        }
-
-        let mut bios_manufacturer = String::from("Apple Inc.");
-        let mut bios_sn = String::from("None");
-        if let Some(bios) = bios_data.as_ref() {
-            bios_manufacturer = bios.manufacturer().to_string();
-            bios_sn = bios.serial_number().to_string();
-        }
-
+        let serial_number = iokit_get_platform_string("IOPlatformSerialNumber")
+            .unwrap_or_else(|| String::from("None"));
+        let board_manufacturer = String::from("Apple Inc.");
+        let board_sn = serial_number.clone();
+        let bios_manufacturer = String::from("Apple Inc.");
+        let bios_sn = serial_number;
         let os_install_date = get_root_creation_str(slug);
-        let mut os_sn = String::from("None");
-        if let Some(uuid) = bios_data.and_then(|bios| bios.uuid()) {
-            os_sn = uuid.to_string();
-        }
+        let os_sn =
+            iokit_get_platform_string("IOPlatformUUID").unwrap_or_else(|| String::from("None"));
 
         let mut gpu_pnp_id: Option<String> = None;
-        let output = Command::new("system_profiler")
-            .args(["SPDisplaysDataType", "-json"])
-            .output()
-            .unwrap();
-        if output.status.success() {
-            let json = String::from_utf8_lossy(&output.stdout);
-            let result: SPDisplaysDataType = serde_json::from_str(&json).unwrap();
+        if let Some((vendor_id, device_id, revision_id)) = iokit_get_gpu_pci_ids() {
+            gpu_pnp_id = Some(generate_pci_pnp_id(
+                version,
+                Some(vendor_id),
+                Some(device_id),
+                Some(revision_id),
+            ));
+        } else {
+            let output = Command::new("system_profiler")
+                .args(["SPDisplaysDataType", "-json"])
+                .output()
+                .unwrap();
+            if output.status.success() {
+                let json = String::from_utf8_lossy(&output.stdout);
+                let result: SPDisplaysDataType = serde_json::from_str(&json).unwrap();
 
-            if let Some(gpu) = result.items.first() {
-                gpu_pnp_id = Some(generate_pci_pnp_id(
-                    version,
-                    None,
-                    Some(gpu.device_id),
-                    Some(gpu.revision_id),
-                ));
+                if let Some(gpu) = result.items.first() {
+                    gpu_pnp_id = Some(generate_pci_pnp_id(
+                        version,
+                        None,
+                        Some(gpu.device_id),
+                        Some(gpu.revision_id),
+                    ));
+                }
             }
         }
 
@@ -534,6 +525,86 @@ fn read_file_hex_contents(path: String) -> Option<u16> {
 }
 
 #[cfg(target_os = "macos")]
+fn iokit_get_platform_string(key: &str) -> Option<String> {
+    use core_foundation_sys::{
+        base::CFRelease,
+        string::{kCFStringEncodingUTF8, CFStringGetCString, CFStringRef},
+    };
+    use io_kit_sys::{
+        kIOMasterPortDefault, IOObjectRelease, IOServiceGetMatchingService, IOServiceMatching,
+    };
+    use std::ffi::{CStr, CString};
+    use std::os::raw::c_char;
+
+    unsafe {
+        let service_name = CString::new("IOPlatformExpertDevice").ok()?;
+        let matching = IOServiceMatching(service_name.as_ptr());
+        if matching.is_null() {
+            return None;
+        }
+
+        let service = IOServiceGetMatchingService(kIOMasterPortDefault, matching as _);
+        if service == 0 {
+            return None;
+        }
+
+        let property = get_io_property(service, key);
+        IOObjectRelease(service);
+        let property = match property {
+            Some(p) => p,
+            None => return None,
+        };
+
+        let cf_string = property as CFStringRef;
+        let mut buf = vec![0i8; 256];
+        let success = CFStringGetCString(
+            cf_string,
+            buf.as_mut_ptr(),
+            buf.len() as _,
+            kCFStringEncodingUTF8,
+        );
+        CFRelease(property);
+
+        if success == 0 {
+            return None;
+        }
+
+        let c_str = CStr::from_ptr(buf.as_ptr() as *const c_char);
+        Some(c_str.to_string_lossy().into_owned())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn iokit_get_gpu_pci_ids() -> Option<(u16, u16, u16)> {
+    use io_kit_sys::{
+        kIOMasterPortDefault, IOObjectRelease, IOServiceGetMatchingService, IOServiceNameMatching,
+    };
+
+    unsafe {
+        use std::ffi::CString;
+
+        let service_name = CString::new("display").ok()?;
+        let matching = IOServiceNameMatching(service_name.as_ptr());
+        if matching.is_null() {
+            return None;
+        }
+
+        let service = IOServiceGetMatchingService(kIOMasterPortDefault, matching as _);
+        if service == 0 {
+            return None;
+        }
+
+        let vendor_id = read_u16_prop(service, "vendor-id");
+        let device_id = read_u16_prop(service, "device-id");
+        let revision_id = read_u16_prop(service, "revision-id");
+
+        IOObjectRelease(service);
+
+        Some((vendor_id?, device_id?, revision_id?))
+    }
+}
+
+#[cfg(target_os = "macos")]
 fn extract_diskutil_volume_uuid(output: &str) -> Option<&str> {
     for line in output.lines() {
         if line.trim().starts_with("Volume UUID:") {
@@ -545,6 +616,57 @@ fn extract_diskutil_volume_uuid(output: &str) -> Option<&str> {
         }
     }
     None
+}
+
+#[cfg(target_os = "macos")]
+fn get_io_property(service: u32, key: &str) -> Option<core_foundation_sys::base::CFTypeRef> {
+    use core_foundation_sys::{
+        base::{kCFAllocatorDefault, CFRelease},
+        string::{kCFStringEncodingUTF8, CFStringCreateWithCString},
+    };
+    use io_kit_sys::IORegistryEntryCreateCFProperty;
+    use std::ffi::CString;
+
+    unsafe {
+        let key_cstr = CString::new(key).ok()?;
+        let cf_key = CFStringCreateWithCString(
+            kCFAllocatorDefault,
+            key_cstr.as_ptr(),
+            kCFStringEncodingUTF8,
+        );
+        if cf_key.is_null() {
+            return None;
+        }
+
+        let property = IORegistryEntryCreateCFProperty(service, cf_key, kCFAllocatorDefault, 0);
+        CFRelease(cf_key as _);
+
+        if property.is_null() {
+            None
+        } else {
+            Some(property)
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn read_u16_prop(service: u32, key: &str) -> Option<u16> {
+    use core_foundation_sys::{
+        base::CFRelease,
+        data::{CFDataGetBytePtr, CFDataGetLength, CFDataRef},
+    };
+
+    unsafe {
+        let property = get_io_property(service, key)?;
+        let result = if CFDataGetLength(property as CFDataRef) >= 2 {
+            let bytes = std::slice::from_raw_parts(CFDataGetBytePtr(property as CFDataRef), 2);
+            Some(u16::from_le_bytes([bytes[0], bytes[1]]))
+        } else {
+            None
+        };
+        CFRelease(property);
+        result
+    }
 }
 
 #[cfg(target_os = "windows")]

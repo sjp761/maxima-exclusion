@@ -16,14 +16,14 @@ pub mod settings;
 #[cfg(target_os = "windows")]
 mod background_service_win;
 
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 mod background_service_nix;
 
 pub mod background_service {
     #[cfg(target_os = "windows")]
     pub use super::background_service_win::*;
 
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     pub use super::background_service_nix::*;
 }
 
