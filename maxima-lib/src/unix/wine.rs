@@ -343,10 +343,10 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
 
     info!("Wine Prefix: {:?}", wine_prefix_path);
 
-    let mut binding = Command::new("/opt/homebrew/bin/wine64");
+    let mut binding = Command::new(find_wine_command());
     let mut child = binding
         .env("WINEPREFIX", wine_prefix_path)
-        .env("WINEDEBUG", "+loaddll")
+        .env("WINEDEBUG", "fixme-all")
         .arg(arg);
 
     if let Some(arguments) = args {
@@ -381,6 +381,26 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     }
 
     Ok(output_str.to_string())
+}
+
+#[cfg(target_os = "macos")]
+pub fn find_wine_command() -> String {
+    let maxima_wine_command = std::env::var("MAXIMA_WINE_COMMAND").ok();
+    if let Some(path) = maxima_wine_command {
+        let path = PathBuf::from(&path);
+        if path.exists() {
+            return path.to_str().unwrap_or("wine").to_string();
+        }
+    }
+
+    if let Ok(path) = which::which("wine") {
+        return path.to_str().unwrap_or("wine").to_string();
+    }
+    if let Ok(path) = which::which("wine64") {
+        return path.to_str().unwrap_or("wine").to_string();
+    }
+
+    "wine".to_string()
 }
 
 #[cfg(target_os = "linux")]
