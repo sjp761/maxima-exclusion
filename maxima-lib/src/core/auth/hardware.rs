@@ -270,7 +270,7 @@ impl HardwareInfo {
                 Some(vendor_id),
                 Some(device_id),
                 Some(revision_id),
-            )); 
+            ));
         } else if !is_running_rosetta() {
             let output = Command::new("system_profiler")
                 .args(["SPDisplaysDataType", "-json"])
