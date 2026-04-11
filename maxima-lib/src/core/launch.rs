@@ -429,7 +429,7 @@ async fn request_opaque_ooa_token(access_token: &str) -> Result<String, AuthErro
     nucleus_auth_exchange(&context, JUNO_PC_CLIENT_ID, "token").await
 }
 
-#[cfg(linux)]
+#[cfg(target_os = "linux")]
 pub async fn mx_linux_setup(slug: Option<&str>) -> Result<(), NativeError> {
     use crate::unix::wine::{
         check_runtime_validity, check_wine_validity, get_lutris_runtimes, install_runtime,

@@ -77,7 +77,6 @@ thiserror = "2.0.12"
 url = "2.5.2"
 http = "0.2.12"
 globset = "0.4"
-io-kit-sys = "0.5.0"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = [
@@ -102,6 +101,7 @@ wmi = "0.13.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation-sys = "0.8"
+io-kit-sys = "0.5.0"
 which = "8.0.2"
 
 [build-dependencies]
