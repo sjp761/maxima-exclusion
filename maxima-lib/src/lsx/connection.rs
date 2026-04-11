@@ -43,8 +43,7 @@ use super::{
 };
 use crate::{
     core::{
-        auth::storage::TokenError, background_service::wine_get_pid, launch::ActiveGameContext,
-        LockedMaxima, Maxima, MaximaEvent,
+        auth::storage::TokenError, launch::ActiveGameContext, LockedMaxima, Maxima, MaximaEvent,
     },
     lsx::{request::LSXRequestError, types::LSXRequestType},
     util::{
@@ -198,6 +197,7 @@ pub async fn get_wine_pid(
     name: &str,
     slug: Option<&str>,
 ) -> Result<u32, NativeError> {
+    use crate::core::background_service::wine_get_pid;
     wine_get_pid(launch_id, name, slug).await
 }
 
