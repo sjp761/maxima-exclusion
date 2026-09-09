@@ -332,7 +332,15 @@ impl DiPManifest {
         let args = self.collect_touchup_args(&install_path, self.locale())?;
         let path = install_path.join(&self.touchup.path());
         let path = case_insensitive_path(path).to_string_lossy().to_string();
-        run_wine_command(path.into(), Some(args), None, true, CommandType::Run, &wine_prefix_path.unwrap()).await?;
+        run_wine_command(
+            path.into(),
+            Some(args),
+            None,
+            true,
+            CommandType::Run,
+            &wine_prefix_path.unwrap(),
+        )
+        .await?;
         invalidate_mx_wine_registry().await;
         Ok(())
     }

@@ -147,9 +147,10 @@ fn inject_wow6432node(sub_key: &str) -> Option<String> {
     // Only rewrite paths under SOFTWARE\ that aren't already redirected
     let prefix = "SOFTWARE\\";
     if let Some(rest) = sub_key.strip_prefix(prefix)
-        && !rest.starts_with("WOW6432Node\\") {
-            return Some(format!("SOFTWARE\\WOW6432Node\\{}", rest));
-        }
+        && !rest.starts_with("WOW6432Node\\")
+    {
+        return Some(format!("SOFTWARE\\WOW6432Node\\{}", rest));
+    }
     None
 }
 
@@ -221,9 +222,7 @@ pub async fn parse_registry_path_json(
 
 #[cfg(windows)]
 pub async fn parse_registry_path_regkey(key: &str) -> Result<PathBuf, RegistryError> {
-    let mut parts = key
-        .split(['[', ']'])
-        .filter(|s| !s.is_empty());
+    let mut parts = key.split(['[', ']']).filter(|s| !s.is_empty());
 
     if let (Some(first), Some(second)) = (parts.next(), parts.next()) {
         let path = match read_reg_key(first, None).await? {
@@ -244,9 +243,7 @@ pub async fn parse_registry_path_regkey(key: &str) -> Result<PathBuf, RegistryEr
 // Will replace the registry key with the install dir and will only return that (IE will drop everything after the last ])
 #[cfg(windows)]
 pub async fn parse_partial_registry_path(key: &str) -> Result<PathBuf, RegistryError> {
-    let mut parts = key
-        .split(['[', ']'])
-        .filter(|s| !s.is_empty());
+    let mut parts = key.split(['[', ']']).filter(|s| !s.is_empty());
 
     if let (Some(first), Some(_second)) = (parts.next(), parts.next()) {
         let path = match read_reg_key(first, None).await? {

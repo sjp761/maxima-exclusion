@@ -228,9 +228,10 @@ impl ServiceLayerClient {
             wait
         };
         if let Some(duration) = wait
-            && duration > Duration::ZERO {
-                sleep(duration).await;
-            }
+            && duration > Duration::ZERO
+        {
+            sleep(duration).await;
+        }
 
         let mut last_error = None;
 

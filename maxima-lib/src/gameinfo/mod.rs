@@ -77,7 +77,9 @@ impl GameInstallInfo {
 }
 
 pub fn load_game_info_from_json(slug: &str) -> Result<GameInstallInfo, GameInfoError> {
-    let path = maxima_dir()?.join("gameinfo").join(format!("{}.json", slug));
+    let path = maxima_dir()?
+        .join("gameinfo")
+        .join(format!("{}.json", slug));
     let json = fs::read_to_string(path)?;
     let game_install_info: GameInstallInfo = serde_json::from_str(&json)?;
     Ok(game_install_info)

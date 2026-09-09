@@ -31,11 +31,7 @@ use crate::{
 use thiserror::Error;
 
 #[cfg(unix)]
-use crate::{
-    core::manifest::{self, MANIFEST_RELATIVE_PATH},
-    gameinfo::load_game_info_from_json,
-    unix::fs::case_insensitive_path,
-};
+use crate::unix::fs::case_insensitive_path;
 
 use serde::{Deserialize, Serialize};
 

@@ -10,7 +10,7 @@ use maxima::{
         LockedMaxima,
         service_layer::{
             SERVICE_REQUEST_GAMEIMAGES, SERVICE_REQUEST_GETHEROBACKGROUNDIMAGE, ServiceGame,
-            ServiceGameHub, ServiceGameHubCollection, ServiceGameImagesRequestBuilder,
+            ServiceGameHubCollection, ServiceGameImagesRequestBuilder,
             ServiceHeroBackgroundImageRequestBuilder, ServiceLayerClient,
         },
     },

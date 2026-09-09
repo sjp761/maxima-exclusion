@@ -1,3 +1,4 @@
+use crate::content::zlib::restore_zlib_state;
 use std::{
     io,
     path::{Path, PathBuf},
@@ -9,7 +10,7 @@ use anyhow::{Result, bail};
 use async_compression::tokio::write::DeflateDecoder;
 use bytes::{Bytes, BytesMut};
 use futures::{Stream, StreamExt, TryStreamExt};
-use log::{debug, error, info};
+use log::{debug, error};
 use reqwest::{Client, StatusCode};
 use strum_macros::Display;
 use tokio::{
@@ -18,11 +19,7 @@ use tokio::{
 };
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 
-use crate::content::{
-    manager::ProgressCallback,
-    zip::CompressionType,
-    zlib::{restore_zlib_state, write_zlib_state},
-};
+use crate::content::{manager::ProgressCallback, zip::CompressionType, zlib::write_zlib_state};
 
 use super::zip::{ZipFile, ZipFileEntry};
 
@@ -116,6 +113,8 @@ impl<W: AsyncWrite> RestorableDecoder for RestorableDeflateDecoder<W> {
 
     #[cfg(windows)]
     fn restore_state(&mut self) -> Result<(u64, u64), DecoderRestoreError> {
+        use log::info;
+
         if !self.file_path.exists() || std::fs::metadata(self.file_path.clone()).unwrap().len() == 0
         {
             return Err(DecoderRestoreError::CacheEmpty);
@@ -159,10 +158,11 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for RestorableDeflateDecoder<W> {
 
         #[cfg(windows)]
         if self.should_save
-            && let Poll::Ready(Ok(())) = Pin::new(&mut self.inner).poll_flush(cx) {
-                debug!("save interval reached, serializing state...");
-                self.save_state();
-            }
+            && let Poll::Ready(Ok(())) = Pin::new(&mut self.inner).poll_flush(cx)
+        {
+            debug!("save interval reached, serializing state...");
+            self.save_state();
+        }
 
         poll_result
     }

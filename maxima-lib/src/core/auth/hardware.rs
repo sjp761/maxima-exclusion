@@ -476,9 +476,10 @@ impl HardwareInfo {
 }
 
 #[cfg(unix)]
-fn get_root_creation_str(slug: Option<&str>) -> String { //Option for slug incase of PCSign
+fn get_root_creation_str(slug: Option<&str>) -> String {
+    //Option for slug incase of PCSign
     use crate::unix::wine::wine_prefix_dir;
-    use chrono::{DateTime, TimeZone};
+    use chrono::DateTime;
     use std::{fs, os::unix::fs::MetadataExt};
 
     let date_str = String::from("1970010100:00:00.000000000+0000");

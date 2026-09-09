@@ -291,7 +291,9 @@ async fn req_touchup(body: web::Bytes) -> Result<HttpResponse, ServerError> {
         Path::new(&request.output_dir).join(maxima::core::manifest::MANIFEST_RELATIVE_PATH),
     )
     .await?;
-    manifest.run_touchup(&PathBuf::from(request.output_dir), None).await?;
+    manifest
+        .run_touchup(&PathBuf::from(request.output_dir), None)
+        .await?;
 
     Ok(HttpResponse::Ok().body("Done"))
 }

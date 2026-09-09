@@ -1,4 +1,4 @@
-use egui::{Context, Key::W};
+use egui::Context;
 use log::{error, info, warn};
 use maxima::core::manifest::handle_touchup_request;
 use thiserror::Error;
@@ -36,7 +36,7 @@ use maxima::{
     lsx::service::LSXServerError,
     rtm::RtmError,
     util::{
-        native::{NativeError, maxima_dir},
+        native::NativeError,
         registry::{RegistryError, check_registry_validity, set_up_registry},
     },
 };

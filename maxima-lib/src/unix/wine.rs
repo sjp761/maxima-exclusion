@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     env,
     ffi::OsStr,
-    fs::{File, remove_dir_all, remove_file},
+    fs::remove_dir_all,
     io::Read,
     process::{ExitStatus, Stdio},
 };
@@ -25,13 +25,7 @@ use xz2::read::XzDecoder;
 
 use crate::{
     gameinfo::load_game_info_from_json,
-    util::{
-        github::{
-            GithubRelease, fetch_github_release, fetch_github_releases, github_download_asset,
-        },
-        native::{DownloadError, NativeError, SafeParent, SafeStr, WineError, maxima_dir},
-        registry::RegistryError,
-    },
+    util::native::{DownloadError, NativeError, SafeParent, SafeStr, WineError, maxima_dir},
 };
 
 static PROTON_PATTERN: LazyLock<Regex> = LazyLock::new(|| {

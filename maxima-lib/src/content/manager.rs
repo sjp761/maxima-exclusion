@@ -24,16 +24,11 @@ use crate::{
         zip::{CompressionType, ZipError, ZipFileEntry},
     },
     core::{
-        MaximaEvent,
-        auth::storage::LockedAuthStorage,
-        manifest::ManifestError,
+        MaximaEvent, auth::storage::LockedAuthStorage, manifest::ManifestError,
         service_layer::ServiceLayerError,
     },
     util::native::{NativeError, maxima_dir},
 };
-
-#[cfg(unix)]
-use crate::core::launch::mx_linux_setup;
 
 const QUEUE_FILE: &str = "download_queue.json";
 const MAX_CONCURRENT_DOWNLOADS: usize = 16;
@@ -405,11 +400,12 @@ impl ContentManager {
     pub async fn cancel_install(&mut self, offer_id: &str) -> Result<(), ContentManagerError> {
         // Stop the in-flight download first so nothing keeps writing to disk.
         if let Some(current) = &self.current
-            && current.offer_id() == offer_id {
-                current.cancel();
-                current.wait().await; // let the task settle before mutating state
-                self.current = None;
-            }
+            && current.offer_id() == offer_id
+        {
+            current.cancel();
+            current.wait().await; // let the task settle before mutating state
+            self.current = None;
+        }
 
         if self
             .queue
@@ -432,13 +428,14 @@ impl ContentManager {
     /// on disk, so it can be resumed later via `install_now` with the same game.
     pub async fn pause_install(&mut self, offer_id: &str) -> Result<(), ContentManagerError> {
         if let Some(current) = &self.current
-            && current.offer_id() == offer_id {
-                current.cancel();
-                current.wait().await;
-                self.current = None;
-                self.queue.paused = true;
-                self.queue.save().await?;
-            }
+            && current.offer_id() == offer_id
+        {
+            current.cancel();
+            current.wait().await;
+            self.current = None;
+            self.queue.paused = true;
+            self.queue.save().await?;
+        }
         // If it's only queued (not downloading yet), there's nothing to pause.
         Ok(())
     }
@@ -482,28 +479,34 @@ impl ContentManager {
         let mut event = None;
 
         if let Some(current) = &self.current
-            && current.is_done() {
-                let finished = self
-                    .queue
-                    .current
-                    .take()
-                    .expect("queue.current out of sync with active download");
-                self.queue.completed.push(finished);
-                event = Some(MaximaEvent::InstallFinished(current.offer_id.to_owned()));
-                self.current = None;
-                self.queue.paused = false; // Reset pause flag when done
-                self.queue.save().await?;
-            }
+            && current.is_done()
+        {
+            let finished = self
+                .queue
+                .current
+                .take()
+                .expect("queue.current out of sync with active download");
+            self.queue.completed.push(finished);
+            event = Some(MaximaEvent::InstallFinished(current.offer_id.to_owned()));
+            self.current = None;
+            self.queue.paused = false; // Reset pause flag when done
+            self.queue.save().await?;
+        }
 
-        if self.current.is_none() && !self.queue.paused
-            && let Some(game) = self.queue.pop_next() {
-                self.install_direct(game).await?;
-            }
+        if self.current.is_none()
+            && !self.queue.paused
+            && let Some(game) = self.queue.pop_next()
+        {
+            self.install_direct(game).await?;
+        }
 
-        if self.current.is_none() && self.queue.current.is_some() && !self.queue.paused
-            && let Some(game) = self.queue.current.take() {
-                self.install_direct(game).await?;
-            }
+        if self.current.is_none()
+            && self.queue.current.is_some()
+            && !self.queue.paused
+            && let Some(game) = self.queue.current.take()
+        {
+            self.install_direct(game).await?;
+        }
 
         Ok(event)
     }

@@ -79,10 +79,7 @@ pub async fn handle_set_presence_request(
     info!(
         "Setting Presence to {:?}: {}",
         request.attr_Presence,
-        request
-            .attr_RichPresence
-            .to_owned()
-            .unwrap_or_default()
+        request.attr_RichPresence.to_owned().unwrap_or_default()
     );
 
     let mut maxima = state.maxima().lock().await;

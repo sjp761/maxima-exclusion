@@ -5,9 +5,9 @@ use crate::core::{
     auth::storage::LockedAuthStorage,
     cache::DynamicCache,
     service_layer::{
-        SERVICE_REQUEST_AVAILABLEBUILDS, SERVICE_REQUEST_DOWNLOADURL, ServiceAvailableBuild, ServiceAvailableBuildsRequestBuilder, ServiceDownloadType,
-        ServiceDownloadUrlMetadata, ServiceDownloadUrlRequestBuilder, ServiceLayerClient,
-        ServiceLayerError,
+        SERVICE_REQUEST_AVAILABLEBUILDS, SERVICE_REQUEST_DOWNLOADURL, ServiceAvailableBuild,
+        ServiceAvailableBuildsRequestBuilder, ServiceDownloadType, ServiceDownloadUrlMetadata,
+        ServiceDownloadUrlRequestBuilder, ServiceLayerClient, ServiceLayerError,
     },
 };
 

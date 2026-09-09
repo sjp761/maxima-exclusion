@@ -76,7 +76,6 @@ async fn handle_launch_args() -> Result<bool, RunError> {
             .as_ref()
             .map_err(|e| {
                 let source = e.source();
-                
 
                 if source.is_some() {
                     source.unwrap().to_string()
@@ -125,8 +124,7 @@ async fn platform_launch(args: BootstrapLaunchArgs) -> Result<(), NativeError> {
 async fn platform_launch(args: BootstrapLaunchArgs) -> Result<(), NativeError> {
     use maxima::unix::wine::CommandType;
     use maxima::unix::wine::run_wine_command;
-use maxima::unix::wine::wine_prefix_dir;
-
+    use maxima::unix::wine::wine_prefix_dir;
 
     run_wine_command(
         args.path.into(),

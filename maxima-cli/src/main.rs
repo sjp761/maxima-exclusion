@@ -44,11 +44,7 @@ use maxima::{
     },
     ooa,
     rtm::client::BasicPresence,
-    util::{
-        log::init_logger,
-        native::take_foreground_focus,
-        registry::check_registry_validity,
-    },
+    util::{log::init_logger, native::take_foreground_focus, registry::check_registry_validity},
 };
 
 static MANUAL_LOGIN_PATTERN: LazyLock<Regex> =
@@ -182,7 +178,6 @@ pub async fn login_flow(login_override: Option<String>) -> Result<TokenResponse>
             let persona = &captures[1];
             let password = &captures[2];
 
-            
             manual_login(persona, password).await?
         } else {
             access_token.to_owned()
@@ -395,7 +390,8 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
             .map(|g| g.name())
             .collect::<Vec<String>>();
 
-        let name = Select::new("What game would you like to install?", owned_games_strs).prompt()?;
+        let name =
+            Select::new("What game would you like to install?", owned_games_strs).prompt()?;
 
         owned_games.iter().find(|g| g.name() == name).unwrap()
     };
@@ -555,11 +551,7 @@ async fn download_specific_file(
         .download_single_file(ele, &output_dir, on_progress)
         .await?;
 
-    info!(
-        "Downloaded file {} from game build {}",
-        file,
-        build
-    );
+    info!("Downloaded file {} from game build {}", file, build);
     Ok(())
 }
 

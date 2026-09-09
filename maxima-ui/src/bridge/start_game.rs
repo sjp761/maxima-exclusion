@@ -1,5 +1,5 @@
-use crate::{GameInfo, GameSettings, bridge_thread::BackendError};
-use log::{debug, error, info};
+use crate::{GameInfo, GameSettings};
+use log::{debug, info};
 use maxima::core::{
     LockedMaxima,
     launch::{self, LaunchError, LaunchMode, LaunchOptions},

@@ -3,7 +3,7 @@ use crate::{
     bridge_thread::{self, BackendError},
     views::downloads_view::QueuedDownload,
 };
-use log::{error, info, warn};
+use log::{info, warn};
 use tokio::sync::mpsc::error::TryRecvError;
 
 pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {

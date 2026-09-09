@@ -1,14 +1,9 @@
-
 use log::{error, info, warn};
 use regex::Regex;
 use service::{BridgeThread, MaximaLibRequest, MaximaLibResponse};
 use tokio_stream::StreamExt;
 
-use std::{
-    io::stdout,
-    sync::LazyLock,
-    time::Duration,
-};
+use std::{io::stdout, sync::LazyLock, time::Duration};
 
 #[cfg(windows)]
 use is_elevated::is_elevated;
@@ -19,6 +14,7 @@ use maxima::{
     util::service::{is_service_running, is_service_valid, register_service_user, start_service},
 };
 
+use maxima::core::{LockedMaxima, launch::LaunchMode};
 use maxima::{
     core::{
         MaximaEvent,
@@ -26,10 +22,6 @@ use maxima::{
     },
     util::{native::take_foreground_focus, registry::check_registry_validity},
 };
-use maxima::core::{
-        LockedMaxima,
-        launch::LaunchMode,
-    };
 
 static MANUAL_LOGIN_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(.*):(.*)$").expect("manual login regex should be valid"));
@@ -115,15 +107,16 @@ impl App {
         }
 
         if let Event::Key(key) = event::read()?
-            && key.kind == KeyEventKind::Press {
-                use KeyCode::*;
-                match key.code {
-                    Char('l') | Right => self.next_tab(),
-                    Char('h') | Left => self.previous_tab(),
-                    Char('q') | Esc => self.quit(),
-                    _ => {}
-                }
+            && key.kind == KeyEventKind::Press
+        {
+            use KeyCode::*;
+            match key.code {
+                Char('l') | Right => self.next_tab(),
+                Char('h') | Left => self.previous_tab(),
+                Char('q') | Esc => self.quit(),
+                _ => {}
             }
+        }
         Ok(())
     }
 
@@ -456,7 +449,9 @@ async fn start_game(
         let mut maxima = maxima_arc.lock().await;
 
         for event in maxima.consume_pending_events() {
-            if let MaximaEvent::ReceivedLSXRequest(_pid, _request) = event { () }
+            if let MaximaEvent::ReceivedLSXRequest(_pid, _request) = event {
+                ()
+            }
         }
 
         maxima.update().await;

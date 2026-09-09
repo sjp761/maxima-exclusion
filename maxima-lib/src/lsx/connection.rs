@@ -3,17 +3,12 @@ use log::{debug, error, warn};
 use quick_xml::DeError;
 use rand::rand_core::Rng;
 use regex::Regex;
-use std::{
-    io::{ErrorKind}, path::PathBuf, sync::{LazyLock},
-};
+use std::{io::ErrorKind, path::PathBuf, sync::LazyLock};
 use sysinfo::{Pid, System};
 use thiserror::Error;
 use tokio::net::TcpStream;
-use tokio::{
-    io::AsyncWriteExt,
-    sync::MutexGuard,
-};
 use tokio::sync::mpsc::Sender;
+use tokio::{io::AsyncWriteExt, sync::MutexGuard};
 
 use super::{
     request::{
@@ -43,9 +38,7 @@ use super::{
     },
 };
 use crate::{
-    core::{
-        LockedMaxima, Maxima, MaximaEvent, launch::ActiveGameContext,
-    },
+    core::{LockedMaxima, Maxima, MaximaEvent, launch::ActiveGameContext},
     lsx::{request::LSXRequestError, types::LSXRequestType},
     util::{
         native::NativeError,
@@ -117,7 +110,6 @@ impl ConnectionState {
     pub fn enable_encryption(&mut self, encryption_key: [u8; 16]) {
         self.encryption = EncryptionState::Ready(encryption_key);
     }
-
 }
 
 pub fn get_os_pid(context: &ActiveGameContext) -> Result<u32, NativeError> {
@@ -216,8 +208,7 @@ impl Connection {
                 .ok_or(NativeError::Stringify)?
                 .to_owned();
 
-                pid =
-                    get_wine_pid(context.launch_id(), &filename, context.slug().as_deref()).await;
+                pid = get_wine_pid(context.launch_id(), &filename, context.slug().as_deref()).await;
             } else {
                 warn!(
                     "Failed to find game process while looking for PID {}",
@@ -249,11 +240,7 @@ impl Connection {
             pid: pid.unwrap_or(0),
         };
 
-        Ok(Self {
-            stream,
-            state,
-            tx,
-        })
+        Ok(Self { stream, state, tx })
     }
 
     // Initialization
@@ -328,14 +315,14 @@ impl Connection {
         let lsx_message: LSX = quick_xml::de::from_str(message.as_str())?;
 
         let reply = match lsx_message.value {
-            LSXMessageType::Request(msg) => {
-                self.process_request_message(msg).await?
-            }
+            LSXMessageType::Request(msg) => self.process_request_message(msg).await?,
             LSXMessageType::Event(_) => {
                 None // Blank for now
             }
             LSXMessageType::Response(_) => {
-                warn!("Unexpected LSX Response message received, ignoring (server message type sent to server)");
+                warn!(
+                    "Unexpected LSX Response message received, ignoring (server message type sent to server)"
+                );
                 None
             }
         };
@@ -356,9 +343,7 @@ impl Connection {
         message: LSXRequest,
     ) -> Result<Option<LSXMessageType>, LSXConnectionError> {
         {
-            let (maxima_arc, pid) = {
-                (self.state.maxima.clone(), *self.state.pid())
-            };
+            let (maxima_arc, pid) = { (self.state.maxima.clone(), *self.state.pid()) };
 
             maxima_arc
                 .lock()
@@ -367,7 +352,7 @@ impl Connection {
         }
 
         let result = lsx_message_matcher!(
-            
+
             &mut self.state, message.value, LSXRequestType;
 
             ChallengeResponse handle_challenge_response,

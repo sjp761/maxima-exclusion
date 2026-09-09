@@ -78,7 +78,6 @@ impl OwnedOffer {
     }
 
     pub async fn is_installed(&self) -> bool {
-
         let gameinfo = match load_game_info_from_json(&self.slug) {
             Ok(info) => info,
             Err(_) => return false,
@@ -88,17 +87,16 @@ impl OwnedOffer {
         } else {
             #[cfg(windows)]
             return self.check_install_win_registry().await;
-                
+
             #[cfg(not(windows))]
-            return false;  
+            return false;
         }
     }
 
     // This is unused
     pub async fn install_check_path(&self) -> Result<String, ManifestError> {
         Ok(parse_registry_path_json(
-            self
-                .offer
+            self.offer
                 .install_check_override()
                 .as_ref()
                 .ok_or(ManifestError::NoInstallPath(self.slug.clone()))?,
@@ -233,9 +231,10 @@ fn group_offers(products: Vec<OwnedOffer>) -> Vec<OwnedTitle> {
     // Promote any product_map entry that has no corresponding base_products entry
     for (slug, products) in &product_map {
         if !base_products.contains_key(slug)
-            && let Some(first) = products.first() {
-                base_products.insert(slug.clone(), first.clone());
-            }
+            && let Some(first) = products.first()
+        {
+            base_products.insert(slug.clone(), first.clone());
+        }
     }
 
     let mut titles = Vec::new();

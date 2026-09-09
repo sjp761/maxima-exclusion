@@ -13,10 +13,7 @@
 ///   - Call `/lock/authorize` with a `Vec<CloudSyncRequest>`, creating details that match the file and keeping track of them for later
 ///   - Push the files to the endpoints, along with a manifest outlining the files you uploaded and/or that are already there.
 /// - Call `/lock/delete`
-use super::{
-    auth::storage::LockedAuthStorage, endpoints::API_CLOUDSYNC,
-    library::OwnedOffer,
-};
+use super::{auth::storage::LockedAuthStorage, endpoints::API_CLOUDSYNC, library::OwnedOffer};
 use crate::util::native::{NativeError, SafeParent, SafeStr};
 use derive_getters::Getters;
 use log::{debug, error};

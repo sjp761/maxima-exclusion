@@ -5,7 +5,8 @@ use serde::Serialize;
 use std::sync::LazyLock;
 
 use crate::{
-    unix::wine::{CommandType, run_wine_command, wine_prefix_dir}, util::native::{NativeError, SafeParent, SafeStr, module_path},
+    unix::wine::{CommandType, run_wine_command, wine_prefix_dir},
+    util::native::{NativeError, SafeParent, SafeStr, module_path},
 };
 
 static PID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
