@@ -1,15 +1,13 @@
-use clap::{Parser, Subcommand};
 
-use inquire::Select;
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use regex::Regex;
 use service::{BridgeThread, MaximaLibRequest, MaximaLibResponse};
 use tokio_stream::StreamExt;
 
 use std::{
     io::stdout,
-    sync::{Arc, LazyLock},
-    time::{Duration, Instant},
+    sync::LazyLock,
+    time::Duration,
 };
 
 #[cfg(windows)]
@@ -22,41 +20,21 @@ use maxima::{
 };
 
 use maxima::{
-    content::ContentService,
     core::{
-        Maxima, MaximaEvent,
-        auth::{
-            context::AuthContext,
-            login::{begin_oauth_login_flow, manual_login},
-            nucleus_auth_exchange,
-        },
+        MaximaEvent,
         launch::{self, LaunchOptions},
-        service_layer::ServiceUserGameProduct,
     },
-    util::{log::init_logger, native::take_foreground_focus, registry::check_registry_validity},
+    util::{native::take_foreground_focus, registry::check_registry_validity},
 };
-use maxima::{
-    content::downloader::ZipDownloader,
-    core::{
-        LockedMaxima, MaximaOptionsBuilder,
-        auth::{TokenResponse, nucleus_token_exchange},
-        clients::JUNO_PC_CLIENT_ID,
+use maxima::core::{
+        LockedMaxima,
         launch::LaunchMode,
-        library::OwnedTitle,
-        service_layer::{
-            SERVICE_REQUEST_GETBASICPLAYER, SERVICE_REQUEST_GETLEGACYCATALOGDEFS,
-            ServiceGetBasicPlayerRequestBuilder, ServiceGetLegacyCatalogDefsRequestBuilder,
-            ServiceLegacyOffer, ServicePlayer,
-        },
-    },
-    ooa,
-    rtm::client::BasicPresence,
-};
+    };
 
 static MANUAL_LOGIN_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(.*):(.*)$").expect("manual login regex should be valid"));
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use color_eyre::config::HookBuilder;
 use ratatui::{
     crossterm::{
@@ -136,8 +114,8 @@ impl App {
             return Ok(());
         }
 
-        if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press {
+        if let Event::Key(key) = event::read()?
+            && key.kind == KeyEventKind::Press {
                 use KeyCode::*;
                 match key.code {
                     Char('l') | Right => self.next_tab(),
@@ -146,7 +124,6 @@ impl App {
                     _ => {}
                 }
             }
-        }
         Ok(())
     }
 
@@ -347,7 +324,7 @@ async fn main() {
 
     if let Some(e) = result.err() {
         match std::env::var("RUST_BACKTRACE") {
-            Ok(_) => error!("{}:\n{}", e, e.backtrace().to_string()),
+            Ok(_) => error!("{}:\n{}", e, e.backtrace()),
             Err(_) => error!("{}", e),
         }
     }
@@ -479,10 +456,7 @@ async fn start_game(
         let mut maxima = maxima_arc.lock().await;
 
         for event in maxima.consume_pending_events() {
-            match event {
-                MaximaEvent::ReceivedLSXRequest(_pid, _request) => (),
-                _ => {}
-            }
+            if let MaximaEvent::ReceivedLSXRequest(_pid, _request) = event { () }
         }
 
         maxima.update().await;

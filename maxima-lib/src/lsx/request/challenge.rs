@@ -40,5 +40,5 @@ pub async fn handle_challenge_response(
         hex::encode(encryption_key),
         message.attr_version
     );
-    return make_lsx_handler_response!(Response, ChallengeAccepted, { attr_response: accept_key });
+    make_lsx_handler_response!(Response, ChallengeAccepted, { attr_response: accept_key })
 }

@@ -70,19 +70,19 @@ async fn handle_launch_args() -> Result<bool, RunError> {
 
     let result = run(&args).await;
     if cfg!(debug_assertions) || std::env::var("MAXIMA_DEBUG").is_ok() {
-        println!("Args: {:?}", &args);
+        println!("Args: {:?}", args);
 
         let str_result = result
             .as_ref()
             .map_err(|e| {
                 let source = e.source();
-                let error_str = if source.is_some() {
+                
+
+                if source.is_some() {
                     source.unwrap().to_string()
                 } else {
                     e.to_string()
-                };
-
-                error_str
+                }
             })
             .err()
             .unwrap_or("Success".to_string());
@@ -116,7 +116,7 @@ async fn platform_launch(args: BootstrapLaunchArgs) -> Result<(), NativeError> {
     let mut binding = Command::new(args.path);
     let child = binding.args(args.args);
 
-    let status = child.spawn()?.wait().await?;
+    let _status = child.spawn()?.wait().await?;
     // bail!("{}", status.code().unwrap());
     Ok(())
 }

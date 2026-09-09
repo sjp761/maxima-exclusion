@@ -62,5 +62,5 @@ pub async fn handle_query_entitlements_request(
         });
     }
 
-    return make_lsx_handler_response!(Response, QueryEntitlementsResponse, { entitlement: lsx_entitlements });
+    make_lsx_handler_response!(Response, QueryEntitlementsResponse, { entitlement: lsx_entitlements })
 }

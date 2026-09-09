@@ -103,7 +103,7 @@ impl BridgeThread {
                 continue;
             };
 
-            let result: Result<()> = match request {
+            let _result: Result<()> = match request {
                 MaximaLibRequest::LoginRequest => {
                     let login = async || {
                         let maxima = maxima_arc.lock().await;
@@ -172,7 +172,7 @@ pub async fn login_flow() -> Result<TokenResponse> {
 
     let token_res = nucleus_token_exchange(&auth_context).await;
     if token_res.is_err() {
-        bail!("Login failed: {}", token_res.err().unwrap().to_string());
+        bail!("Login failed: {}", token_res.err().unwrap());
     }
 
     Ok(token_res?)

@@ -4,7 +4,7 @@ pub mod pre_dip;
 use dip::DiPManifest;
 use pre_dip::PreDiPManifest;
 use quick_xml::DeError;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -91,7 +91,7 @@ fn bytes_to_string(bytes: Vec<u8>) -> Option<String> {
     }
 
     let u16_bytes: Vec<u16> = bytes
-        .chunks_exact(2)
+        .as_chunks::<2>().0.iter()
         .map(|a| u16::from_ne_bytes([a[0], a[1]]))
         .collect();
 

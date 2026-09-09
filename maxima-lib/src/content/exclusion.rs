@@ -10,7 +10,7 @@ pub fn get_exclusion_list(slug: &str) -> GlobSet {
     if let Ok(dir) = maxima_dir()
     // Checks to make sure maxima directory exists
     {
-        let filepath = dir.join("exclude").join(&slug); // Path to exclusion file
+        let filepath = dir.join("exclude").join(slug); // Path to exclusion file
         info!("Loading exclusion file from {}", filepath.display());
 
         if let Ok(file) = File::open(&filepath) {

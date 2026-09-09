@@ -7,7 +7,6 @@ use std::{
     },
 };
 
-use anyhow::bail;
 use derive_builder::Builder;
 use derive_getters::Getters;
 use futures::StreamExt;
@@ -27,10 +26,9 @@ use crate::{
     core::{
         MaximaEvent,
         auth::storage::LockedAuthStorage,
-        manifest::{self, MANIFEST_RELATIVE_PATH, ManifestError},
+        manifest::ManifestError,
         service_layer::ServiceLayerError,
     },
-    gameinfo::GameInstallInfo,
     util::native::{NativeError, maxima_dir},
 };
 
@@ -176,11 +174,11 @@ impl GameDownloader {
         debug!("URL: {}", url.url());
 
         let downloader = ZipDownloader::new(url.url()).await?;
-        let exclusion_list = get_exclusion_list(&game.slug());
+        let exclusion_list = get_exclusion_list(game.slug());
         let mut entries = Vec::new();
         for ele in downloader.manifest().entries() {
             // TODO: Filtering
-            if exclusion_list.is_match(&ele.name()) {
+            if exclusion_list.is_match(ele.name()) {
                 // info!("Excluding file from download: {}", ele.name()); Spams if a lot of files are excluded
                 continue;
             }
@@ -406,13 +404,12 @@ impl ContentManager {
     // Cancels the current download and removes the game from the queue, if present.
     pub async fn cancel_install(&mut self, offer_id: &str) -> Result<(), ContentManagerError> {
         // Stop the in-flight download first so nothing keeps writing to disk.
-        if let Some(current) = &self.current {
-            if current.offer_id() == offer_id {
+        if let Some(current) = &self.current
+            && current.offer_id() == offer_id {
                 current.cancel();
                 current.wait().await; // let the task settle before mutating state
                 self.current = None;
             }
-        }
 
         if self
             .queue
@@ -434,15 +431,14 @@ impl ContentManager {
     /// Pauses the active download. Partial files and saved zlib states stay
     /// on disk, so it can be resumed later via `install_now` with the same game.
     pub async fn pause_install(&mut self, offer_id: &str) -> Result<(), ContentManagerError> {
-        if let Some(current) = &self.current {
-            if current.offer_id() == offer_id {
+        if let Some(current) = &self.current
+            && current.offer_id() == offer_id {
                 current.cancel();
                 current.wait().await;
                 self.current = None;
                 self.queue.paused = true;
                 self.queue.save().await?;
             }
-        }
         // If it's only queued (not downloading yet), there's nothing to pause.
         Ok(())
     }
@@ -485,8 +481,8 @@ impl ContentManager {
     pub(crate) async fn update(&mut self) -> Result<Option<MaximaEvent>, ContentManagerError> {
         let mut event = None;
 
-        if let Some(current) = &self.current {
-            if current.is_done() {
+        if let Some(current) = &self.current
+            && current.is_done() {
                 let finished = self
                     .queue
                     .current
@@ -498,19 +494,16 @@ impl ContentManager {
                 self.queue.paused = false; // Reset pause flag when done
                 self.queue.save().await?;
             }
-        }
 
-        if self.current.is_none() && !self.queue.paused {
-            if let Some(game) = self.queue.pop_next() {
+        if self.current.is_none() && !self.queue.paused
+            && let Some(game) = self.queue.pop_next() {
                 self.install_direct(game).await?;
             }
-        }
 
-        if self.current.is_none() && self.queue.current.is_some() && !self.queue.paused {
-            if let Some(game) = self.queue.current.take() {
+        if self.current.is_none() && self.queue.current.is_some() && !self.queue.paused
+            && let Some(game) = self.queue.current.take() {
                 self.install_direct(game).await?;
             }
-        }
 
         Ok(event)
     }

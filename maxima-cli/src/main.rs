@@ -36,8 +36,6 @@ use maxima::{
         clients::JUNO_PC_CLIENT_ID,
         cloudsync::CloudSyncLockMode,
         launch::{self, LaunchMode, LaunchOptions},
-        library::OwnedTitle,
-        manifest::{self, MANIFEST_RELATIVE_PATH, ManifestError},
         service_layer::{
             SERVICE_REQUEST_GETBASICPLAYER, SERVICE_REQUEST_GETLEGACYCATALOGDEFS,
             ServiceGetBasicPlayerRequestBuilder, ServiceGetLegacyCatalogDefsRequestBuilder,
@@ -48,7 +46,7 @@ use maxima::{
     rtm::client::BasicPresence,
     util::{
         log::init_logger,
-        native::{maxima_dir, take_foreground_focus},
+        native::take_foreground_focus,
         registry::check_registry_validity,
     },
 };
@@ -184,8 +182,8 @@ pub async fn login_flow(login_override: Option<String>) -> Result<TokenResponse>
             let persona = &captures[1];
             let password = &captures[2];
 
-            let login_result = manual_login(persona, password).await?;
-            login_result
+            
+            manual_login(persona, password).await?
         } else {
             access_token.to_owned()
         };
@@ -417,7 +415,7 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
     }
 
     let build = available_live_build.unwrap();
-    info!("Installing game build {}", build.to_string());
+    info!("Installing game build {}", build);
 
     let path = PathBuf::from(
         tokio::task::spawn_blocking(|| {
@@ -526,10 +524,10 @@ async fn download_specific_file(
     }
 
     let build = build.unwrap();
-    info!("Downloading file from game build {}", build.to_string());
+    info!("Downloading file from game build {}", build);
 
     let url = content_service
-        .download_url(offer, Some(&build.build_id()))
+        .download_url(offer, Some(build.build_id()))
         .await?;
 
     debug!("URL: {}", url.url());
@@ -560,7 +558,7 @@ async fn download_specific_file(
     info!(
         "Downloaded file {} from game build {}",
         file,
-        build.to_string()
+        build
     );
     Ok(())
 }
@@ -586,13 +584,13 @@ async fn generate_download_links(maxima_arc: LockedMaxima) -> Result<()> {
     info!("Working...");
 
     let builds = content_service
-        .available_builds(&game.base_offer().offer_id())
+        .available_builds(game.base_offer().offer_id())
         .await?;
 
     let mut strs = String::new();
     for build in builds.builds {
         let url = content_service
-            .download_url(&game.base_offer().offer_id(), Some(&build.build_id()))
+            .download_url(game.base_offer().offer_id(), Some(build.build_id()))
             .await;
         if url.is_err() {
             continue;
@@ -841,7 +839,7 @@ async fn do_cloud_sync(maxima_arc: LockedMaxima, game_slug: &str, write: bool) -
 
 async fn start_game(
     offer_id: &str,
-    slug: &str,
+    _slug: &str,
     game_path_override: Option<String>,
     game_args: Vec<String>,
     login: Option<String>,

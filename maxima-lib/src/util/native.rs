@@ -1,5 +1,4 @@
 use std::{
-    env,
     fs::create_dir_all,
     num::ParseIntError,
     path::{Path, PathBuf},
@@ -239,6 +238,8 @@ pub fn maxima_dir() -> Result<PathBuf, NativeError> {
 
 #[cfg(unix)]
 pub fn maxima_dir() -> Result<PathBuf, NativeError> {
+    use std::env;
+
     let home = if let Ok(home) = env::var("XDG_DATA_HOME") {
         home
     } else if let Ok(home) = env::var("HOME") {

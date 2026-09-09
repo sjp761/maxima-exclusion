@@ -63,5 +63,5 @@ pub async fn handle_query_offers_request(
         })
     }
 
-    return make_lsx_handler_response!(Response, QueryOffersResponse, { offer: rtn });
+    make_lsx_handler_response!(Response, QueryOffersResponse, { offer: rtn })
 }

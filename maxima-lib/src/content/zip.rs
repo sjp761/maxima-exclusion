@@ -248,7 +248,7 @@ impl EndOfCentralDirectory {
         }
 
         let signature = data.read_u32()?;
-        if signature as u32 != ZIP_EOCD_SIGNATURE {
+        if signature != ZIP_EOCD_SIGNATURE {
             return Err(EOCDError::Signature(signature));
         }
 
@@ -272,7 +272,7 @@ impl EndOfCentralDirectory {
         }
 
         let signature = data.read_u32()?;
-        if signature as u32 != ZIP64_EOCD_SIGNATURE {
+        if signature != ZIP64_EOCD_SIGNATURE {
             return Err(ZipError::Signature(signature));
         }
 
@@ -284,12 +284,12 @@ impl EndOfCentralDirectory {
         data.read_u16()?;
         data.read_u16()?;
 
-        self.disk_number = data.read_u32()? as u32;
-        self.disk_number_with_cd = data.read_u32()? as u32;
+        self.disk_number = data.read_u32()?;
+        self.disk_number_with_cd = data.read_u32()?;
         self.disk_entries = data.read_i64()? as u64;
         self.total_entries = data.read_i64()? as u64;
         self.cd_size = data.read_i64()? as u64;
-        self.cd_offset = data.read_i64()? as i64;
+        self.cd_offset = data.read_i64()?;
         self.comment_length = 0;
 
         Ok(())

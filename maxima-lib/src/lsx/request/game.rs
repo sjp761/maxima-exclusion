@@ -25,7 +25,7 @@ pub async fn handle_game_info_request(
         LSXGameInfoId::InstalledLanguage => "en_US".to_string(),
     };
 
-    return make_lsx_handler_response!(Response, GetGameInfoResponse, { attr_GameInfo: game_info });
+    make_lsx_handler_response!(Response, GetGameInfoResponse, { attr_GameInfo: game_info })
 }
 
 // <GetAllGameInfoResponse FullGamePurchased="true" FullGameReleased="true" InstalledVersion="0" MaxGroupSize="16" Languages="ar_SA,de_DE,en_US,es_ES,es_MX,fr_FR,it_IT,ja_JP,ko_KR,pl_PL,pt_BR,ru_RU,zh_CN,zh_TW" Expiration="0000-00-00T00:00:00" UpToDate="true" HasExpiration="false" InstalledLanguage="" EntitlementSource="STEAM" FullGameReleaseDate="2020-10-22T09:00:00" AvailableVersion="1.0.64.43203" DisplayName="Battlefield V Definitive Edition" FreeTrial="false" SystemTime="2023-06-23T04:22:10"/>
@@ -80,7 +80,7 @@ pub async fn handle_all_game_info_request(
             ),
         };
 
-    return make_lsx_handler_response!(Response, GetAllGameInfoResponse, {
+    make_lsx_handler_response!(Response, GetAllGameInfoResponse, {
         attr_FullGamePurchased: true,
         attr_FullGameReleased: true,
         attr_InstalledVersion: installed_version,
@@ -96,5 +96,5 @@ pub async fn handle_all_game_info_request(
         attr_InstalledLanguage: "en_US".to_string(),
         attr_FullGameReleaseDate: full_game_release_date,
         attr_SystemTime: "2023-06-22T04:00:00".to_string()
-    });
+    })
 }

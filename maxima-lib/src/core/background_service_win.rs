@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::error::BackgroundServiceClientError;
 use crate::util::dll_injector::DllInjector;
-use crate::util::native::NativeError;
-use crate::util::registry::{RegistryError, set_up_registry};
+use crate::util::registry::set_up_registry;
 use is_elevated::is_elevated;
 
 pub const BACKGROUND_SERVICE_PORT: u16 = 13021;

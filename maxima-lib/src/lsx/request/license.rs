@@ -60,5 +60,5 @@ pub async fn handle_license_request(
 
     debug!("Got Denuvo Token: {}", token);
 
-    return make_lsx_handler_response!(Response, RequestLicenseResponse, { attr_License: token.to_owned() });
+    make_lsx_handler_response!(Response, RequestLicenseResponse, { attr_License: token.to_owned() })
 }

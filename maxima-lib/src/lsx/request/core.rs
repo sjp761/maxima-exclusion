@@ -21,7 +21,7 @@ pub async fn handle_settings_request(
         MaximaSetting::Environment => "production".to_string(),
     };
 
-    return make_lsx_handler_response!(Response, GetSettingResponse, { attr_Setting: setting });
+    make_lsx_handler_response!(Response, GetSettingResponse, { attr_Setting: setting })
 }
 
 pub async fn handle_connectivity_request(
@@ -29,7 +29,7 @@ pub async fn handle_connectivity_request(
     _: LSXGetInternetConnectedState,
 ) -> Result<Option<LSXResponseType>, LSXRequestError> {
     // TODO Actually check this
-    return make_lsx_handler_response!(Response, InternetConnectedState, { attr_connected: 1 });
+    make_lsx_handler_response!(Response, InternetConnectedState, { attr_connected: 1 })
 }
 
 pub async fn handle_set_downloader_util_request(

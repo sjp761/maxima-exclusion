@@ -14,7 +14,7 @@
 ///   - Push the files to the endpoints, along with a manifest outlining the files you uploaded and/or that are already there.
 /// - Call `/lock/delete`
 use super::{
-    auth::storage::LockedAuthStorage, endpoints::API_CLOUDSYNC, launch::LaunchMode,
+    auth::storage::LockedAuthStorage, endpoints::API_CLOUDSYNC,
     library::OwnedOffer,
 };
 use crate::util::native::{NativeError, SafeParent, SafeStr};
@@ -286,7 +286,7 @@ impl<'a> CloudSyncLock<'a> {
             };
 
             if !should_download {
-                debug!("Skipping CloudSync read {}", &path.display());
+                debug!("Skipping CloudSync read {}", path.display());
                 continue;
             }
 
@@ -409,12 +409,12 @@ impl<'a> CloudSyncLock<'a> {
             let md5 = calc_file_md5(file.try_clone().await?, HashMode::Hex).await?;
             let base62 = calc_file_md5(file.try_clone().await?, HashMode::Base62).await?;
             if let Some(existing) = self.manifest.file_by_md5(&md5) {
-                debug!("Skipping CloudSync write {}", &path.display());
+                debug!("Skipping CloudSync write {}", path.display());
                 skipped.push(existing.clone());
                 continue;
             }
 
-            let name = unsubstitute_paths(&path, Some(&self.slug))?;
+            let name = unsubstitute_paths(path, Some(&self.slug))?;
             let write_data = WriteData::File {
                 name,
                 file,
@@ -603,7 +603,7 @@ impl CloudSyncClient {
         mode: CloudSyncLockMode,
         allowed_files: Vec<PathBuf>,
         slug: &str,
-    ) -> Result<CloudSyncLock, CloudSyncError> {
+    ) -> Result<CloudSyncLock<'_>, CloudSyncError> {
         let (token, user_id) = acquire_auth(&self.auth).await?;
 
         let res = self

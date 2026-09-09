@@ -1,5 +1,5 @@
 use derive_getters::Getters;
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use quick_xml::DeError;
 use rand::rand_core::Rng;
 use regex::Regex;
@@ -11,7 +11,7 @@ use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio::{
     io::AsyncWriteExt,
-    sync::{MutexGuard, RwLock},
+    sync::MutexGuard,
 };
 use tokio::sync::mpsc::Sender;
 
@@ -44,7 +44,7 @@ use super::{
 };
 use crate::{
     core::{
-        LockedMaxima, Maxima, MaximaEvent, auth::storage::TokenError, launch::ActiveGameContext,
+        LockedMaxima, Maxima, MaximaEvent, launch::ActiveGameContext,
     },
     lsx::{request::LSXRequestError, types::LSXRequestType},
     util::{
@@ -217,7 +217,7 @@ impl Connection {
                 .to_owned();
 
                 pid =
-                    get_wine_pid(&context.launch_id(), &filename, context.slug().as_deref()).await;
+                    get_wine_pid(context.launch_id(), &filename, context.slug().as_deref()).await;
             } else {
                 warn!(
                     "Failed to find game process while looking for PID {}",

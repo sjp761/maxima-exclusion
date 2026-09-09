@@ -2,11 +2,9 @@ use super::{
     TokenRefreshError, TokenResponse, nucleus_connect_token_refresh, token_info::NucleusTokenInfo,
 };
 use crate::core::auth::hardware::HardwareHashError;
-use crate::ooa::LicenseError;
 use crate::util::native::{NativeError, maxima_dir};
 use log::info;
 use reqwest::Client;
-use reqwest::header::ToStrError;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,

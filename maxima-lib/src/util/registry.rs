@@ -1,4 +1,3 @@
-use log::info;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -147,11 +146,10 @@ unsafe fn open_and_query_reg(
 fn inject_wow6432node(sub_key: &str) -> Option<String> {
     // Only rewrite paths under SOFTWARE\ that aren't already redirected
     let prefix = "SOFTWARE\\";
-    if let Some(rest) = sub_key.strip_prefix(prefix) {
-        if !rest.starts_with("WOW6432Node\\") {
+    if let Some(rest) = sub_key.strip_prefix(prefix)
+        && !rest.starts_with("WOW6432Node\\") {
             return Some(format!("SOFTWARE\\WOW6432Node\\{}", rest));
         }
-    }
     None
 }
 
@@ -224,10 +222,10 @@ pub async fn parse_registry_path_json(
 #[cfg(windows)]
 pub async fn parse_registry_path_regkey(key: &str) -> Result<PathBuf, RegistryError> {
     let mut parts = key
-        .split(|c| c == '[' || c == ']')
+        .split(['[', ']'])
         .filter(|s| !s.is_empty());
 
-    let path = if let (Some(first), Some(second)) = (parts.next(), parts.next()) {
+    if let (Some(first), Some(second)) = (parts.next(), parts.next()) {
         let path = match read_reg_key(first, None).await? {
             Some(path) => path.replace("\\", "/").replace("//", "/"),
             None => return Err(RegistryError::InvalidInstallKey),
@@ -236,14 +234,10 @@ pub async fn parse_registry_path_regkey(key: &str) -> Result<PathBuf, RegistryEr
         let second = second.replace("\\", "/");
         let second = second.strip_prefix("/").unwrap_or(&second);
 
-        return Ok([path, second.to_owned()].iter().collect());
+        Ok([path, second.to_owned()].iter().collect())
     } else {
-        return Err(RegistryError::InvalidInstallKey);
-    };
-
-    #[cfg(unix)]
-    let path = case_insensitive_path(path);
-    Ok(path)
+        Err(RegistryError::InvalidInstallKey)
+    }
 }
 
 // [HKEY_LOCAL_MACHINE\SOFTWARE\BioWare\Mass Effect Legendary Edition\Install Dir]Game\Launcher\MassEffectLauncher.exe
@@ -251,21 +245,19 @@ pub async fn parse_registry_path_regkey(key: &str) -> Result<PathBuf, RegistryEr
 #[cfg(windows)]
 pub async fn parse_partial_registry_path(key: &str) -> Result<PathBuf, RegistryError> {
     let mut parts = key
-        .split(|c: char| c == '[' || c == ']')
+        .split(['[', ']'])
         .filter(|s| !s.is_empty());
 
-    let path = if let (Some(first), Some(_second)) = (parts.next(), parts.next()) {
+    if let (Some(first), Some(_second)) = (parts.next(), parts.next()) {
         let path = match read_reg_key(first, None).await? {
             Some(path) => path.replace("\\", "/"),
             None => return Err(RegistryError::InvalidInstallKey),
         };
 
-        return Ok(PathBuf::from(path.to_owned()));
+        Ok(PathBuf::from(path.to_owned()))
     } else {
-        return Err(RegistryError::InvalidInstallKey);
-    };
-
-    Ok(path)
+        Err(RegistryError::InvalidInstallKey)
+    }
 }
 
 #[cfg(windows)]

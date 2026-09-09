@@ -14,10 +14,10 @@ use super::{
 use crate::util::registry::{RegistryError, parse_registry_path_json};
 use crate::{
     gameinfo::load_game_info_from_json,
-    util::native::{NativeError, SafeStr, maxima_dir},
+    util::native::{NativeError, SafeStr},
 };
 use derive_getters::Getters;
-use log::{debug, info};
+use log::info;
 use std::{collections::HashMap, path::PathBuf, time::SystemTimeError};
 use thiserror::Error;
 
@@ -97,7 +97,7 @@ impl OwnedOffer {
     // This is unused
     pub async fn install_check_path(&self) -> Result<String, ManifestError> {
         Ok(parse_registry_path_json(
-            &self
+            self
                 .offer
                 .install_check_override()
                 .as_ref()
@@ -232,11 +232,10 @@ fn group_offers(products: Vec<OwnedOffer>) -> Vec<OwnedTitle> {
 
     // Promote any product_map entry that has no corresponding base_products entry
     for (slug, products) in &product_map {
-        if !base_products.contains_key(slug) {
-            if let Some(first) = products.first() {
+        if !base_products.contains_key(slug)
+            && let Some(first) = products.first() {
                 base_products.insert(slug.clone(), first.clone());
             }
-        }
     }
 
     let mut titles = Vec::new();
@@ -451,7 +450,7 @@ impl GameLibrary {
     fn library_request(
         locale: &Locale,
         r#type: ServiceGameProductType,
-        entitlement_enabled: bool,
+        _entitlement_enabled: bool,
         page: u32,
     ) -> Result<ServiceGetPreloadedOwnedGamesRequest, LibraryError> {
         Ok(ServiceGetPreloadedOwnedGamesRequestBuilder::default()

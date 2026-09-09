@@ -1,9 +1,9 @@
-use std::{io, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use core::future::Future;
 use derive_builder::Builder;
 use derive_getters::Getters;
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use moka::sync::Cache;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc};
@@ -18,7 +18,7 @@ use super::{
     },
 };
 use crate::{
-    core::auth::storage::{AuthError, LockedAuthStorage, TokenError},
+    core::auth::storage::{AuthError, LockedAuthStorage},
     rtm::proto::{LoginRequestV3, PlatformV1, PresenceSubscribeV1, PresenceV1, UserType},
 };
 
@@ -291,7 +291,7 @@ impl RtmClient {
     /// Subscribe to a list of user IDs' presences
     pub async fn subscribe(
         &mut self,
-        persona: Vec<String>,
+        _persona: Vec<String>,
         players: &[String],
     ) -> Result<(), RtmError> {
         send_and_forget_rtm_request!(self.conn_man, PresenceSubscribe, PresenceSubscribeV1, {

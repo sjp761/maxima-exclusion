@@ -20,7 +20,7 @@ pub async fn handle_auth_code_request(
     let mut context = AuthContext::new()?;
 
     let access_token = state.access_token();
-    context.set_access_token(&access_token);
+    context.set_access_token(access_token);
 
     let auth_res = nucleus_auth_exchange(&context, &client_id, "code").await;
     let auth_code = match auth_res {
@@ -35,5 +35,5 @@ pub async fn handle_auth_code_request(
         }
     };
 
-    return make_lsx_handler_response!(Response, AuthCode, { attr_value: auth_code });
+    make_lsx_handler_response!(Response, AuthCode, { attr_value: auth_code })
 }

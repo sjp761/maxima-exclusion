@@ -13,7 +13,7 @@ use log::{debug, error, info};
 use reqwest::{Client, StatusCode};
 use strum_macros::Display;
 use tokio::{
-    fs::{self, OpenOptions, create_dir, create_dir_all},
+    fs::{OpenOptions, create_dir_all},
     io::{AsyncWrite, AsyncWriteExt, BufReader},
 };
 use tokio_util::compat::FuturesAsyncReadCompatExt;
@@ -158,12 +158,11 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for RestorableDeflateDecoder<W> {
         }
 
         #[cfg(windows)]
-        if self.should_save {
-            if let Poll::Ready(Ok(())) = Pin::new(&mut self.inner).poll_flush(cx) {
+        if self.should_save
+            && let Poll::Ready(Ok(())) = Pin::new(&mut self.inner).poll_flush(cx) {
                 debug!("save interval reached, serializing state...");
                 self.save_state();
             }
-        }
 
         poll_result
     }
@@ -381,7 +380,7 @@ where
                 self.byte_count += chunk.len();
                 Poll::Ready(Some(Ok(chunk)))
             }
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(io::Error::other(
+            Poll::Ready(Some(Err(_e))) => Poll::Ready(Some(Err(io::Error::other(
                 DownloadError::DownloadFailed(self.byte_count),
             )))),
             Poll::Ready(None) => Poll::Ready(None),

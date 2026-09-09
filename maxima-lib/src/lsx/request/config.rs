@@ -54,5 +54,5 @@ pub async fn handle_config_request(
 ) -> Result<Option<LSXResponseType>, LSXRequestError> {
     let services = &SERVICES;
 
-    return make_lsx_handler_response!(Response, GetConfigResponse, { service: services.to_vec() });
+    make_lsx_handler_response!(Response, GetConfigResponse, { service: services.to_vec() })
 }

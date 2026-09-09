@@ -144,7 +144,7 @@ pub unsafe fn init_service_security() -> Result<(), BackgroundServiceControlErro
     let result = unsafe {
         ConvertSecurityDescriptorToStringSecurityDescriptorW(
             security_descriptor,
-            SDDL_REVISION_1.into(),
+            SDDL_REVISION_1,
             DACL_SECURITY_INFORMATION,
             &mut sddl_string,
             &mut sddl_string_len,
@@ -171,7 +171,7 @@ pub unsafe fn init_service_security() -> Result<(), BackgroundServiceControlErro
     let result = unsafe {
         ConvertStringSecurityDescriptorToSecurityDescriptorW(
             U16CString::from_str(amended_sddl.as_str())?.as_ptr(),
-            SDDL_REVISION_1.into(),
+            SDDL_REVISION_1,
             &mut amended_security_descriptor,
             &mut amended_security_descriptor_len,
         )

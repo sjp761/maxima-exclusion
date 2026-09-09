@@ -35,7 +35,7 @@ pub async fn handle_profile_request(
         .as_ref()
         .ok_or(ServiceLayerError::MissingField)?;
     let name = player.unique_name();
-    debug!("Got profile for {} {:?}", &name, path);
+    debug!("Got profile for {} {:?}", name, path);
 
     return make_lsx_handler_response!(Response, GetProfileResponse, {
       attr_Persona: name.to_owned(),
@@ -58,7 +58,7 @@ pub async fn handle_presence_request(
     _: &mut ConnectionState,
     _: LSXGetPresence,
 ) -> Result<Option<LSXResponseType>, LSXRequestError> {
-    return make_lsx_handler_response!(Response, GetPresenceResponse, {
+    make_lsx_handler_response!(Response, GetPresenceResponse, {
       attr_UserId: 1005663144213,
       attr_Presence: LSXPresence::Ingame,
       attr_Title: None,
@@ -69,7 +69,7 @@ pub async fn handle_presence_request(
       attr_SessionId: None,
         attr_Group: None,
         attr_GroupId: None,
-    });
+    })
 }
 
 pub async fn handle_set_presence_request(
@@ -82,7 +82,7 @@ pub async fn handle_set_presence_request(
         request
             .attr_RichPresence
             .to_owned()
-            .unwrap_or(String::new())
+            .unwrap_or_default()
     );
 
     let mut maxima = state.maxima().lock().await;
@@ -107,7 +107,7 @@ pub async fn handle_set_presence_request(
             .await?;
     }
 
-    return make_lsx_handler_response!(Response, ErrorSuccess, { attr_Code: 0, attr_Description: String::new() });
+    make_lsx_handler_response!(Response, ErrorSuccess, { attr_Code: 0, attr_Description: String::new() })
 }
 
 pub async fn handle_query_presence_request(
@@ -148,7 +148,7 @@ pub async fn handle_query_presence_request(
         });
     }
 
-    return make_lsx_handler_response!(Response, QueryPresenceResponse, { friend: friends });
+    make_lsx_handler_response!(Response, QueryPresenceResponse, { friend: friends })
 }
 
 pub async fn handle_query_friends_request(
@@ -210,7 +210,7 @@ pub async fn handle_query_friends_request(
         });
     }
 
-    return make_lsx_handler_response!(Response, QueryFriendsResponse, { friend: lsx_friends });
+    make_lsx_handler_response!(Response, QueryFriendsResponse, { friend: lsx_friends })
 }
 
 pub async fn handle_get_block_list_request(
@@ -245,7 +245,7 @@ pub async fn handle_get_block_list_request(
         });
     }
 
-    return make_lsx_handler_response!(Response, GetBlockListResponse, { attr_Return: "Success".to_string(), User: list});
+    make_lsx_handler_response!(Response, GetBlockListResponse, { attr_Return: "Success".to_string(), User: list})
 }
 
 pub async fn handle_query_image_request(
@@ -269,5 +269,5 @@ pub async fn handle_query_image_request(
         attr_ResourcePath: path.safe_str()?.to_string(),
     }];
 
-    return make_lsx_handler_response!(Response, QueryImageResponse, { attr_Result: 1, image: images, });
+    make_lsx_handler_response!(Response, QueryImageResponse, { attr_Result: 1, image: images, })
 }
