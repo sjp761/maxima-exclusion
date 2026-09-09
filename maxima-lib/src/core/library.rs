@@ -78,23 +78,20 @@ impl OwnedOffer {
     }
 
     pub async fn is_installed(&self) -> bool {
-        let maxima_dir = match maxima_dir() {
-            Ok(dir) => dir,
+
+        let gameinfo = match load_game_info_from_json(&self.slug) {
+            Ok(info) => info,
             Err(_) => return false,
         };
-
-        let game_info_path = maxima_dir
-            .join("gameinfo")
-            .join(format!("{}.json", &self.slug));
-
-        #[cfg(windows)]
-        match game_info_path.exists() {
-            true => return true,
-            false => return self.check_install_win_registry().await,
+        if gameinfo.path().exists() {
+            true
+        } else {
+            #[cfg(windows)]
+            return self.check_install_win_registry().await;
+                
+            #[cfg(not(windows))]
+            return false;  
         }
-
-        #[cfg(not(windows))]
-        game_info_path.exists()
     }
 
     // This is unused

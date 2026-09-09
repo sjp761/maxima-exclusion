@@ -6,7 +6,7 @@ use crate::util::native::maxima_dir;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum GameVersionError {
+pub enum GameInfoError {
     #[error(transparent)]
     Native(#[from] crate::util::native::NativeError),
     #[error(transparent)]
@@ -14,7 +14,7 @@ pub enum GameVersionError {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
-    #[error("game version info not found for `{0}`")]
+    #[error("game info not found for `{0}`")]
     NotFound(String),
 }
 
@@ -67,21 +67,18 @@ impl GameInstallInfo {
 
     pub fn save_to_json(&self, slug: &str) {
         if let Ok(json) = serde_json::to_string_pretty(self) {
-            let mut path = maxima_dir();
-            path.as_mut().unwrap().push("gameinfo");
-            if let Ok(_) = std::fs::create_dir_all(&path.as_ref().unwrap()) {
-                path.as_mut().unwrap().push(format!("{}.json", slug));
-                fs::write(path.unwrap(), json).unwrap();
+            let path = maxima_dir().unwrap().join("gameinfo");
+            if std::fs::create_dir_all(&path).is_ok() {
+                let gameinfo_path = path.join(format!("{}.json", slug));
+                fs::write(gameinfo_path, json).unwrap();
             }
         }
     }
 }
 
-pub fn load_game_info_from_json(slug: &str) -> Result<GameInstallInfo, GameVersionError> {
-    let mut path = maxima_dir();
-    path.as_mut().unwrap().push("gameinfo");
-    path.as_mut().unwrap().push(format!("{}.json", slug));
-    let json = fs::read_to_string(path.unwrap())?;
+pub fn load_game_info_from_json(slug: &str) -> Result<GameInstallInfo, GameInfoError> {
+    let path = maxima_dir()?.join("gameinfo").join(format!("{}.json", slug));
+    let json = fs::read_to_string(path)?;
     let game_install_info: GameInstallInfo = serde_json::from_str(&json)?;
     Ok(game_install_info)
 }
